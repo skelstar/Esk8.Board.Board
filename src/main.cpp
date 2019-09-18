@@ -4,7 +4,8 @@
 
 /*--------------------------------------------------------------------------------*/
 
-LedLightsLib strip(/*pin*/ 32, /*num*/ 15);
+#define variant light.HEAD_LIGHT
+LedLightsLib light(variant, /*pin*/ 32, /*num*/ 15, /*batt caution%*/ 0.3);
 
 /*--------------------------------------------------------------------------------*/
 
@@ -18,10 +19,13 @@ void setup()
 	Serial.begin(115200);
   Serial.println("\nStarting Esk8.Board.Server!");
 
-  strip.setAll(strip.COLOUR_WHITE);
+  light.setAll(light.COLOUR_WHITE);
+  delay(2000);
+  light.showBatteryGraph(0.8);
 }
 
 void loop() {
 
   delay(10);
+
 }
