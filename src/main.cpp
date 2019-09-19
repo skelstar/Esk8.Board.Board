@@ -8,6 +8,10 @@
 #define variant light.HEAD_LIGHT
 LedLightsLib light(variant, /*pin*/ 32, /*num*/ 15, /*batt caution%*/ 0.3);
 
+#define BATTERY_MAX   42.6
+#define BATTERY_WARN  37.4
+#define BATTERY_MIN   34.0
+
 /*--------------------------------------------------------------------------------*/
 
 const char compile_date[] = __DATE__ " " __TIME__;
@@ -15,7 +19,15 @@ const char file_name[] = __FILE__;
 
 //--------------------------------------------------------------
 
+void headlightsOn() {
+  light.setAll(light.COLOUR_WHITE);
+}
 
+void showBatteryStatus() {
+  float batteryVolts = 38.9;
+  float battPercent = (batteryVolts-BATTERY_MIN) / (BATTERY_MAX-BATTERY_MIN);
+  light.showBatteryGraph(battPercent);
+}
 
 //--------------------------------------------------------------
 
@@ -35,16 +47,16 @@ State state_init([] {
 );
 
 State state_board_up([] {
-  // change lights - show battery charge
     Serial.printf("Board tipped up\n");
+    showBatteryStatus();
   }, 
   NULL, 
   NULL
 );
 
 State state_board_down([] {
-    // head/tail lights on
     Serial.printf("Board lowered down\n");
+    headlightsOn();
   }, 
   NULL, 
   NULL
@@ -74,10 +86,6 @@ void setup()
 
   addFsmTransitions();
   fsm.run_machine();
-
-  light.setAll(light.COLOUR_WHITE);
-  delay(2000);
-  light.showBatteryGraph(0.8);
 }
 
 void loop() {
