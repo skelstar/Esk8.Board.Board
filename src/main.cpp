@@ -6,6 +6,7 @@
 #include <SPI.h>
 #include <epd2in13.h>
 #include <epdpaint.h>
+#include "imagedata.h"
 
 /*--------------------------------------------------------------------------------*/
 
@@ -161,14 +162,13 @@ void setupEpd() {
   delay(500);
   epd.DisplayFrame();
 
+  delay(2000);
+
+  if (epd.Init(lut_partial_update) != 0) {
+      Serial.print("e-Paper init failed");
+      return;
+  }
   Serial.printf("here\n");
-
-  // delay(2000);
-
-  // if (epd.Init(lut_partial_update) != 0) {
-  //     Serial.print("e-Paper init failed");
-  //     return;
-  // }
 
   /** 
    *  there are 2 memory areas embedded in the e-paper display
@@ -176,8 +176,8 @@ void setupEpd() {
    *  i.e. the next action of SetFrameMemory will set the other memory area
    *  therefore you have to set the frame memory and refresh the display twice.
    */
-  // epd.SetFrameMemory(IMAGE_DATA);
-  // epd.DisplayFrame();
-  // epd.SetFrameMemory(IMAGE_DATA);
-  // epd.DisplayFrame();
+  epd.SetFrameMemory(IMAGE_DATA);
+  epd.DisplayFrame();
+  epd.SetFrameMemory(IMAGE_DATA);
+  epd.DisplayFrame();
 }
