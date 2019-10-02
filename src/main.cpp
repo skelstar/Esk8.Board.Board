@@ -35,6 +35,7 @@ void button_init();
 void button_loop();
 void sleepThenWakeTimer(int ms);
 void initDisplay();
+void displayPopup(char* message);
 
 //------------------------------------------------------------------
 enum EventsEnum
@@ -124,6 +125,8 @@ void setup()
     initDisplay();
 
     button_init();
+
+    displayPopup("Ready");
 }
 
 void loop()
@@ -151,5 +154,13 @@ void initDisplay() {
 
     tft.setSwapBytes(true);
     tft.pushImage(0, 0, 240, 135, ttgo);
-    sleepThenWakeTimer(5000);
+    sleepThenWakeTimer(1000);
+}
+
+void displayPopup(char* message) {
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextSize(4);
+    tft.setTextColor(TFT_WHITE);
+    tft.setTextDatum(MC_DATUM);
+    tft.drawString(message, TFT_HEIGHT/2, TFT_WIDTH/2);
 }
