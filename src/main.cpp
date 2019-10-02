@@ -1,183 +1,201 @@
-#include <Arduino.h>
-#include <Adafruit_NeoPixel.h>
-#include "LedLightsLib.h"
-#include <Fsm.h>
-
+#include <TFT_eSPI.h>
 #include <SPI.h>
-#include <epd2in13.h>
-#include <epdpaint.h>
-#include "imagedata.h"
+#include "WiFi.h"
+#include <Wire.h>
+#include <Button2.h>
+#include "esp_adc_cal.h"
+#include "bmp.h"
 
-/*--------------------------------------------------------------------------------*/
+#ifndef TFT_DISPOFF
+#define TFT_DISPOFF 0x28
+#endif
 
-#define variant light.HEAD_LIGHT
-LedLightsLib light(variant, /*pin*/ 32, /*num*/ 15, /*batt caution%*/ 0.3);
+#ifndef TFT_SLPIN
+#define TFT_SLPIN 0x10
+#endif
 
-#define BATTERY_MAX   42.6
-#define BATTERY_WARN  37.4
-#define BATTERY_MIN   34.0
+#define TFT_MOSI 19
+#define TFT_SCLK 18
+#define TFT_CS 5
+#define TFT_DC 16
+#define TFT_RST 23
 
-/*--------------------------------------------------------------------------------*/
+#define TFT_BL 4 // Display backlight control pin
+#define ADC_EN 14
+#define ADC_PIN 34
+#define BUTTON_1 35
+#define BUTTON_2 0
 
-#define COLORED     0
-#define UNCOLORED   1
+TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
+Button2 btn1(BUTTON_1);
+Button2 btn2(BUTTON_2);
 
-unsigned char image[1024];
-Paint paint(image, 0, 0);
-Epd epd;
-unsigned long time_start_ms;
-unsigned long time_now_s;
-/*--------------------------------------------------------------------------------*/
+char buff[512];
+int vref = 1100;
+int btnCick = false;
 
-const char compile_date[] = __DATE__ " " __TIME__;
-const char file_name[] = __FILE__;
+void wifi_scan();
+void button_loop();
+void espDelay(int ms);
+void showVoltage();
+void button_init();
 
-//--------------------------------------------------------------
-
-void headlightsOn() {
-  light.setAll(light.COLOUR_WHITE);
-}
-
-void showBatteryStatus() {
-  float batteryVolts = 38.9;
-  float battPercent = (batteryVolts-BATTERY_MIN) / (BATTERY_MAX-BATTERY_MIN);
-  light.showBatteryGraph(battPercent);
-}
-
-//--------------------------------------------------------------
-
-enum EventsEnum
+//! Long time delay, it is recommended to use shallow sleep, which can effectively reduce the current consumption
+void espDelay(int ms)
 {
-  POWER_UP,
-  BOARD_UP,
-  BOARD_DOWN,
-  POWER_DOWN
-} event;
-
-State state_init([] {
-    Serial.printf("State initialised");
-  },
-  NULL,
-  NULL
-);
-
-State state_board_up([] {
-    Serial.printf("Board tipped up\n");
-    showBatteryStatus();
-  }, 
-  NULL, 
-  NULL
-);
-
-State state_board_down([] {
-    Serial.printf("Board lowered down\n");
-    headlightsOn();
-  }, 
-  NULL, 
-  NULL
-);
-
-Fsm fsm(&state_init);
-
-void addFsmTransitions() {
-  uint8_t event = POWER_UP;
-  fsm.add_transition(&state_init, &state_board_down, event, NULL);
-
-  event = BOARD_DOWN;
-  fsm.add_transition(&state_init, &state_board_down, event, NULL);
-  fsm.add_transition(&state_board_up, &state_board_down, event, NULL);
-
-  event = BOARD_UP;
-  fsm.add_transition(&state_init, &state_board_up, event, NULL);
-  fsm.add_transition(&state_board_down, &state_board_up, event, NULL);
-
-  event = POWER_DOWN;
+    esp_sleep_enable_timer_wakeup(ms * 1000);
+    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
+    esp_light_sleep_start();
 }
 
-void setupEpd();
+void showVoltage()
+{
+    static uint64_t timeStamp = 0;
+    if (millis() - timeStamp > 1000)
+    {
+        timeStamp = millis();
+        uint16_t v = analogRead(ADC_PIN);
+        float battery_voltage = ((float)v / 4095.0) * 2.0 * 3.3 * (vref / 1000.0);
+        String voltage = "Voltage :" + String(battery_voltage) + "V";
+        Serial.println(voltage);
+        tft.fillScreen(TFT_BLACK);
+        tft.setTextDatum(MC_DATUM);
+        tft.drawString(voltage, tft.width() / 2, tft.height() / 2);
+    }
+}
+
+void button_init()
+{
+    btn1.setLongClickHandler([](Button2 &b) {
+        btnCick = false;
+        int r = digitalRead(TFT_BL);
+        tft.fillScreen(TFT_BLACK);
+        tft.setTextColor(TFT_GREEN, TFT_BLACK);
+        tft.setTextDatum(MC_DATUM);
+        tft.drawString("Press again to wake up", tft.width() / 2, tft.height() / 2);
+        espDelay(6000);
+        digitalWrite(TFT_BL, !r);
+
+        tft.writecommand(TFT_DISPOFF);
+        tft.writecommand(TFT_SLPIN);
+        esp_sleep_enable_ext1_wakeup(GPIO_SEL_35, ESP_EXT1_WAKEUP_ALL_LOW);
+        esp_deep_sleep_start();
+    });
+    btn1.setPressedHandler([](Button2 &b) {
+        Serial.println("Detect Voltage..");
+        btnCick = true;
+    });
+
+    btn2.setPressedHandler([](Button2 &b) {
+        btnCick = false;
+        Serial.println("btn press wifi scan");
+        wifi_scan();
+    });
+}
+
+void button_loop()
+{
+    btn1.loop();
+    btn2.loop();
+}
+
+void wifi_scan()
+{
+    tft.setTextColor(TFT_GREEN, TFT_BLACK);
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextSize(1);
+
+    tft.drawString("Scan Network", tft.width() / 2, tft.height() / 2);
+
+    WiFi.mode(WIFI_STA);
+    WiFi.disconnect();
+    delay(100);
+
+    int16_t n = WiFi.scanNetworks();
+    tft.fillScreen(TFT_BLACK);
+    if (n == 0)
+    {
+        tft.drawString("no networks found", tft.width() / 2, tft.height() / 2);
+    }
+    else
+    {
+        tft.setTextDatum(TL_DATUM);
+        tft.setCursor(0, 0);
+        Serial.printf("Found %d net\n", n);
+        for (int i = 0; i < n; ++i)
+        {
+            sprintf(buff,
+                    "[%d]:%s(%d)",
+                    i + 1,
+                    WiFi.SSID(i).c_str(),
+                    WiFi.RSSI(i));
+            tft.println(buff);
+        }
+    }
+    WiFi.mode(WIFI_OFF);
+}
 
 void setup()
 {
-	Serial.begin(115200);
-  Serial.println("\nStarting Esk8.Board.Server!");
+    Serial.begin(115200);
+    Serial.println("Start");
+    tft.init();
+    tft.setRotation(1);
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextSize(2);
+    tft.setTextColor(TFT_WHITE);
+    tft.setCursor(0, 0);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextSize(1);
 
-  setupEpd();
-  Serial.printf("Initialised epd\n");
+    if (TFT_BL > 0)
+    {                                           // TFT_BL has been set in the TFT_eSPI library in the User Setup file TTGO_T_Display.h
+        pinMode(TFT_BL, OUTPUT);                // Set backlight pin to output mode
+        digitalWrite(TFT_BL, TFT_BACKLIGHT_ON); // Turn backlight on. TFT_BACKLIGHT_ON has been set in the TFT_eSPI library in the User Setup file TTGO_T_Display.h
+    }
 
-  addFsmTransitions();
-  fsm.run_machine();
+    tft.setSwapBytes(true);
+    tft.pushImage(0, 0, 240, 135, ttgo);
+    espDelay(5000);
+
+    tft.setRotation(0);
+    int i = 5;
+    while (i--)
+    {
+        tft.fillScreen(TFT_RED);
+        espDelay(1000);
+        tft.fillScreen(TFT_BLUE);
+        espDelay(1000);
+        tft.fillScreen(TFT_GREEN);
+        espDelay(1000);
+    }
+
+    button_init();
+
+    esp_adc_cal_characteristics_t adc_chars;
+    esp_adc_cal_value_t val_type = esp_adc_cal_characterize((adc_unit_t)ADC_UNIT_1, (adc_atten_t)ADC1_CHANNEL_6, (adc_bits_width_t)ADC_WIDTH_BIT_12, 1100, &adc_chars);
+    //Check type of calibration value used to characterize ADC
+    if (val_type == ESP_ADC_CAL_VAL_EFUSE_VREF)
+    {
+        Serial.printf("eFuse Vref:%u mV", adc_chars.vref);
+        vref = adc_chars.vref;
+    }
+    else if (val_type == ESP_ADC_CAL_VAL_EFUSE_TP)
+    {
+        Serial.printf("Two Point --> coeff_a:%umV coeff_b:%umV\n", adc_chars.coeff_a, adc_chars.coeff_b);
+    }
+    else
+    {
+        Serial.println("Default Vref: 1100mV");
+    }
 }
 
-void loop() {
-
-  // serviceIMU()
-  fsm.run_machine();
-  delay(10);
-}
-
-
-void setupEpd() {
-  if (epd.Init(lut_full_update) != 0) {
-      Serial.print("e-Paper init failed");
-      return;
-  }
-
-  epd.ClearFrameMemory(0xFF);   // bit set = white, bit reset = black
-  
-  paint.SetRotate(ROTATE_0);
-  paint.SetWidth(128);    // width should be the multiple of 8 
-  paint.SetHeight(24);
-
-  /* For simplicity, the arguments are explicit numerical coordinates */
-  paint.Clear(COLORED);
-  paint.DrawStringAt(30, 4, "Hello world!", &Font12, UNCOLORED);
-  epd.SetFrameMemory(paint.GetImage(), 0, 10, paint.GetWidth(), paint.GetHeight());
-
-  paint.Clear(UNCOLORED);
-  paint.DrawStringAt(30, 4, "e-Paper Demo", &Font12, COLORED);
-  epd.SetFrameMemory(paint.GetImage(), 0, 30, paint.GetWidth(), paint.GetHeight());
-
-  paint.SetWidth(64);
-  paint.SetHeight(64);
-  
-  paint.Clear(UNCOLORED);
-  paint.DrawRectangle(0, 0, 40, 50, COLORED);
-  paint.DrawLine(0, 0, 40, 50, COLORED);
-  paint.DrawLine(40, 0, 0, 50, COLORED);
-  epd.SetFrameMemory(paint.GetImage(), 16, 60, paint.GetWidth(), paint.GetHeight());
-
-  paint.Clear(UNCOLORED);
-  paint.DrawCircle(32, 32, 30, COLORED);
-  epd.SetFrameMemory(paint.GetImage(), 72, 60, paint.GetWidth(), paint.GetHeight());
-
-  paint.Clear(UNCOLORED);
-  paint.DrawFilledRectangle(0, 0, 40, 50, COLORED);
-  epd.SetFrameMemory(paint.GetImage(), 16, 130, paint.GetWidth(), paint.GetHeight());
-
-  paint.Clear(UNCOLORED);
-  paint.DrawFilledCircle(32, 32, 30, COLORED);
-  epd.SetFrameMemory(paint.GetImage(), 72, 130, paint.GetWidth(), paint.GetHeight());
-  epd.DisplayFrame();
-
-  delay(500);
-  epd.DisplayFrame();
-
-  delay(2000);
-
-  if (epd.Init(lut_partial_update) != 0) {
-      Serial.print("e-Paper init failed");
-      return;
-  }
-  Serial.printf("here\n");
-
-  /** 
-   *  there are 2 memory areas embedded in the e-paper display
-   *  and once the display is refreshed, the memory area will be auto-toggled,
-   *  i.e. the next action of SetFrameMemory will set the other memory area
-   *  therefore you have to set the frame memory and refresh the display twice.
-   */
-  epd.SetFrameMemory(IMAGE_DATA);
-  epd.DisplayFrame();
-  epd.SetFrameMemory(IMAGE_DATA);
-  epd.DisplayFrame();
+void loop()
+{
+    if (btnCick)
+    {
+        showVoltage();
+    }
+    button_loop();
 }
