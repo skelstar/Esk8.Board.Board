@@ -5,6 +5,7 @@
 #include <Button2.h>
 #include "esp_adc_cal.h"
 #include "bmp.h"
+#include <Fsm.h>
 
 #ifndef TFT_DISPOFF
 #define TFT_DISPOFF 0x28
@@ -39,6 +40,52 @@ void button_loop();
 void espDelay(int ms);
 void showVoltage();
 void button_init();
+
+//------------------------------------------------------------------
+enum EventsEnum
+{
+  POWER_UP,
+  BOARD_UP,
+  BOARD_DOWN,
+  POWER_DOWN
+} event;
+
+State state_init([] {
+    Serial.printf("State initialised");
+  },
+  NULL,
+  NULL
+);
+
+State state_board_up([] {
+  }, 
+  NULL, 
+  NULL
+);
+
+State state_board_down([] {
+  }, 
+  NULL, 
+  NULL
+);
+
+Fsm fsm(&state_init);
+
+void addFsmTransitions() {
+  uint8_t event = POWER_UP;
+  fsm.add_transition(&state_init, &state_board_down, event, NULL);
+
+  event = BOARD_DOWN;
+  fsm.add_transition(&state_init, &state_board_down, event, NULL);
+  fsm.add_transition(&state_board_up, &state_board_down, event, NULL);
+
+  event = BOARD_UP;
+  fsm.add_transition(&state_init, &state_board_up, event, NULL);
+  fsm.add_transition(&state_board_down, &state_board_up, event, NULL);
+
+  event = POWER_DOWN;
+}
+//------------------------------------------------------------------
 
 //! Long time delay, it is recommended to use shallow sleep, which can effectively reduce the current consumption
 void espDelay(int ms)
@@ -140,6 +187,10 @@ void setup()
 {
     Serial.begin(115200);
     Serial.println("Start");
+
+    addFsmTransitions();
+    fsm.run_machine();
+
     tft.init();
     tft.setRotation(1);
     tft.fillScreen(TFT_BLACK);
@@ -193,6 +244,8 @@ void setup()
 
 void loop()
 {
+    fsm.run_machine();
+    
     if (btnCick)
     {
         showVoltage();
