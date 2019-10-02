@@ -27,16 +27,13 @@
 #define BUTTON_2 0
 
 TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
+
 Button2 btn1(BUTTON_1);
 Button2 btn2(BUTTON_2);
 
-char buff[512];
-int vref = 1100;
-
+void button_init();
 void button_loop();
 void sleepThenWakeTimer(int ms);
-void showVoltage();
-void button_init();
 void initDisplay();
 
 //------------------------------------------------------------------
