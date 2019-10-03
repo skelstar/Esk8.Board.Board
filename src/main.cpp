@@ -5,7 +5,6 @@
 #include "esp_adc_cal.h"
 #include "bmp.h"
 #include <Fsm.h>
-#include "display_utils.h"
 
 #ifndef TFT_DISPOFF
 #define TFT_DISPOFF 0x28
@@ -28,6 +27,8 @@
 #define BUTTON_2 0
 
 TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
+
+#include "display_utils.h"
 
 Button2 btn1(BUTTON_1);
 Button2 btn2(BUTTON_2);
@@ -161,52 +162,6 @@ void initDisplay() {
     sleepThenWakeTimer(1000);
 }
 
-void displayPopup(char* message) {
-    tft.fillScreen(TFT_BLACK);
-    tft.setTextSize(4);
-    tft.setTextColor(TFT_WHITE);
-    tft.setTextDatum(MC_DATUM);
-    tft.drawString(message, TFT_HEIGHT/2, TFT_WIDTH/2);
-}
-
 //--------------------------------------------------------------------------------
 
-#define SCREEN_WIDTH    TFT_HEIGHT
-#define SCREEN_HEIGHT   TFT_WIDTH
-#define BATTERY_WIDTH 200
-#define BATTERY_HEIGHT 90
-#define BORDER_SIZE 10
-#define KNOB_HEIGHT 30
-
-void drawBattery(int percent)
-{
-    int outsideX = (SCREEN_WIDTH - (BATTERY_WIDTH + BORDER_SIZE)) / 2;
-    int outsideY = (SCREEN_HEIGHT - BATTERY_HEIGHT) / 2;
-    Serial.printf("\n BATTERY_WIDTH %d BATTERY_HEIGHT %d outsideX %d outsideY %d \n", BATTERY_WIDTH, BATTERY_HEIGHT, outsideX, outsideY);
-    // clear
-    tft.fillScreen(TFT_BLACK);
-    // body
-    tft.fillRect(outsideX, outsideY, BATTERY_WIDTH, BATTERY_HEIGHT, TFT_WHITE);
-    // knob
-    tft.fillRect(
-        outsideX + BATTERY_WIDTH,
-        outsideY + (BATTERY_HEIGHT - KNOB_HEIGHT) / 2,
-        BORDER_SIZE,
-        KNOB_HEIGHT,
-        TFT_WHITE);
-    // body-inside
-    tft.fillRect(
-        outsideX + BORDER_SIZE,
-        outsideY + BORDER_SIZE,
-        BATTERY_WIDTH - BORDER_SIZE * 2,
-        BATTERY_HEIGHT - BORDER_SIZE * 2,
-        TFT_BLACK);
-    // capacity
-    tft.fillRect(
-        outsideX + BORDER_SIZE * 2,
-        outsideY + BORDER_SIZE * 2,
-        (BATTERY_WIDTH - BORDER_SIZE * 4) * percent / 100,
-        BATTERY_HEIGHT - BORDER_SIZE * 4,
-        TFT_WHITE);
-}
 //--------------------------------------------------------------------------------
