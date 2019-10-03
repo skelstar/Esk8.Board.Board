@@ -5,6 +5,7 @@
 #include "esp_adc_cal.h"
 #include "bmp.h"
 #include <Fsm.h>
+#include "vesc_utils.h"
 
 #ifndef TFT_DISPOFF
 #define TFT_DISPOFF 0x28
