@@ -29,26 +29,29 @@
 
 TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
 
-#include "display_utils.h"
-#include "vesc_utils.h"
-
-Button2 btn1(BUTTON_1);
-Button2 btn2(BUTTON_2);
-
 void button_init();
 void button_loop();
 void sleepThenWakeTimer(int ms);
 void initDisplay();
 void displayPopup(char *message);
 void drawBattery(int percent);
+void initialiseApp();
+
+#include "display_utils.h"
+#include "vesc_utils.h"
+
+Fsm vescFsm(&state_board_offline);
+
+Button2 btn1(BUTTON_1);
+Button2 btn2(BUTTON_2);
 
 //------------------------------------------------------------------
 
 Scheduler runner;
 
 Task t_GetVescValues(
-    GET_FROM_VESC_INTERVAL, 
-    TASK_FOREVER, 
+    GET_FROM_VESC_INTERVAL,
+    TASK_FOREVER,
     [] {
         bool vescOnline = getVescValues() == true;
 
@@ -74,8 +77,6 @@ Task t_GetVescValues(
 
 //------------------------------------------------------------------
 
-Fsm vescFsm(&state_board_offline);
-
 enum EventsEnum
 {
     POWER_UP,
@@ -87,15 +88,15 @@ enum EventsEnum
 State state_init([] {
     // Serial.printf("State initialised");
 },
-NULL, NULL);
+                 NULL, NULL);
 
 State state_board_up([] {
 },
-NULL, NULL);
+                     NULL, NULL);
 
 State state_board_down([] {
 },
-NULL, NULL);
+                       NULL, NULL);
 
 Fsm fsm(&state_init);
 
@@ -125,7 +126,7 @@ void sleepThenWakeTimer(int ms)
 
 void button_init()
 {
-    btn1.setPressedHandler([] (Button2 &b) {
+    btn1.setPressedHandler([](Button2 &b) {
         vescFsm.trigger(ONLINE);
     });
     btn1.setReleasedHandler([](Button2 &b) {
@@ -156,6 +157,12 @@ void button_loop()
     btn1.loop();
     btn2.loop();
 }
+
+void initialiseApp()
+{
+    displayPopup("Starting up\n");
+    vescFsm.trigger(OFFLINE);
+}
 //----------------------------------------------------------
 void setup()
 {
@@ -176,12 +183,11 @@ void setup()
 
     initDisplay();
 
-    vescFsm.trigger(OFFLINE);
+    vescFsm.trigger(STARTUP);
 
     button_init();
 
     waitForFirstPacketFromVesc();
-
 }
 
 void loop()
