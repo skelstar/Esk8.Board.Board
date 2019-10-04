@@ -5,6 +5,7 @@
 #include "esp_adc_cal.h"
 #include "bmp.h"
 #include <Fsm.h>
+#include <TaskScheduler.h>
 
 #ifndef TFT_DISPOFF
 #define TFT_DISPOFF 0x28
@@ -28,61 +29,91 @@
 
 TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
 
-#include "display_utils.h"
-
-Button2 btn1(BUTTON_1);
-Button2 btn2(BUTTON_2);
-
 void button_init();
 void button_loop();
 void sleepThenWakeTimer(int ms);
 void initDisplay();
-void displayPopup(char* message);
+void displayPopup(char *message);
 void drawBattery(int percent);
+void initialiseApp();
+
+#include "display_utils.h"
+#include "vesc_utils.h"
+
+Fsm vescFsm(&state_board_offline);
+
+Button2 btn1(BUTTON_1);
+Button2 btn2(BUTTON_2);
 
 //------------------------------------------------------------------
+
+Scheduler runner;
+
+Task t_GetVescValues(
+    GET_FROM_VESC_INTERVAL,
+    TASK_FOREVER,
+    [] {
+        bool vescOnline = getVescValues() == true;
+
+        if (vescOnline == false)
+        {
+            // Serial.printf("VESC not responding!\n");
+        }
+        else
+        {
+            Serial.printf("batt volts: %.1f \n", vescdata.batteryVoltage);
+
+            if (vescPoweringDown())
+            {
+            }
+            else if (vescdata.moving == false)
+            {
+            }
+            else
+            {
+            }
+        }
+    });
+
+//------------------------------------------------------------------
+
 enum EventsEnum
 {
-  POWER_UP,
-  BOARD_UP,
-  BOARD_DOWN,
-  POWER_DOWN
+    POWER_UP,
+    BOARD_UP,
+    BOARD_DOWN,
+    POWER_DOWN
 } event;
 
 State state_init([] {
-    Serial.printf("State initialised");
-  },
-  NULL,
-  NULL
-);
+    // Serial.printf("State initialised");
+},
+                 NULL, NULL);
 
 State state_board_up([] {
-  }, 
-  NULL, 
-  NULL
-);
+},
+                     NULL, NULL);
 
 State state_board_down([] {
-  }, 
-  NULL, 
-  NULL
-);
+},
+                       NULL, NULL);
 
 Fsm fsm(&state_init);
 
-void addFsmTransitions() {
-  uint8_t event = POWER_UP;
-  fsm.add_transition(&state_init, &state_board_down, event, NULL);
+void addFsmTransitions()
+{
+    uint8_t event = POWER_UP;
+    fsm.add_transition(&state_init, &state_board_down, event, NULL);
 
-  event = BOARD_DOWN;
-  fsm.add_transition(&state_init, &state_board_down, event, NULL);
-  fsm.add_transition(&state_board_up, &state_board_down, event, NULL);
+    event = BOARD_DOWN;
+    fsm.add_transition(&state_init, &state_board_down, event, NULL);
+    fsm.add_transition(&state_board_up, &state_board_down, event, NULL);
 
-  event = BOARD_UP;
-  fsm.add_transition(&state_init, &state_board_up, event, NULL);
-  fsm.add_transition(&state_board_down, &state_board_up, event, NULL);
+    event = BOARD_UP;
+    fsm.add_transition(&state_init, &state_board_up, event, NULL);
+    fsm.add_transition(&state_board_down, &state_board_up, event, NULL);
 
-  event = POWER_DOWN;
+    event = POWER_DOWN;
 }
 //------------------------------------------------------------------
 //! Long time delay, it is recommended to use shallow sleep, which can effectively reduce the current consumption
@@ -95,19 +126,29 @@ void sleepThenWakeTimer(int ms)
 
 void button_init()
 {
-    btn1.setClickHandler([](Button2 &b){
-        Serial.printf("btn1.setClickHandler([](Button2 &b)\n");
+    btn1.setPressedHandler([](Button2 &b) {
+        vescFsm.trigger(ONLINE);
     });
-    btn1.setLongClickHandler([](Button2 &b) {
-        Serial.printf("btn1.setLongClickHandler([](Button2 &b)\n");
+    btn1.setReleasedHandler([](Button2 &b) {
+        vescFsm.trigger(OFFLINE);
     });
-    btn1.setDoubleClickHandler([](Button2 &b){
-        Serial.printf("btn1.setDoubleClickHandler([](Button2 &b)\n");
+    // btn1.setClickHandler([](Button2 &b) {
+    // });
+    // btn1.setLongClickHandler([](Button2 &b) {
+    //     // Serial.printf("btn1.setLongClickHandler([](Button2 &b)\n");
+    // });
+    // btn1.setDoubleClickHandler([](Button2 &b) {
+    //     // Serial.printf("btn1.setDoubleClickHandler([](Button2 &b)\n");
+    // });
+    // btn1.setTripleClickHandler([](Button2 &b) {
+    //     // Serial.printf("btn1.setTripleClickHandler([](Button2 &b)\n");
+    // });
+
+    btn2.setPressedHandler([](Button2 &b) {
+        vescFsm.trigger(MOVING);
     });
-    btn1.setTripleClickHandler([](Button2 &b){
-        Serial.printf("btn1.setTripleClickHandler([](Button2 &b)\n");
-    });
-    btn1.setReleasedHandler([](Button2 &b){
+    btn2.setReleasedHandler([](Button2 &b) {
+        vescFsm.trigger(STOPPED);
     });
 }
 
@@ -116,32 +157,51 @@ void button_loop()
     btn1.loop();
     btn2.loop();
 }
+
+void initialiseApp()
+{
+    displayPopup("Starting up\n");
+    vescFsm.trigger(OFFLINE);
+}
 //----------------------------------------------------------
 void setup()
 {
     Serial.begin(115200);
     Serial.println("Start");
 
+    vesc.init(VESC_UART_BAUDRATE);
+
+    runner.startNow();
+    runner.addTask(t_GetVescValues);
+    t_GetVescValues.enable();
+
     addFsmTransitions();
     fsm.run_machine();
 
+    addVescFsmTransitions(&vescFsm);
+    vescFsm.run_machine();
+
     initDisplay();
+
+    vescFsm.trigger(STARTUP);
 
     button_init();
 
-    displayPopup("Ready");
-
-    drawBattery(65);
+    waitForFirstPacketFromVesc();
 }
 
 void loop()
 {
     fsm.run_machine();
+    vescFsm.run_machine();
+
+    runner.execute();
 
     button_loop();
 }
 //----------------------------------------------------------
-void initDisplay() {
+void initDisplay()
+{
     tft.init();
     tft.setRotation(1);
     tft.fillScreen(TFT_BLACK);
