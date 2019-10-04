@@ -28,6 +28,69 @@ vesc_comms vesc;
 
 //-----------------------------------------------------------------------------------
 
+enum vesc_eventsEnum
+{
+    ONLINE,
+    OFFLINE,
+    MOVING,
+    STOPPED
+};
+
+vesc_eventsEnum current_state = OFFLINE;
+
+State state_board_offline([] {
+  current_state = OFFLINE;
+  Serial.printf("state: OFFLINE [INIT]\n");
+  displayPopup("offline");
+},
+NULL, NULL);
+
+State state_board_online([] {
+  current_state = ONLINE;
+  Serial.printf("state: ONLINE\n");
+  drawBattery(65);
+},
+NULL, NULL);
+
+State state_board_moving([] {
+  current_state = MOVING;
+  Serial.printf("state: MOVING\n");
+},
+NULL, NULL);
+
+State state_board_stopped([] {
+  current_state = STOPPED;
+  Serial.printf("state: STOPPED\n");
+},
+NULL, NULL);
+
+//--
+
+void addVescFsmTransitions(Fsm *fsm)
+{
+    uint8_t vesc_event = ONLINE;
+
+    vesc_event = ONLINE;
+    fsm->add_transition(&state_board_offline, &state_board_online, vesc_event, NULL);
+
+    vesc_event = OFFLINE;
+    fsm->add_transition(&state_board_offline, &state_board_offline, vesc_event, NULL);
+    fsm->add_transition(&state_board_online, &state_board_offline, vesc_event, NULL);
+    fsm->add_transition(&state_board_moving, &state_board_offline, vesc_event, NULL);
+    fsm->add_transition(&state_board_stopped, &state_board_offline, vesc_event, NULL);
+
+    vesc_event = MOVING;
+    fsm->add_transition(&state_board_offline, &state_board_moving, vesc_event, NULL);
+    fsm->add_transition(&state_board_online, &state_board_moving, vesc_event, NULL);
+    fsm->add_transition(&state_board_stopped, &state_board_moving, vesc_event, NULL);
+
+    vesc_event = STOPPED;
+    fsm->add_transition(&state_board_online, &state_board_stopped, vesc_event, NULL);
+    fsm->add_transition(&state_board_moving, &state_board_stopped, vesc_event, NULL);
+}
+
+//-----------------------------------------------------------------------------------
+
 int32_t rotations_to_meters(int32_t rotations);
 float getDistanceInMeters(int32_t tacho);
 

@@ -5,7 +5,6 @@
 #include "esp_adc_cal.h"
 #include "bmp.h"
 #include <Fsm.h>
-#include "vesc_utils.h"
 #include <TaskScheduler.h>
 
 #ifndef TFT_DISPOFF
@@ -31,6 +30,7 @@
 TFT_eSPI tft = TFT_eSPI(135, 240); // Invoke custom library
 
 #include "display_utils.h"
+#include "vesc_utils.h"
 
 Button2 btn1(BUTTON_1);
 Button2 btn2(BUTTON_2);
@@ -54,7 +54,7 @@ Task t_GetVescValues(
 
         if (vescOnline == false)
         {
-            Serial.printf("VESC not responding!\n");
+            // Serial.printf("VESC not responding!\n");
         }
         else
         {
@@ -73,6 +73,9 @@ Task t_GetVescValues(
     });
 
 //------------------------------------------------------------------
+
+Fsm vescFsm(&state_board_offline);
+
 enum EventsEnum
 {
     POWER_UP,
@@ -82,7 +85,7 @@ enum EventsEnum
 } event;
 
 State state_init([] {
-    Serial.printf("State initialised");
+    // Serial.printf("State initialised");
 },
 NULL, NULL);
 
@@ -122,19 +125,29 @@ void sleepThenWakeTimer(int ms)
 
 void button_init()
 {
-    btn1.setClickHandler([](Button2 &b) {
-        Serial.printf("btn1.setClickHandler([](Button2 &b)\n");
-    });
-    btn1.setLongClickHandler([](Button2 &b) {
-        Serial.printf("btn1.setLongClickHandler([](Button2 &b)\n");
-    });
-    btn1.setDoubleClickHandler([](Button2 &b) {
-        Serial.printf("btn1.setDoubleClickHandler([](Button2 &b)\n");
-    });
-    btn1.setTripleClickHandler([](Button2 &b) {
-        Serial.printf("btn1.setTripleClickHandler([](Button2 &b)\n");
+    btn1.setPressedHandler([] (Button2 &b) {
+        vescFsm.trigger(ONLINE);
     });
     btn1.setReleasedHandler([](Button2 &b) {
+        vescFsm.trigger(OFFLINE);
+    });
+    // btn1.setClickHandler([](Button2 &b) {
+    // });
+    // btn1.setLongClickHandler([](Button2 &b) {
+    //     // Serial.printf("btn1.setLongClickHandler([](Button2 &b)\n");
+    // });
+    // btn1.setDoubleClickHandler([](Button2 &b) {
+    //     // Serial.printf("btn1.setDoubleClickHandler([](Button2 &b)\n");
+    // });
+    // btn1.setTripleClickHandler([](Button2 &b) {
+    //     // Serial.printf("btn1.setTripleClickHandler([](Button2 &b)\n");
+    // });
+
+    btn2.setPressedHandler([](Button2 &b) {
+        vescFsm.trigger(MOVING);
+    });
+    btn2.setReleasedHandler([](Button2 &b) {
+        vescFsm.trigger(STOPPED);
     });
 }
 
@@ -158,20 +171,23 @@ void setup()
     addFsmTransitions();
     fsm.run_machine();
 
+    addVescFsmTransitions(&vescFsm);
+    vescFsm.run_machine();
+
     initDisplay();
+
+    vescFsm.trigger(OFFLINE);
 
     button_init();
 
-    displayPopup("..waiting for vesc");
-
     waitForFirstPacketFromVesc();
 
-    drawBattery(65);
 }
 
 void loop()
 {
     fsm.run_machine();
+    vescFsm.run_machine();
 
     runner.execute();
 
