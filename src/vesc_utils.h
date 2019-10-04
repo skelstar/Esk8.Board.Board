@@ -65,6 +65,7 @@ State state_board_stopped([] {
 NULL, NULL);
 
 //--
+// https://github.com/jonblack/arduino-fsm/blob/master/examples/light_switch/light_switch.ino
 
 void addVescFsmTransitions(Fsm *fsm)
 {
