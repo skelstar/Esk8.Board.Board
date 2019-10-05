@@ -17,6 +17,8 @@ void initialiseApp();
 Button2 btn1(BUTTON_1);
 Button2 btn2(BUTTON_2);
 
+#include "ble_notify.h"
+
 //------------------------------------------------------------------
 
 enum EventsEnum
@@ -91,7 +93,11 @@ Task t_GetVescValues(
 
       if (vescOnline == false)
       {
-        // Serial.printf("VESC not responding!\n");
+        Serial.printf("VESC not responding!\n");
+
+        if (clientConnected) {
+          sendDataToClient();
+        }
         fsm.trigger(VESC_OFFLINE);
       }
       else
@@ -108,6 +114,9 @@ Task t_GetVescValues(
         }
         else
         {
+          if (clientConnected) {
+            sendDataToClient();
+          }
           fsm.trigger(STOPPED);
         }
       }
@@ -165,6 +174,8 @@ void setup()
 
   initialiseApp();
 
+  setupBLE();
+
   vesc.init(VESC_UART_BAUDRATE);
 
   runner.startNow();
@@ -176,7 +187,7 @@ void setup()
 
   button_init();
 
-  waitForFirstPacketFromVesc();
+  //waitForFirstPacketFromVesc();
 }
 
 void loop()
