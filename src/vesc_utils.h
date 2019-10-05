@@ -13,7 +13,7 @@ struct VESC_DATA
   float batteryVoltage;
   //   float motorCurrent;
   bool moving;
-  //   float ampHours;
+  float ampHours;
   float odometer;
 };
 VESC_DATA vescdata;
@@ -39,13 +39,15 @@ bool getVescValues()
     vescdata.batteryVoltage = vesc.get_voltage(vesc_packet);
     vescdata.moving = vesc.get_rpm(vesc_packet) > 50;
     // vescdata.motorCurrent = vesc.get_motor_current(vesc_packet);
-    // vescdata.ampHours = vesc.get_amphours_discharged(vesc_packet);
+    vescdata.ampHours = 0; // vesc.get_amphours_discharged(vesc_packet);
     vescdata.odometer = getDistanceInMeters(/*tacho*/ vesc.get_tachometer(vesc_packet));
   }
   else
   {
     vescdata.batteryVoltage = 0.0;
     vescdata.moving = false;
+    vescdata.ampHours = 0;
+    vescdata.odometer = 0;
     // vescdata.motorCurrent = 0.0;
   }
   return success;
