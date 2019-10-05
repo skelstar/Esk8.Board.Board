@@ -8,8 +8,6 @@
 
 uint8_t vesc_packet[PACKET_MAX_LENGTH];
 
-#define GET_FROM_VESC_INTERVAL 1000
-
 struct VESC_DATA
 {
   float batteryVoltage;
@@ -25,82 +23,6 @@ VESC_DATA vescdata;
 #define POWERING_DOWN_BATT_VOLTS_START NUM_BATT_CELLS * 3.0
 
 vesc_comms vesc;
-
-//-----------------------------------------------------------------------------------
-
-enum vesc_eventsEnum
-{
-  STARTUP,
-  ONLINE,
-  OFFLINE,
-  MOVING,
-  STOPPED
-};
-
-vesc_eventsEnum current_state = OFFLINE;
-
-State state_board_startup([] {
-  current_state = STARTUP;
-  Serial.printf("state: STARTUP\n");
-  initialiseApp();
-},
-NULL,
-NULL);
-
-State state_board_offline([] {
-  current_state = OFFLINE;
-  Serial.printf("state: OFFLINE [INIT]\n");
-  displayPopup("offline");
-},
-                          NULL, NULL);
-
-State state_board_online([] {
-  current_state = ONLINE;
-  Serial.printf("state: ONLINE\n");
-  drawBattery(65);
-},
-                         NULL, NULL);
-
-State state_board_moving([] {
-  current_state = MOVING;
-  Serial.printf("state: MOVING\n");
-},
-                         NULL, NULL);
-
-State state_board_stopped([] {
-  current_state = STOPPED;
-  Serial.printf("state: STOPPED\n");
-},
-                          NULL, NULL);
-
-//--
-// https://github.com/jonblack/arduino-fsm/blob/master/examples/light_switch/light_switch.ino
-
-void addVescFsmTransitions(Fsm *fsm)
-{
-  uint8_t vesc_event = STARTUP;
-  
-  vesc_event = STARTUP;
-  fsm->add_transition(&state_board_startup, &state_board_startup, vesc_event, NULL);
-  
-  vesc_event = ONLINE;
-  fsm->add_transition(&state_board_offline, &state_board_online, vesc_event, NULL);
-
-  vesc_event = OFFLINE;
-  fsm->add_transition(&state_board_offline, &state_board_offline, vesc_event, NULL);
-  fsm->add_transition(&state_board_online, &state_board_offline, vesc_event, NULL);
-  fsm->add_transition(&state_board_moving, &state_board_offline, vesc_event, NULL);
-  fsm->add_transition(&state_board_stopped, &state_board_offline, vesc_event, NULL);
-
-  vesc_event = MOVING;
-  fsm->add_transition(&state_board_offline, &state_board_moving, vesc_event, NULL);
-  fsm->add_transition(&state_board_online, &state_board_moving, vesc_event, NULL);
-  fsm->add_transition(&state_board_stopped, &state_board_moving, vesc_event, NULL);
-
-  vesc_event = STOPPED;
-  fsm->add_transition(&state_board_online, &state_board_stopped, vesc_event, NULL);
-  fsm->add_transition(&state_board_moving, &state_board_stopped, vesc_event, NULL);
-}
 
 //-----------------------------------------------------------------------------------
 
