@@ -96,6 +96,10 @@ Task t_GetVescValues(
         Serial.printf("VESC not responding!\n");
 
         if (clientConnected) {
+          vescdata.ampHours = dummyData.ampHours;
+          vescdata.batteryVoltage = dummyData.batteryVoltage;
+          vescdata.moving = dummyData.moving;
+          vescdata.odometer = dummyData.odometer;
           sendDataToClient();
         }
         fsm.trigger(VESC_OFFLINE);
@@ -164,6 +168,10 @@ void button_loop()
 void initialiseApp()
 {
   fsm.trigger(INIT);
+  dummyData.ampHours = 2.1;
+  dummyData.batteryVoltage = 32.3;
+  dummyData.moving = false;
+  dummyData.odometer = 1.23;
 }
 
 //----------------------------------------------------------
