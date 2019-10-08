@@ -1,6 +1,7 @@
 #include <Button2.h>
 #include <Fsm.h>
 #include <TaskScheduler.h>
+#include <VescData.h>
 
 #define ADC_EN 14
 #define ADC_PIN 34
