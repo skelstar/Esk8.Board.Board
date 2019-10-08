@@ -8,14 +8,7 @@
 
 uint8_t vesc_packet[PACKET_MAX_LENGTH];
 
-struct VESC_DATA
-{
-  float batteryVoltage;
-  //   float motorCurrent;
-  bool moving;
-  float ampHours;
-  float odometer;
-} vescdata, dummyData;
+VescData vescdata, dummyData;
 
 #define VESC_UART_BAUDRATE 115200
 
