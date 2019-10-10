@@ -191,8 +191,7 @@ void setup()
   initialiseApp();
 
   FastLED.addLeds<WS2812B, PIXEL_PIN, GRB>(strip, NUM_PIXELS);
-  FastLED.setBrightness(128);
-  // FastLED.setTemperature(Halogen);
+  FastLED.setBrightness(50);
   allLedsOn(COLOUR_WHITE);
 	FastLED.show();
 
@@ -208,31 +207,14 @@ void setup()
   fsm.run_machine();
 
   button_init();
-
-  //waitForFirstPacketFromVesc();
 }
-
-long now = 0;
-uint32_t colour = COLOUR_WHITE;
-
+//----------------------------------------------------------
 void loop()
 {
   fsm.run_machine();
 
   runner.execute();
 
-  if (millis() - now > 3000) {
-    now = millis();
-    colour = colour == COLOUR_WHITE
-      ? COLOUR_RED
-      : COLOUR_WHITE;
-    allLedsOn(colour);
-  }
-
   button_loop();
 }
 //----------------------------------------------------------
-
-//--------------------------------------------------------------------------------
-
-//--------------------------------------------------------------------------------

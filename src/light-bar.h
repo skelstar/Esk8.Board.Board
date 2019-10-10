@@ -17,3 +17,11 @@ void allLedsOn(uint32_t colour) {
   }
   FastLED.show();
 }
+
+void fadeall()
+{
+  for (int i = 0; i < NUM_PIXELS; i++)
+  {
+    strip[i].nscale8(250);
+  }
+}
