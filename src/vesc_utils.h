@@ -8,7 +8,7 @@
 
 uint8_t vesc_packet[PACKET_MAX_LENGTH];
 
-VescData vescdata, dummyData, initialVescData;
+VescData vescdata, initialVescData;
 
 #define VESC_UART_BAUDRATE 115200
 
@@ -33,13 +33,6 @@ bool getVescValues()
     // vescdata.motorCurrent = vesc.get_motor_current(vesc_packet);
     vescdata.ampHours = vesc.get_amphours_discharged(vesc_packet);
     vescdata.odometer = getDistanceInMeters(/*tacho*/ vesc.get_tachometer(vesc_packet));
-  }
-  else
-  {
-    dummyData.batteryVoltage += 0.1;
-    dummyData.moving = false;
-    dummyData.ampHours += 0.1;
-    dummyData.odometer += 0.1;
   }
   return success;
 }
