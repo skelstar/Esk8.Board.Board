@@ -74,6 +74,9 @@ NULL, NULL);
 State state_powering_down([] {
   Serial.printf("state_powering_down\n");
   saveTripToMemory();
+  if (debugMode) {
+
+  }
 },
 NULL, NULL);
 //------------------------------------------------------------------
@@ -133,6 +136,9 @@ Task t_GetVescValues(
       {
         vescOnline = true;
         fakeVescData();
+        if (debugPoweringDown && vescdata.batteryVoltage == 0.0) {
+          btStop();
+        }
       }
 
       if (vescOnline == false)
@@ -181,38 +187,38 @@ void sleepThenWakeTimer(int ms)
   esp_light_sleep_start();
 }
 
+#define LONGCLICK_MS    1000
+
 void button_init()
 {
   btn1.setPressedHandler([](Button2 &b) {
+    Serial.printf("btn1.setPressedHandler()\n");
   });
   btn1.setReleasedHandler([](Button2 &b) {
-    debugMode = !debugMode;
-    Serial.printf("DEBUG: %d\n", debugMode);
+    Serial.printf("btn1.setReleasedHandler()\n");
   });
-  // btn1.setClickHandler([](Button2 &b) {
-  // });
-  // btn1.setLongClickHandler([](Button2 &b) {
-  //     // Serial.printf("btn1.setLongClickHandler([](Button2 &b)\n");
-  // });
-  // btn1.setDoubleClickHandler([](Button2 &b) {
-  //     // Serial.printf("btn1.setDoubleClickHandler([](Button2 &b)\n");
-  // });
-  // btn1.setTripleClickHandler([](Button2 &b) {
-  //     // Serial.printf("btn1.setTripleClickHandler([](Button2 &b)\n");
-  // });
+  btn1.setClickHandler([](Button2 &b) {
+    Serial.printf("btn1.setClickHandler()\n");
+  });
+  btn1.setLongClickHandler([](Button2 &b) {
+    if (!debugMode) {
+      debugMode = true;
+      Serial.printf("DEBUG: %d\n", debugMode);
+    }
+    else if (debugMode && !debugPoweringDown) {
+      Serial.printf("DEBUG: powering down\n");
+      debugPoweringDown = true;
+    }
+    Serial.printf("btn1.setLongClickHandler([](Button2 &b)\n");
+  });
+  btn1.setDoubleClickHandler([](Button2 &b) {
+    Serial.printf("btn1.setDoubleClickHandler([](Button2 &b)\n");
+  });
+  btn1.setTripleClickHandler([](Button2 &b) {
+    Serial.printf("btn1.setTripleClickHandler([](Button2 &b)\n");
+  });
 
-  btn2.setPressedHandler([](Button2 &b) {
-    debugPoweringDown = !debugPoweringDown;
-    if (debugPoweringDown)
-    {
-      Serial.printf("debugPoweringDown!\n");
-    }
-    else
-    {
-      Serial.printf("batt restored\n");
-    }
-  });
-  // btn2.setReleasedHandler([](Button2 &b) {
+  // btn2.setPressedHandler([](Button2 &b) {
   // });
 }
 
