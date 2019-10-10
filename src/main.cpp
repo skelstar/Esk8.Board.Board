@@ -3,6 +3,8 @@
 #include <TaskScheduler.h>
 #include <VescData.h>
 
+
+
 #define ADC_EN 14
 #define ADC_PIN 34
 #define BUTTON_1 35
@@ -17,7 +19,7 @@ void initialiseApp();
 Button2 btn1(BUTTON_1);
 Button2 btn2(BUTTON_2);
 
-#define NUM_PIXELS  20
+#define NUM_PIXELS  21
 #define PIXEL_PIN   25
 #define BRIGHT_MAX  10
 
@@ -180,7 +182,6 @@ void initialiseApp()
   dummyData.odometer = 1.23;
 }
 
-
 //----------------------------------------------------------
 void setup()
 {
@@ -189,9 +190,11 @@ void setup()
 
   initialiseApp();
 
-  strip.begin();
+  FastLED.addLeds<WS2812B, PIXEL_PIN, GRB>(strip, NUM_PIXELS);
+  FastLED.setBrightness(128);
+  // FastLED.setTemperature(Halogen);
   allLedsOn(COLOUR_WHITE);
-	strip.show();
+	FastLED.show();
 
   setupBLE();
 
@@ -209,11 +212,22 @@ void setup()
   //waitForFirstPacketFromVesc();
 }
 
+long now = 0;
+uint32_t colour = COLOUR_WHITE;
+
 void loop()
 {
   fsm.run_machine();
 
   runner.execute();
+
+  if (millis() - now > 3000) {
+    now = millis();
+    colour = colour == COLOUR_WHITE
+      ? COLOUR_RED
+      : COLOUR_WHITE;
+    allLedsOn(colour);
+  }
 
   button_loop();
 }
