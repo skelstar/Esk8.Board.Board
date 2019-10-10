@@ -52,7 +52,7 @@ void saveTripToMemory()
   storeFloat(STORE_ODOMETER_TOTAL, odometerTotal + actualOdometer);
 
   storeUInt8(STORE_POWERED_DOWN, 1); // true
-  storageReport(actualAmphours, actualOdometer, initialVescData, amphoursTotal, odometerTotal);
+  // storageReport(actualAmphours, actualOdometer, initialVescData, amphoursTotal, odometerTotal);
 }
 
 //------------------------------------------------------------------
@@ -69,23 +69,23 @@ enum EventsEnum
 State state_waiting_for_vesc([] {
   Serial.printf("state_waiting_for_vesc\n");
 },
-                             NULL, NULL);
+NULL, NULL);
 //------------------------------------------------------------------
 State state_powering_down([] {
   Serial.printf("state_powering_down\n");
   saveTripToMemory();
 },
-                          NULL, NULL);
+NULL, NULL);
 //------------------------------------------------------------------
 State state_offline([] {
   Serial.printf("state_offline\n");
 },
-                    NULL, NULL);
+NULL, NULL);
 //------------------------------------------------------------------
 State state_board_moving([] {
   Serial.printf("state_board_moving\n");
 },
-                         NULL, NULL);
+NULL, NULL);
 //------------------------------------------------------------------
 State state_board_stopped([] {
   Serial.printf("state_board_stopped\n");
@@ -94,7 +94,7 @@ State state_board_stopped([] {
     lastStableVolts = vescdata.batteryVoltage;
   }
 },
-                          NULL, NULL);
+NULL, NULL);
 //------------------------------------------------------------------
 Fsm fsm(&state_waiting_for_vesc);
 
@@ -129,24 +129,10 @@ Task t_GetVescValues(
       // btn1 can put vesc into offline
       bool vescOnline = getVescValues() == true && !btn1.isPressed();
 
-      if (debugMode && !btn1.isPressed())
+      if (debugMode)
       {
         vescOnline = true;
-        if (!debugPoweringDown)
-        {
-          vescdata.ampHours = vescdata.ampHours > 0.0 ? vescdata.ampHours + 0.23 : 12.0;
-          vescdata.odometer = vescdata.odometer > 0.0 ? vescdata.odometer + 0.1 : 1.0;
-          vescdata.batteryVoltage = vescdata.batteryVoltage > 30 && vescdata.batteryVoltage < 46 && !debugPoweringDown
-                                        ? vescdata.batteryVoltage + 0.1
-                                        : POWERING_DOWN_BATT_VOLTS_START + 1.0;
-          Serial.printf("DEBUG: ampHours %.1fmAh odo %.1fkm batt: %.1fv \n", vescdata.ampHours, vescdata.odometer, vescdata.batteryVoltage);
-        }
-        else
-        {
-          vescdata.batteryVoltage = vescdata.batteryVoltage > 0 
-            ? vescdata.batteryVoltage - 5 
-            : 0;
-        }
+        fakeVescData();
       }
 
       if (vescOnline == false)
