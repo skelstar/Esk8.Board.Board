@@ -13,12 +13,17 @@ void button_loop();
 void sleepThenWakeTimer(int ms);
 void initialiseApp();
 
-#include "vesc_utils.h"
 
 Button2 btn1(BUTTON_1);
 Button2 btn2(BUTTON_2);
 
+#define NUM_PIXELS  20
+#define PIXEL_PIN   25
+#define BRIGHT_MAX  10
+
+#include "vesc_utils.h"
 #include "ble_notify.h"
+#include "light-bar.h"
 
 //------------------------------------------------------------------
 
@@ -175,6 +180,7 @@ void initialiseApp()
   dummyData.odometer = 1.23;
 }
 
+
 //----------------------------------------------------------
 void setup()
 {
@@ -182,6 +188,10 @@ void setup()
   Serial.println("Start");
 
   initialiseApp();
+
+  strip.begin();
+  allLedsOn(COLOUR_WHITE);
+	strip.show();
 
   setupBLE();
 
