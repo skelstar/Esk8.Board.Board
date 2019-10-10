@@ -33,6 +33,7 @@ float lastStableVolts = 0.0;
 #include "vesc_utils.h"
 #include "ble_notify.h"
 #include "nvmstorage.h"
+#include "utils.h"
 
 void saveTripToMemory()
 {
@@ -51,18 +52,7 @@ void saveTripToMemory()
   storeFloat(STORE_ODOMETER_TOTAL, odometerTotal + actualOdometer);
 
   storeUInt8(STORE_POWERED_DOWN, 1); // true
-  Serial.printf("Powering down. Storing:\n- ampHours = %.1fmAh (%.1fmAh)\n- odometer = %.1fkm (%.1fkm)\n",
-                actualAmphours,
-                initialVescData.ampHours,
-                actualOdometer,
-                initialVescData.odometer);
-  Serial.printf("Total stats:\n- %.1fmAh (%.1fmAh + %.1fmAh)\n- %.1fkm (%.1fkm + %.1fkm)\n",
-    amphoursTotal + actualAmphours, 
-    amphoursTotal,
-    actualAmphours, 
-    odometerTotal + actualOdometer,
-    odometerTotal,
-    actualOdometer);
+  storageReport(actualAmphours, actualOdometer, initialVescData, amphoursTotal, odometerTotal);
 }
 
 //------------------------------------------------------------------
