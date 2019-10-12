@@ -30,9 +30,15 @@ bool getVescValues()
   {
     vescdata.batteryVoltage = vesc.get_voltage(vesc_packet);
     vescdata.moving = vesc.get_rpm(vesc_packet) > 50;
-    // vescdata.motorCurrent = vesc.get_motor_current(vesc_packet);
     vescdata.ampHours = vesc.get_amphours_discharged(vesc_packet);
     vescdata.odometer = getDistanceInMeters(/*tacho*/ vesc.get_tachometer(vesc_packet));
+    vescdata.vescOnline = true;
+  }
+  else {
+    vescdata.batteryVoltage = 0.0;
+    vescdata.moving = false;
+    vescdata.ampHours = 0.0;
+    vescdata.vescOnline = false;
   }
   return success;
 }

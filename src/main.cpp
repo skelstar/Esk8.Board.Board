@@ -8,6 +8,8 @@
 #define BUTTON_1 35
 #define BUTTON_2 0
 
+// #define USING_BUTTONS true
+
 void button_init();
 void button_loop();
 void sleepThenWakeTimer(int ms);
@@ -130,7 +132,7 @@ Task t_GetVescValues(
     TASK_FOREVER,
     [] {
       // btn1 can put vesc into offline
-      bool vescOnline = getVescValues() == true && !btn1.isPressed();
+      bool vescOnline = getVescValues() == true;  // && !btn1.isPressed();
 
       if (debugMode)
       {
@@ -169,12 +171,14 @@ Task t_GetVescValues(
         {
           fsm.trigger(STOPPED);
           fsm.run_machine();
-          if (clientConnected)
-          {
-            sendDataToClient();
-          }
         }
       }
+
+      if (clientConnected)
+      {
+        sendDataToClient();
+      }
+
       fsm.run_machine();
     });
 
@@ -252,9 +256,10 @@ void setup()
   addFsmTransitions();
   fsm.run_machine();
 
+  #ifdef USING_BUTTONS
   button_init();
-
   button_loop();
+  #endif
   //waitForFirstPacketFromVesc();
 }
 
