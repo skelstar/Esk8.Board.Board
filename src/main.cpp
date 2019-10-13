@@ -10,11 +10,22 @@
 #define BUTTON_1 35
 #define BUTTON_2 0
 
+// #define USING_BUTTONS true
+
 void button_init();
 void button_loop();
 void sleepThenWakeTimer(int ms);
 void initialiseApp();
 
+#define STORE_NAMESPACE "data"
+#define STORE_AMP_HOURS_TRIP "trip-amphours"
+#define STORE_AMP_HOURS_TOTAL "total-amphours"
+#define STORE_ODOMETER_TRIP "trip-odometer"
+#define STORE_ODOMETER_TOTAL "total-odometer"
+
+#define STORE_POWERED_DOWN "poweredDown"
+#define STORE_LAST_VOLTAGE_READ "lastVolts"
+>>>>>>> master
 
 Button2 btn1(BUTTON_1);
 Button2 btn2(BUTTON_2);
@@ -23,69 +34,101 @@ Button2 btn2(BUTTON_2);
 #define PIXEL_PIN   25
 #define BRIGHT_MAX  10
 
+
+boolean debugMode = false;
+boolean debugPoweringDown = false;
+boolean vescConnected = false;
+float lastStableVolts = 0.0;
+
 #include "vesc_utils.h"
 #include "ble_notify.h"
+#include "nvmstorage.h"
+#include "utils.h"
 #include "light-bar.h"
+
+void saveTripToMemory()
+{
+  // trip
+  float actualAmphours = vescdata.ampHours - initialVescData.ampHours;
+  float actualOdometer = vescdata.odometer - initialVescData.odometer;
+  storeFloat(STORE_AMP_HOURS_TRIP, actualAmphours);
+  storeFloat(STORE_ODOMETER_TRIP, actualOdometer);
+  storeFloat(STORE_LAST_VOLTAGE_READ, lastStableVolts);
+  // total
+  float amphoursTotal = recallFloat(STORE_AMP_HOURS_TOTAL);
+  float odometerTotal = recallFloat(STORE_ODOMETER_TOTAL);
+  amphoursTotal = amphoursTotal > 0 ? amphoursTotal : 0.0;
+  odometerTotal = odometerTotal > 0 ? odometerTotal : 0.0;
+  storeFloat(STORE_AMP_HOURS_TOTAL, amphoursTotal + actualAmphours);
+  storeFloat(STORE_ODOMETER_TOTAL, odometerTotal + actualOdometer);
+
+  storeUInt8(STORE_POWERED_DOWN, 1); // true
+  // storageReport(actualAmphours, actualOdometer, initialVescData, amphoursTotal, odometerTotal);
+}
 
 //------------------------------------------------------------------
 
 enum EventsEnum
 {
-  INIT,
-  POWER_UP,
-  POWER_DOWN,
+  WAITING_FOR_VESC,
+  POWERING_DOWN,
   VESC_OFFLINE,
   MOVING,
   STOPPED
 } event;
+//------------------------------------------------------------------
+State state_waiting_for_vesc([] {
+  Serial.printf("state_waiting_for_vesc\n");
+},
+NULL, NULL);
+//------------------------------------------------------------------
+State state_powering_down([] {
+  Serial.printf("state_powering_down\n");
+  saveTripToMemory();
+  if (debugMode) {
 
-State state_init([] {
-    Serial.printf("State initialised\n");
-  },
-  NULL, NULL);
-
-State state_power_up([] {
-    Serial.printf("state_power_up\n");
-  },
-  NULL, NULL);
-
-State state_power_down([] {
-    Serial.printf("state_power_down\n");
-  },
-  NULL, NULL);
-
-State state_vesc_online([] {
-    Serial.printf("state_vesc_online\n");
-  },
-  NULL, NULL);
-
-State state_vesc_offline([] {
-    Serial.printf("state_vesc_offline\n");
-  },
-  NULL, NULL);
-
-
-
-Fsm fsm(&state_init);
+  }
+},
+NULL, NULL);
+//------------------------------------------------------------------
+State state_offline([] {
+  Serial.printf("state_offline\n");
+},
+NULL, NULL);
+//------------------------------------------------------------------
+State state_board_moving([] {
+  Serial.printf("state_board_moving\n");
+},
+NULL, NULL);
+//------------------------------------------------------------------
+State state_board_stopped([] {
+  Serial.printf("state_board_stopped\n");
+  if (vescConnected)
+  {
+    lastStableVolts = vescdata.batteryVoltage;
+  }
+},
+NULL, NULL);
+//------------------------------------------------------------------
+Fsm fsm(&state_waiting_for_vesc);
 
 void addFsmTransitions()
 {
-  event = POWER_UP;
-  fsm.add_transition(&state_init, &state_power_up, event, NULL);
-  fsm.add_transition(&state_power_up, &state_power_up, event, NULL);
-
-  event = POWER_DOWN;
-  fsm.add_transition(&state_init, &state_power_down, event, NULL);
-  fsm.add_transition(&state_power_up, &state_power_down, event, NULL);
+  event = POWERING_DOWN;
+  fsm.add_transition(&state_waiting_for_vesc, &state_powering_down, event, NULL);
+  fsm.add_transition(&state_board_moving, &state_powering_down, event, NULL);
+  fsm.add_transition(&state_board_stopped, &state_powering_down, event, NULL);
 
   event = VESC_OFFLINE;
-  fsm.add_transition(&state_init, &state_power_down, event, NULL);
+  fsm.add_transition(&state_board_moving, &state_offline, event, NULL);
+  fsm.add_transition(&state_board_stopped, &state_offline, event, NULL);
 
   event = MOVING;
-  fsm.add_transition(&state_init, &state_vesc_online, event, NULL);
+  fsm.add_transition(&state_board_stopped, &state_board_moving, event, NULL);
 
   event = STOPPED;
-  fsm.add_transition(&state_init, &state_vesc_online, event, NULL);
+  fsm.add_transition(&state_waiting_for_vesc, &state_board_stopped, event, NULL);
+  fsm.add_transition(&state_board_moving, &state_board_stopped, event, NULL);
 }
 //------------------------------------------------------------------
 
@@ -97,28 +140,37 @@ Task t_GetVescValues(
     GET_FROM_VESC_INTERVAL,
     TASK_FOREVER,
     [] {
-      bool vescOnline = getVescValues() == true;
+      // btn1 can put vesc into offline
+      bool vescOnline = getVescValues() == true;  // && !btn1.isPressed();
+
+      if (debugMode)
+      {
+        vescOnline = true;
+        fakeVescData();
+        if (debugPoweringDown && vescdata.batteryVoltage == 0.0) {
+          btStop();
+        }
+      }
 
       if (vescOnline == false)
       {
-        Serial.printf("VESC not responding!\n");
-
-        if (clientConnected) {
-          vescdata.ampHours = dummyData.ampHours;
-          vescdata.batteryVoltage = dummyData.batteryVoltage;
-          vescdata.moving = dummyData.moving;
-          vescdata.odometer = dummyData.odometer;
-          sendDataToClient();
-        }
+        vescConnected = false;
         fsm.trigger(VESC_OFFLINE);
       }
       else
       {
-        Serial.printf("batt volts: %.1f \n", vescdata.batteryVoltage);
+        bool firstPacket = vescConnected == false && initialVescData.ampHours <= 0.0;
+
+        if (firstPacket)
+        {
+          initialVescData.ampHours = vescdata.ampHours;
+          initialVescData.odometer = vescdata.odometer;
+        }
+        vescConnected = true;
 
         if (vescPoweringDown())
         {
-          fsm.trigger(POWER_DOWN);
+          fsm.trigger(POWERING_DOWN);
         }
         else if (vescdata.moving)
         {
@@ -126,12 +178,17 @@ Task t_GetVescValues(
         }
         else
         {
-          if (clientConnected) {
-            sendDataToClient();
-          }
           fsm.trigger(STOPPED);
+          fsm.run_machine();
         }
       }
+
+      if (clientConnected)
+      {
+        sendDataToClient();
+      }
+
+      fsm.run_machine();
     });
 
 //------------------------------------------------------------------
@@ -143,28 +200,39 @@ void sleepThenWakeTimer(int ms)
   esp_light_sleep_start();
 }
 
+#define LONGCLICK_MS    1000
+
 void button_init()
 {
   btn1.setPressedHandler([](Button2 &b) {
+    Serial.printf("btn1.setPressedHandler()\n");
   });
   btn1.setReleasedHandler([](Button2 &b) {
+    Serial.printf("btn1.setReleasedHandler()\n");
   });
-  // btn1.setClickHandler([](Button2 &b) {
-  // });
-  // btn1.setLongClickHandler([](Button2 &b) {
-  //     // Serial.printf("btn1.setLongClickHandler([](Button2 &b)\n");
-  // });
-  // btn1.setDoubleClickHandler([](Button2 &b) {
-  //     // Serial.printf("btn1.setDoubleClickHandler([](Button2 &b)\n");
-  // });
-  // btn1.setTripleClickHandler([](Button2 &b) {
-  //     // Serial.printf("btn1.setTripleClickHandler([](Button2 &b)\n");
-  // });
+  btn1.setClickHandler([](Button2 &b) {
+    Serial.printf("btn1.setClickHandler()\n");
+  });
+  btn1.setLongClickHandler([](Button2 &b) {
+    if (!debugMode) {
+      debugMode = true;
+      Serial.printf("DEBUG: %d\n", debugMode);
+    }
+    else if (debugMode && !debugPoweringDown) {
+      Serial.printf("DEBUG: powering down\n");
+      debugPoweringDown = true;
+    }
+    Serial.printf("btn1.setLongClickHandler([](Button2 &b)\n");
+  });
+  btn1.setDoubleClickHandler([](Button2 &b) {
+    Serial.printf("btn1.setDoubleClickHandler([](Button2 &b)\n");
+  });
+  btn1.setTripleClickHandler([](Button2 &b) {
+    Serial.printf("btn1.setTripleClickHandler([](Button2 &b)\n");
+  });
 
-  btn2.setPressedHandler([](Button2 &b) {
-  });
-  btn2.setReleasedHandler([](Button2 &b) {
-  });
+  // btn2.setPressedHandler([](Button2 &b) {
+  // });
 }
 
 void button_loop()
@@ -175,11 +243,7 @@ void button_loop()
 
 void initialiseApp()
 {
-  fsm.trigger(INIT);
-  dummyData.ampHours = 2.1;
-  dummyData.batteryVoltage = 32.3;
-  dummyData.moving = false;
-  dummyData.odometer = 1.23;
+  fsm.trigger(WAITING_FOR_VESC);
 }
 
 //----------------------------------------------------------
@@ -206,7 +270,11 @@ void setup()
   addFsmTransitions();
   fsm.run_machine();
 
+  #ifdef USING_BUTTONS
   button_init();
+  button_loop();
+  #endif
+  //waitForFirstPacketFromVesc();
 }
 //----------------------------------------------------------
 void loop()
