@@ -10,7 +10,6 @@
 #define BUTTON_1 35
 #define BUTTON_2 0
 
-// #define USING_BUTTONS true
 
 void button_init();
 void button_loop();
@@ -25,13 +24,13 @@ void initialiseApp();
 
 #define STORE_POWERED_DOWN "poweredDown"
 #define STORE_LAST_VOLTAGE_READ "lastVolts"
->>>>>>> master
 
+// #define USING_BUTTONS true
 Button2 btn1(BUTTON_1);
 Button2 btn2(BUTTON_2);
 
 #define NUM_PIXELS  21
-#define PIXEL_PIN   25
+#define PIXEL_PIN   5
 #define BRIGHT_MAX  10
 
 
@@ -256,7 +255,7 @@ void setup()
 
   FastLED.addLeds<WS2812B, PIXEL_PIN, GRB>(strip, NUM_PIXELS);
   FastLED.setBrightness(50);
-  allLedsOn(COLOUR_WHITE);
+  allLedsOn(COLOUR_RED);
 	FastLED.show();
 
   setupBLE();
