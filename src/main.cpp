@@ -3,10 +3,13 @@
 #include <TaskScheduler.h>
 #include <VescData.h>
 
+
+
 #define ADC_EN 14
 #define ADC_PIN 34
 #define BUTTON_1 35
 #define BUTTON_2 0
+
 
 void button_init();
 void button_loop();
@@ -22,8 +25,14 @@ void initialiseApp();
 #define STORE_POWERED_DOWN "poweredDown"
 #define STORE_LAST_VOLTAGE_READ "lastVolts"
 
+// #define USING_BUTTONS true
 Button2 btn1(BUTTON_1);
 Button2 btn2(BUTTON_2);
+
+#define NUM_PIXELS  21
+#define PIXEL_PIN   5
+#define BRIGHT_MAX  10
+
 
 boolean debugMode = false;
 boolean debugPoweringDown = false;
@@ -34,6 +43,7 @@ float lastStableVolts = 0.0;
 #include "ble_notify.h"
 #include "nvmstorage.h"
 #include "utils.h"
+#include "light-bar.h"
 
 void saveTripToMemory()
 {
@@ -130,7 +140,7 @@ Task t_GetVescValues(
     TASK_FOREVER,
     [] {
       // btn1 can put vesc into offline
-      bool vescOnline = getVescValues() == true && !btn1.isPressed();
+      bool vescOnline = getVescValues() == true;  // && !btn1.isPressed();
 
       if (debugMode)
       {
@@ -169,12 +179,14 @@ Task t_GetVescValues(
         {
           fsm.trigger(STOPPED);
           fsm.run_machine();
-          if (clientConnected)
-          {
-            sendDataToClient();
-          }
         }
       }
+
+      if (clientConnected)
+      {
+        sendDataToClient();
+      }
+
       fsm.run_machine();
     });
 
@@ -217,7 +229,6 @@ void button_init()
   btn1.setTripleClickHandler([](Button2 &b) {
     Serial.printf("btn1.setTripleClickHandler([](Button2 &b)\n");
   });
-
   // btn2.setPressedHandler([](Button2 &b) {
   // });
 }
@@ -241,6 +252,11 @@ void setup()
 
   initialiseApp();
 
+  FastLED.addLeds<WS2812B, PIXEL_PIN, GRB>(strip, NUM_PIXELS);
+  FastLED.setBrightness(50);
+  allLedsOn(COLOUR_RED);
+	FastLED.show();
+
   setupBLE();
 
   vesc.init(VESC_UART_BAUDRATE);
@@ -252,12 +268,13 @@ void setup()
   addFsmTransitions();
   fsm.run_machine();
 
+  #ifdef USING_BUTTONS
   button_init();
-
   button_loop();
+  #endif
   //waitForFirstPacketFromVesc();
 }
-
+//----------------------------------------------------------
 void loop()
 {
   fsm.run_machine();
@@ -267,7 +284,3 @@ void loop()
   button_loop();
 }
 //----------------------------------------------------------
-
-//--------------------------------------------------------------------------------
-
-//--------------------------------------------------------------------------------
