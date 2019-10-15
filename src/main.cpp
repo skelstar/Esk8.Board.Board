@@ -3,18 +3,27 @@
 #include <TaskScheduler.h>
 #include <VescData.h>
 #include <SPI.h>
-
-
+#include <RF24.h>
+#include <RF24Network.h>
+#include <NRF24L01Library.h>
 
 #define ADC_EN 14
 #define ADC_PIN 34
 #define BUTTON_1 35
 #define BUTTON_2 0
 
+#define SPI_CE        33    	// white/purple
+#define SPI_CS        26  	// green
+
+RF24 radio(SPI_CE, SPI_CS);
+RF24Network network(radio);
+
+NRF24L01Lib nrf;
 
 void button_init();
 void button_loop();
 void sleepThenWakeTimer(int ms);
+void sendPacketToClient();
 void initialiseApp();
 
 #define STORE_NAMESPACE "data"
@@ -183,6 +192,8 @@ Task t_GetVescValues(
         }
       }
 
+      sendPacketToClient();
+
       if (clientConnected)
       {
         sendDataToClient();
@@ -191,6 +202,14 @@ Task t_GetVescValues(
       fsm.run_machine();
     });
 
+
+void sendPacketToClient() {
+  VescData data;
+  data.batteryVoltage = 123.23;
+  uint8_t dataBuff[sizeof(data)];
+  memcpy(dataBuff, &data, sizeof(data));
+  nrf.sendPacket(dataBuff, sizeof(data));
+}
 //------------------------------------------------------------------
 //! Long time delay, it is recommended to use shallow sleep, which can effectively reduce the current consumption
 void sleepThenWakeTimer(int ms)
@@ -240,9 +259,27 @@ void button_loop()
   btn2.loop();
 }
 
+void packet_cb(uint16_t from) {
+  Serial.printf("packet_cb(%d)\n", from);
+}
+
 void initialiseApp()
 {
   fsm.trigger(WAITING_FOR_VESC);
+}
+
+void initialiseNrf() {
+  SPI.begin();
+  radio.begin();
+  radio.setAutoAck(true);
+  nrf.begin(&radio, &network, nrf.RF24_SERVER, packet_cb);
+}
+
+void initialiseLeds() {
+  FastLED.addLeds<WS2812B, PIXEL_PIN, GRB>(strip, NUM_PIXELS);
+  FastLED.setBrightness(50);
+  allLedsOn(COLOUR_RED);
+  FastLED.show();
 }
 
 //----------------------------------------------------------
@@ -253,10 +290,9 @@ void setup()
 
   initialiseApp();
 
-  FastLED.addLeds<WS2812B, PIXEL_PIN, GRB>(strip, NUM_PIXELS);
-  FastLED.setBrightness(50);
-  allLedsOn(COLOUR_RED);
-	FastLED.show();
+  initialiseNrf();
+
+  initialiseLeds();
 
   setupBLE();
 
@@ -278,6 +314,8 @@ void setup()
 //----------------------------------------------------------
 void loop()
 {
+  nrf.update();
+
   fsm.run_machine();
 
   runner.execute();
