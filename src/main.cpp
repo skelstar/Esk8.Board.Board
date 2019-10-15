@@ -229,7 +229,6 @@ void button_init()
   btn1.setTripleClickHandler([](Button2 &b) {
     Serial.printf("btn1.setTripleClickHandler([](Button2 &b)\n");
   });
-
   // btn2.setPressedHandler([](Button2 &b) {
   // });
 }
