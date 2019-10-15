@@ -204,11 +204,14 @@ Task t_GetVescValues(
 
 
 void sendPacketToClient() {
-  VescData data;
-  data.batteryVoltage = 123.23;
-  uint8_t dataBuff[sizeof(data)];
-  memcpy(dataBuff, &data, sizeof(data));
-  nrf.sendPacket(dataBuff, sizeof(data));
+  nrf.boardPacket.batteryVoltage = 123.23;
+  bool success = nrf.sendPacket(nrf.RF24_CLIENT);
+  if (success) {
+    Serial.printf("Sent OK\n");
+  }
+  else {
+    Serial.printf("Failed to send\n");
+  }
 }
 //------------------------------------------------------------------
 //! Long time delay, it is recommended to use shallow sleep, which can effectively reduce the current consumption
@@ -249,8 +252,6 @@ void button_init()
   btn1.setTripleClickHandler([](Button2 &b) {
     Serial.printf("btn1.setTripleClickHandler([](Button2 &b)\n");
   });
-  // btn2.setPressedHandler([](Button2 &b) {
-  // });
 }
 
 void button_loop()
@@ -260,7 +261,7 @@ void button_loop()
 }
 
 void packet_cb(uint16_t from) {
-  Serial.printf("packet_cb(%d)\n", from);
+  Serial.printf("packet_cb(%d): %d\n", from, nrf.controllerPacket.throttle);
 }
 
 void initialiseApp()
