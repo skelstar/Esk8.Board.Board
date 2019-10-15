@@ -2,6 +2,7 @@
 #include <Fsm.h>
 #include <TaskScheduler.h>
 #include <VescData.h>
+#include <SPI.h>
 
 #define ADC_EN 14
 #define ADC_PIN 34
