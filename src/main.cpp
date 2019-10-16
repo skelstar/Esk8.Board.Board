@@ -9,7 +9,6 @@
 #define BUTTON_2 0
 
 #define USING_RF24  1
-
 #ifdef USING_RF24
   #include "rf24_comms.h"
 #endif
@@ -46,10 +45,14 @@ boolean vescConnected = false;
 float lastStableVolts = 0.0;
 
 #include "vesc_utils.h"
-#include "ble_notify.h"
 #include "nvmstorage.h"
 #include "utils.h"
 #include "light-bar.h"
+
+//#define USING_BLE   1
+#ifdef USING_BLE
+  #include "ble_notify.h"
+#endif
 
 void saveTripToMemory()
 {
@@ -90,9 +93,6 @@ NULL, NULL);
 State state_powering_down([] {
   Serial.printf("state_powering_down\n");
   saveTripToMemory();
-  if (debugMode) {
-
-  }
 },
 NULL, NULL);
 //------------------------------------------------------------------
@@ -192,10 +192,12 @@ Task t_GetVescValues(
       sendPacketToClient();
       #endif
 
+      #ifdef USING_BLE
       if (bleClientConnected)
       {
         sendDataToClient();
       }
+      #endif
 
       fsm.run_machine();
     });
@@ -273,7 +275,9 @@ void setup()
 
   initialiseLeds();
 
+  #ifdef USING_BLE
   setupBLE();
+  #endif
 
   vesc.init(VESC_UART_BAUDRATE);
 
