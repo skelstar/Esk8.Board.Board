@@ -2,23 +2,17 @@
 #include <Fsm.h>
 #include <TaskScheduler.h>
 #include <VescData.h>
-#include <SPI.h>
-#include <RF24.h>
-#include <RF24Network.h>
-#include <NRF24L01Library.h>
 
 #define ADC_EN 14
 #define ADC_PIN 34
 #define BUTTON_1 35
 #define BUTTON_2 0
 
-#define SPI_CE        33    	// white/purple
-#define SPI_CS        26  	// green
+#define USING_RF24  1
 
-RF24 radio(SPI_CE, SPI_CS);
-RF24Network network(radio);
-
-NRF24L01Lib nrf;
+#ifdef USING_RF24
+  #include "rf24_comms.h"
+#endif
 
 long lastIdReceived;
 volatile bool responded = true;
@@ -26,7 +20,6 @@ volatile bool responded = true;
 void button_init();
 void button_loop();
 void sleepThenWakeTimer(int ms);
-void sendPacketToClient();
 void initialiseApp();
 
 #define STORE_NAMESPACE "data"
@@ -195,7 +188,9 @@ Task t_GetVescValues(
         }
       }
 
+      #ifdef USING_RF24
       sendPacketToClient();
+      #endif
 
       if (bleClientConnected)
       {
@@ -205,31 +200,6 @@ Task t_GetVescValues(
       fsm.run_machine();
     });
 
-
-void sendPacketToClient() {
-  // nrf.boardPacket.batteryVoltage = 123.23;
-
-  if (nrf.controllerPacket.id != nrf.boardPacket.id) {
-    responded = false;
-    Serial.printf("Controller didn't respond to %u (diff %d)\n", 
-      nrf.boardPacket.id, 
-      nrf.controllerPacket.id,
-      nrf.boardPacket.id - nrf.controllerPacket.id);
-  }
-
-  nrf.boardPacket.id++;
-
-  if (responded == false) {
-  }
-
-  bool success = nrf.sendPacket(nrf.RF24_CLIENT);
-  if (success) {
-    // Serial.printf("Sent OK\n");
-  }
-  else {
-    Serial.printf("Failed to send\n");
-  }
-}
 //------------------------------------------------------------------
 //! Long time delay, it is recommended to use shallow sleep, which can effectively reduce the current consumption
 void sleepThenWakeTimer(int ms)
@@ -277,20 +247,9 @@ void button_loop()
   btn2.loop();
 }
 
-void packet_cb(uint16_t from) {
-  // Serial.printf("packet_cb(%d): %d\n", from, nrf.controllerPacket.id);
-}
-
 void initialiseApp()
 {
   fsm.trigger(WAITING_FOR_VESC);
-}
-
-void initialiseNrf() {
-  SPI.begin();
-  radio.begin();
-  radio.setAutoAck(true);
-  nrf.begin(&radio, &network, nrf.RF24_SERVER, packet_cb);
 }
 
 void initialiseLeds() {
@@ -306,11 +265,11 @@ void setup()
   Serial.begin(115200);
   Serial.println("Start");
 
-  nrf.boardPacket.id = 0;
+  #ifdef USING_RF24
+  initialiseRF24Comms();
+  #endif
 
   initialiseApp();
-
-  initialiseNrf();
 
   initialiseLeds();
 
@@ -334,7 +293,9 @@ void setup()
 //----------------------------------------------------------
 void loop()
 {
-  nrf.update();
+  #ifdef USING_RF24
+  nrf24.update();
+  #endif
 
   fsm.run_machine();
 
