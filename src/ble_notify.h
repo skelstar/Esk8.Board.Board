@@ -8,7 +8,7 @@ BLECharacteristic *pCharacteristic;
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
-bool clientConnected = false;
+bool bleClientConnected = false;
 
 class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
 	// receive
@@ -26,11 +26,11 @@ class MyCharacteristicCallbacks: public BLECharacteristicCallbacks {
 
 class MyServerCallbacks2: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
-      clientConnected = true;
+      bleClientConnected = true;
     };
 
     void onDisconnect(BLEServer* pServer) {
-      clientConnected = false;
+      bleClientConnected = false;
     }
 };
 

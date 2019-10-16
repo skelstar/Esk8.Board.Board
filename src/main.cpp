@@ -3,13 +3,19 @@
 #include <TaskScheduler.h>
 #include <VescData.h>
 
-
-
 #define ADC_EN 14
 #define ADC_PIN 34
 #define BUTTON_1 35
 #define BUTTON_2 0
 
+#define USING_RF24  1
+
+#ifdef USING_RF24
+  #include "rf24_comms.h"
+#endif
+
+long lastIdReceived;
+volatile bool responded = true;
 
 void button_init();
 void button_loop();
@@ -182,7 +188,11 @@ Task t_GetVescValues(
         }
       }
 
-      if (clientConnected)
+      #ifdef USING_RF24
+      sendPacketToClient();
+      #endif
+
+      if (bleClientConnected)
       {
         sendDataToClient();
       }
@@ -229,8 +239,6 @@ void button_init()
   btn1.setTripleClickHandler([](Button2 &b) {
     Serial.printf("btn1.setTripleClickHandler([](Button2 &b)\n");
   });
-  // btn2.setPressedHandler([](Button2 &b) {
-  // });
 }
 
 void button_loop()
@@ -244,18 +252,26 @@ void initialiseApp()
   fsm.trigger(WAITING_FOR_VESC);
 }
 
+void initialiseLeds() {
+  FastLED.addLeds<WS2812B, PIXEL_PIN, GRB>(strip, NUM_PIXELS);
+  FastLED.setBrightness(50);
+  allLedsOn(COLOUR_RED);
+  FastLED.show();
+}
+
 //----------------------------------------------------------
 void setup()
 {
   Serial.begin(115200);
   Serial.println("Start");
 
+  #ifdef USING_RF24
+  initialiseRF24Comms();
+  #endif
+
   initialiseApp();
 
-  FastLED.addLeds<WS2812B, PIXEL_PIN, GRB>(strip, NUM_PIXELS);
-  FastLED.setBrightness(50);
-  allLedsOn(COLOUR_RED);
-	FastLED.show();
+  initialiseLeds();
 
   setupBLE();
 
@@ -277,6 +293,10 @@ void setup()
 //----------------------------------------------------------
 void loop()
 {
+  #ifdef USING_RF24
+  nrf24.update();
+  #endif
+
   fsm.run_machine();
 
   runner.execute();
