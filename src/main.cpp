@@ -20,6 +20,9 @@ RF24Network network(radio);
 
 NRF24L01Lib nrf;
 
+long lastIdReceived;
+volatile bool responded = true;
+
 void button_init();
 void button_loop();
 void sleepThenWakeTimer(int ms);
@@ -194,7 +197,7 @@ Task t_GetVescValues(
 
       sendPacketToClient();
 
-      if (clientConnected)
+      if (bleClientConnected)
       {
         sendDataToClient();
       }
@@ -204,10 +207,24 @@ Task t_GetVescValues(
 
 
 void sendPacketToClient() {
-  nrf.boardPacket.batteryVoltage = 123.23;
+  // nrf.boardPacket.batteryVoltage = 123.23;
+
+  if (nrf.controllerPacket.id != nrf.boardPacket.id) {
+    responded = false;
+    Serial.printf("Controller didn't respond to %u (diff %d)\n", 
+      nrf.boardPacket.id, 
+      nrf.controllerPacket.id,
+      nrf.boardPacket.id - nrf.controllerPacket.id);
+  }
+
+  nrf.boardPacket.id++;
+
+  if (responded == false) {
+  }
+
   bool success = nrf.sendPacket(nrf.RF24_CLIENT);
   if (success) {
-    Serial.printf("Sent OK\n");
+    // Serial.printf("Sent OK\n");
   }
   else {
     Serial.printf("Failed to send\n");
@@ -261,7 +278,7 @@ void button_loop()
 }
 
 void packet_cb(uint16_t from) {
-  Serial.printf("packet_cb(%d): %d\n", from, nrf.controllerPacket.throttle);
+  // Serial.printf("packet_cb(%d): %d\n", from, nrf.controllerPacket.id);
 }
 
 void initialiseApp()
@@ -288,6 +305,8 @@ void setup()
 {
   Serial.begin(115200);
   Serial.println("Start");
+
+  nrf.boardPacket.id = 0;
 
   initialiseApp();
 
