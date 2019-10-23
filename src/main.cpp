@@ -39,7 +39,7 @@ Button2 btn2(BUTTON_2);
 #define BRIGHT_MAX  10
 
 
-boolean debugMode = false;
+#define DEBUG_MODE  1
 boolean debugPoweringDown = false;
 boolean vescConnected = false;
 float lastStableVolts = 0.0;
@@ -148,14 +148,13 @@ Task t_GetVescValues(
       // btn1 can put vesc into offline
       bool vescOnline = getVescValues() == true;  // && !btn1.isPressed();
 
-      if (debugMode)
-      {
-        vescOnline = true;
-        fakeVescData();
-        if (debugPoweringDown && vescdata.batteryVoltage == 0.0) {
-          btStop();
-        }
+      #ifdef DEBUG_MODE
+      vescOnline = true;
+      fakeVescData();
+      if (debugPoweringDown && vescdata.batteryVoltage == 0.0) {
+        btStop();
       }
+      #endif
 
       if (vescOnline == false)
       {
@@ -225,14 +224,6 @@ void button_init()
     Serial.printf("btn1.setClickHandler()\n");
   });
   btn1.setLongClickHandler([](Button2 &b) {
-    if (!debugMode) {
-      debugMode = true;
-      Serial.printf("DEBUG: %d\n", debugMode);
-    }
-    else if (debugMode && !debugPoweringDown) {
-      Serial.printf("DEBUG: powering down\n");
-      debugPoweringDown = true;
-    }
     Serial.printf("btn1.setLongClickHandler([](Button2 &b)\n");
   });
   btn1.setDoubleClickHandler([](Button2 &b) {
@@ -261,6 +252,39 @@ void initialiseLeds() {
   FastLED.show();
 }
 
+
+xQueueHandle xVescTaskQueue;
+xQueueHandle xControllerTaskQueue;
+const TickType_t xVescTicksToWait = pdMS_TO_TICKS(100);
+const TickType_t xControllerTicksToWait = pdMS_TO_TICKS(100);
+
+#define OTHER_CORE  0
+#define LOOP_CORE   1
+
+void vescTask(void *pvParameters)
+{
+
+  Serial.printf("vescTask running on core %d\n", xPortGetCoreID());
+
+  while (true)
+  {
+    vTaskDelay(10);
+    runner.execute();
+  }
+  vTaskDelete(NULL);
+}
+
+void controllerTask(void *pvParameters)
+{
+  Serial.printf("controllerTask running on core %d\n", xPortGetCoreID());
+
+  while (true)
+  {
+    vTaskDelay(10);
+  }
+  vTaskDelete(NULL);
+}
+
 //----------------------------------------------------------
 void setup()
 {
@@ -284,6 +308,9 @@ void setup()
   runner.startNow();
   runner.addTask(t_GetVescValues);
   t_GetVescValues.enable();
+  
+  xTaskCreatePinnedToCore(vescTask, "vescTask", 10000, NULL, /*priority*/ 0, NULL, OTHER_CORE);
+  xTaskCreatePinnedToCore(controllerTask, "controllerTask", 10000, NULL, /*priority*/ 1, NULL, LOOP_CORE);
 
   addFsmTransitions();
   fsm.run_machine();
@@ -303,7 +330,7 @@ void loop()
 
   fsm.run_machine();
 
-  runner.execute();
+  // runner.execute();
 
   button_loop();
 }
