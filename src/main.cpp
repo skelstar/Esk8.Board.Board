@@ -8,27 +8,12 @@
 #define BUTTON_1 35
 #define BUTTON_2 0
 
-#define USING_RF24  1
-#ifdef USING_RF24
-  #include "rf24_comms.h"
-#endif
-
-long lastIdReceived;
 volatile bool responded = true;
 
 void button_init();
 void button_loop();
 void sleepThenWakeTimer(int ms);
 void initialiseApp();
-
-#define STORE_NAMESPACE "data"
-#define STORE_AMP_HOURS_TRIP "trip-amphours"
-#define STORE_AMP_HOURS_TOTAL "total-amphours"
-#define STORE_ODOMETER_TRIP "trip-odometer"
-#define STORE_ODOMETER_TOTAL "total-odometer"
-
-#define STORE_POWERED_DOWN "poweredDown"
-#define STORE_LAST_VOLTAGE_READ "lastVolts"
 
 // #define USING_BUTTONS true
 Button2 btn1(BUTTON_1);
@@ -45,34 +30,10 @@ boolean vescConnected = false;
 float lastStableVolts = 0.0;
 
 #include "vesc_utils.h"
-#include "nvmstorage.h"
 #include "utils.h"
 #include "light-bar.h"
 
-//#define USING_BLE   1
-#ifdef USING_BLE
-  #include "ble_notify.h"
-#endif
-
-void saveTripToMemory()
-{
-  // trip
-  float actualAmphours = vescdata.ampHours - initialVescData.ampHours;
-  float actualOdometer = vescdata.odometer - initialVescData.odometer;
-  storeFloat(STORE_AMP_HOURS_TRIP, actualAmphours);
-  storeFloat(STORE_ODOMETER_TRIP, actualOdometer);
-  storeFloat(STORE_LAST_VOLTAGE_READ, lastStableVolts);
-  // total
-  float amphoursTotal = recallFloat(STORE_AMP_HOURS_TOTAL);
-  float odometerTotal = recallFloat(STORE_ODOMETER_TOTAL);
-  amphoursTotal = amphoursTotal > 0 ? amphoursTotal : 0.0;
-  odometerTotal = odometerTotal > 0 ? odometerTotal : 0.0;
-  storeFloat(STORE_AMP_HOURS_TOTAL, amphoursTotal + actualAmphours);
-  storeFloat(STORE_ODOMETER_TOTAL, odometerTotal + actualOdometer);
-
-  storeUInt8(STORE_POWERED_DOWN, 1); // true
-  // storageReport(actualAmphours, actualOdometer, initialVescData, amphoursTotal, odometerTotal);
-}
+#include "ble_notify.h"
 
 //------------------------------------------------------------------
 
@@ -92,7 +53,6 @@ NULL, NULL);
 //------------------------------------------------------------------
 State state_powering_down([] {
   Serial.printf("state_powering_down\n");
-  saveTripToMemory();
 },
 NULL, NULL);
 //------------------------------------------------------------------
@@ -187,16 +147,10 @@ Task t_GetVescValues(
         }
       }
 
-      #ifdef USING_RF24
-      sendPacketToClient();
-      #endif
-
-      #ifdef USING_BLE
       if (bleClientConnected)
       {
         sendDataToClient();
       }
-      #endif
 
       fsm.run_machine();
     });
@@ -291,17 +245,11 @@ void setup()
   Serial.begin(115200);
   Serial.println("Start");
 
-  #ifdef USING_RF24
-  initialiseRF24Comms();
-  #endif
-
   initialiseApp();
 
   initialiseLeds();
 
-  #ifdef USING_BLE
   setupBLE();
-  #endif
 
   vesc.init(VESC_UART_BAUDRATE);
 
@@ -324,10 +272,6 @@ void setup()
 //----------------------------------------------------------
 void loop()
 {
-  #ifdef USING_RF24
-  nrf24.update();
-  #endif
-
   fsm.run_machine();
 
   // runner.execute();
