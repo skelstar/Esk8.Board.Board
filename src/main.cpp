@@ -8,7 +8,7 @@
 #define BUTTON_1 35
 #define BUTTON_2 0
 
-#define USING_RF24  1
+// #define USING_RF24  1
 #ifdef USING_RF24
   #include "rf24_comms.h"
 #endif
@@ -49,7 +49,7 @@ float lastStableVolts = 0.0;
 #include "utils.h"
 #include "light-bar.h"
 
-//#define USING_BLE   1
+#define USING_BLE   1
 #ifdef USING_BLE
   #include "ble_notify.h"
 #endif
