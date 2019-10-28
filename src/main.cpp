@@ -193,19 +193,19 @@ void button_loop()
   btn1.loop();
   btn2.loop();
 }
-
+//------------------------------------------------------------------
 void initialiseApp()
 {
   fsm.trigger(WAITING_FOR_VESC);
 }
-
+//------------------------------------------------------------------
 void initialiseLeds() {
   FastLED.addLeds<WS2812B, PIXEL_PIN, GRB>(strip, NUM_PIXELS);
   FastLED.setBrightness(50);
   allLedsOn(COLOUR_RED);
   FastLED.show();
 }
-
+//------------------------------------------------------------------
 
 xQueueHandle xVescTaskQueue;
 xQueueHandle xControllerTaskQueue;
