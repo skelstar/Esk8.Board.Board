@@ -24,9 +24,7 @@ void fakeVescData()
   {
     vescdata.ampHours = vescdata.ampHours > 0.0 ? vescdata.ampHours + 0.23 : 12.0;
     vescdata.odometer = vescdata.odometer > 0.0 ? vescdata.odometer + 0.1 : 1.0;
-    vescdata.batteryVoltage = vescdata.batteryVoltage > POWERING_DOWN_BATT_VOLTS_START && vescdata.batteryVoltage < 46 && !debugPoweringDown
-                                  ? vescdata.batteryVoltage + 0.1
-                                  : POWERING_DOWN_BATT_VOLTS_START + 1.0;
+    vescdata.batteryVoltage = 38.4;
     Serial.printf("DEBUG: ampHours %.1fmAh odo %.1fkm batt: %.1fv \n", vescdata.ampHours, vescdata.odometer, vescdata.batteryVoltage);
   }
   else
