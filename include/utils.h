@@ -17,21 +17,3 @@ void storageReport(float actualAmphours, float actualOdometer, VescData initialV
                 odometerTotal,
                 actualOdometer);
 }
-
-void fakeVescData()
-{
-  if (!debugPoweringDown)
-  {
-    vescdata.ampHours = vescdata.ampHours > 0.0 ? vescdata.ampHours + 0.23 : 12.0;
-    vescdata.odometer = vescdata.odometer > 0.0 ? vescdata.odometer + 0.1 : 1.0;
-    vescdata.batteryVoltage = 38.4;
-    Serial.printf("DEBUG: ampHours %.1fmAh odo %.1fkm batt: %.1fv \n", vescdata.ampHours, vescdata.odometer, vescdata.batteryVoltage);
-  }
-  else
-  {
-    // powering down
-    vescdata.batteryVoltage = vescdata.batteryVoltage > 0
-                                  ? vescdata.batteryVoltage - 5
-                                  : 0;
-  }
-}
