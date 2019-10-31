@@ -5,29 +5,21 @@
 
 #define ADC_EN 14
 #define ADC_PIN 34
-#define BUTTON_1 35
-#define BUTTON_2 0
+#define BUTTON_1 0
 
 volatile bool responded = true;
+bool vescOnline = false;
 
 void button_init();
 void button_loop();
-void sleepThenWakeTimer(int ms);
 void initialiseApp();
 
-// #define USING_BUTTONS true
+#define USING_BUTTONS true
 Button2 btn1(BUTTON_1);
-Button2 btn2(BUTTON_2);
 
 #define NUM_PIXELS  21
 #define PIXEL_PIN   5
 #define BRIGHT_MAX  10
-
-
-#define DEBUG_MODE  1
-boolean debugPoweringDown = false;
-boolean vescConnected = false;
-float lastStableVolts = 0.0;
 
 #include "vesc_utils.h"
 #include "utils.h"
@@ -68,9 +60,9 @@ NULL, NULL);
 //------------------------------------------------------------------
 State state_board_stopped([] {
   Serial.printf("state_board_stopped\n");
-  if (vescConnected)
+  if (vescOnline)
   {
-    lastStableVolts = vescdata.batteryVoltage;
+    // lastStableVolts = vescdata.batteryVoltage;
   }
 },
 NULL, NULL);
@@ -96,6 +88,15 @@ void addFsmTransitions()
   fsm.add_transition(&state_board_moving, &state_board_stopped, event, NULL);
 }
 //------------------------------------------------------------------
+bool fakeVescData = false;
+bool fakeMoving = false;
+
+void toggleFakeVescMode() {
+  fakeVescData = !fakeVescData;
+  fakeMoving = false;
+}
+
+//------------------------------------------------------------------
 
 Scheduler runner;
 
@@ -105,33 +106,24 @@ Task t_GetVescValues(
     GET_FROM_VESC_INTERVAL,
     TASK_FOREVER,
     [] {
-      // btn1 can put vesc into offline
-      bool vescOnline = getVescValues() == true;  // && !btn1.isPressed();
+      vescOnline = getVescValues() == true;
 
-      #ifdef DEBUG_MODE
-      vescOnline = true;
-      fakeVescData();
-      if (debugPoweringDown && vescdata.batteryVoltage == 0.0) {
-        btStop();
+      if (fakeVescData) {
+        vescOnline = true;
+        vescdata.ampHours = vescdata.ampHours > 0.0 ? vescdata.ampHours + 0.23 : 12.0;
+        vescdata.odometer = vescdata.odometer > 0.0 ? vescdata.odometer + 0.1 : 1.0;
+        vescdata.batteryVoltage = 38.4;
+        vescdata.moving = fakeMoving;
+        vescdata.vescOnline = true;
+        Serial.printf("FAKE: ampHours %.1fmAh odo %.1fkm batt: %.1fv \n", vescdata.ampHours, vescdata.odometer, vescdata.batteryVoltage);
       }
-      #endif
 
       if (vescOnline == false)
       {
-        vescConnected = false;
         fsm.trigger(VESC_OFFLINE);
       }
       else
       {
-        bool firstPacket = vescConnected == false && initialVescData.ampHours <= 0.0;
-
-        if (firstPacket)
-        {
-          initialVescData.ampHours = vescdata.ampHours;
-          initialVescData.odometer = vescdata.odometer;
-        }
-        vescConnected = true;
-
         if (vescPoweringDown())
         {
           fsm.trigger(POWERING_DOWN);
@@ -156,13 +148,6 @@ Task t_GetVescValues(
     });
 
 //------------------------------------------------------------------
-//! Long time delay, it is recommended to use shallow sleep, which can effectively reduce the current consumption
-void sleepThenWakeTimer(int ms)
-{
-  esp_sleep_enable_timer_wakeup(ms * 1000);
-  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
-  esp_light_sleep_start();
-}
 
 #define LONGCLICK_MS    1000
 
@@ -175,10 +160,15 @@ void button_init()
     Serial.printf("btn1.setReleasedHandler()\n");
   });
   btn1.setClickHandler([](Button2 &b) {
+    if (fakeVescData) {
+      fakeMoving = !fakeMoving;
+    }
     Serial.printf("btn1.setClickHandler()\n");
   });
   btn1.setLongClickHandler([](Button2 &b) {
-    Serial.printf("btn1.setLongClickHandler([](Button2 &b)\n");
+    toggleFakeVescMode();
+    Serial.printf("Faking vesc: %d\n", fakeVescData);
+    // Serial.printf("btn1.setLongClickHandler([](Button2 &b)\n");
   });
   btn1.setDoubleClickHandler([](Button2 &b) {
     Serial.printf("btn1.setDoubleClickHandler([](Button2 &b)\n");
@@ -191,7 +181,6 @@ void button_init()
 void button_loop()
 {
   btn1.loop();
-  btn2.loop();
 }
 //------------------------------------------------------------------
 void initialiseApp()
