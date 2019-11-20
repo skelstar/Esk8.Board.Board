@@ -25,7 +25,7 @@ Button2 btn1(BUTTON_1);
 #include "utils.h"
 #include "light-bar.h"
 
-#include "ble_notify.h"
+#include "ESPNow.h"
 
 //------------------------------------------------------------------
 
@@ -139,9 +139,9 @@ Task t_GetVescValues(
         }
       }
 
-      if (bleClientConnected)
+      if (clientConnected)
       {
-        sendDataToClient();
+        // sendDataToClient();
       }
 
       fsm.run_machine();
@@ -236,9 +236,11 @@ void setup()
 
   initialiseApp();
 
-  initialiseLeds();
+  // initialiseLeds();
 
-  setupBLE();
+  setupESPNow();
+  esp_now_register_send_cb(onDataSent);
+  esp_now_register_recv_cb(onDataRecv);
 
   vesc.init(VESC_UART_BAUDRATE);
 
@@ -259,6 +261,8 @@ void setup()
   //waitForFirstPacketFromVesc();
 }
 //----------------------------------------------------------
+unsigned long now = 0;
+
 void loop()
 {
   fsm.run_machine();
@@ -266,5 +270,32 @@ void loop()
   // runner.execute();
 
   button_loop();
+
+  if (millis() - now > 500)
+  {
+    now = millis();
+
+    if (slave.channel == CHANNEL)
+    {
+      bool exists = esp_now_is_peer_exist(slave.peer_addr);
+      if (exists)
+      {
+        sendData();
+      }
+      else
+      {
+        Serial.println("Slave pair failed!");
+      }
+    }
+    else if (clientConnected == false)
+    {
+      ScanForSlave();
+      bool paired = pairSlave();
+      if (paired)
+      {
+        Serial.printf("Paired: %s\n", paired ? "true" : "false");
+      }
+    }
+  }
 }
 //----------------------------------------------------------
