@@ -245,8 +245,8 @@ void setup()
   vesc.init(VESC_UART_BAUDRATE);
 
   runner.startNow();
-  runner.addTask(t_GetVescValues);
-  t_GetVescValues.enable();
+  // runner.addTask(t_GetVescValues);
+  // t_GetVescValues.enable();
   
   xTaskCreatePinnedToCore(vescTask, "vescTask", 10000, NULL, /*priority*/ 0, NULL, OTHER_CORE);
   xTaskCreatePinnedToCore(controllerTask, "controllerTask", 10000, NULL, /*priority*/ 1, NULL, LOOP_CORE);
@@ -271,7 +271,7 @@ void loop()
 
   button_loop();
 
-  if (millis() - now > 500)
+  if (millis() - now > 1000)
   {
     now = millis();
 
@@ -280,7 +280,7 @@ void loop()
       bool exists = esp_now_is_peer_exist(slave.peer_addr);
       if (exists)
       {
-        sendData();
+        // sendData();
       }
       else
       {
@@ -294,6 +294,9 @@ void loop()
       if (paired)
       {
         Serial.printf("Paired: %s\n", paired ? "true" : "false");
+        
+        uint8_t data = 0;
+        sendData(&data);
       }
     }
   }

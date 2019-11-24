@@ -223,40 +223,23 @@ void deletePeer()
   }
 }
 
-uint8_t data = 0;
+// uint8_t data = 0;
 // send data
-void sendData()
+void sendData(const uint8_t *data)
 {
-  data++;
+  uint8_t d;
+  memcpy(&d, data, sizeof(d));
+
+  // data++;
   const uint8_t *peer_addr = slave.peer_addr;
   Serial.print("Sending: ");
-  Serial.println(data);
-  esp_err_t result = esp_now_send(peer_addr, &data, sizeof(data));
+  Serial.println(d);
+  esp_err_t result = esp_now_send(peer_addr, &d, sizeof(d));
+
   Serial.print("Send Status: ");
   if (result == ESP_OK)
   {
     Serial.println("Success");
-  }
-  else if (result == ESP_ERR_ESPNOW_NOT_INIT)
-  {
-    // How did we get so far!!
-    Serial.println("ESPNOW not Init.");
-  }
-  else if (result == ESP_ERR_ESPNOW_ARG)
-  {
-    Serial.println("Invalid Argument");
-  }
-  else if (result == ESP_ERR_ESPNOW_INTERNAL)
-  {
-    Serial.println("Internal Error");
-  }
-  else if (result == ESP_ERR_ESPNOW_NO_MEM)
-  {
-    Serial.println("ESP_ERR_ESPNOW_NO_MEM");
-  }
-  else if (result == ESP_ERR_ESPNOW_NOT_FOUND)
-  {
-    Serial.println("Peer not found.");
   }
   else
   {
@@ -267,25 +250,28 @@ void sendData()
 void macAddrToString(const uint8_t *mac_addr, char* macAddr) {
   char macStr1[18];
   snprintf(macAddr, sizeof(macStr1), "%02x:%02x:%02x:%02x:%02x:%02x",
-           mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-  // return macStr;
+           mac_addr[0], 
+           mac_addr[1], 
+           mac_addr[2], 
+           mac_addr[3], 
+           mac_addr[4], 
+           mac_addr[5]);
 }
 
 // callback when data is sent from Master to Slave
 void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
 {
-  char macStr1[18];
-  macAddrToString(mac_addr, macStr1);
-  Serial.print("Last Packet Sent to: ");
-  Serial.println( macStr1 );
+  // char macStr1[18];
+  // macAddrToString(mac_addr, macStr1);
+  // Serial.print("Last Packet Sent to: ");
+  // Serial.println( macStr1 );
 }
 
 void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
 {
-  char macStr[18];
-  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
-           mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
   Serial.print("Last Packet Recv Data: ");
   Serial.println(*data);
-  Serial.println("");
+  // echo to slave
+  sendData(data);
+  Serial.println("-------------");
 }
