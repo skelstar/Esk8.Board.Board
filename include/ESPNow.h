@@ -267,8 +267,11 @@ void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
   // Serial.println( macStr1 );
 }
 
+unsigned long lastPacketRxTime = 0;
+
 void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
 {
+  lastPacketRxTime = millis();
   Serial.print("Last Packet Recv Data: ");
   Serial.println(*data);
   // echo to slave

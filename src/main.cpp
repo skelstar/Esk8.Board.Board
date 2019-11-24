@@ -267,15 +267,13 @@ void loop()
 {
   fsm.run_machine();
 
-  // runner.execute();
-
   button_loop();
 
   if (millis() - now > 1000)
   {
     now = millis();
 
-    if (slave.channel == CHANNEL)
+    if (slave.channel == CHANNEL && millis() - lastPacketRxTime < 1000)
     {
       bool exists = esp_now_is_peer_exist(slave.peer_addr);
       if (exists)
@@ -287,7 +285,7 @@ void loop()
         Serial.println("Slave pair failed!");
       }
     }
-    else if (clientConnected == false)
+    else if (clientConnected == false || millis() - lastPacketRxTime > 1000)
     {
       ScanForSlave();
       bool paired = pairSlave();
