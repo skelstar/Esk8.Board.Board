@@ -8,7 +8,7 @@ bool clientConnected = false;
 
 // Global copy of slave
 esp_now_peer_info_t slave;
-#define CHANNEL 3
+#define CHANNEL 1
 #define PRINTSCANRESULTS 0
 #define DELETEBEFOREPAIR 0
 
@@ -20,6 +20,8 @@ void setupESPNow()
 {
   WiFi.mode(WIFI_STA);
   Serial.println("ESPNow/Basic/Master Example");
+  Serial.printf("MacAddr: %s\n", WiFi.macAddress());
+
   // Serial.print("STA MAC: ");
   // Serial.println(WiFi.macAddress);
   WiFi.disconnect();
@@ -262,16 +264,20 @@ void sendData()
   }
 }
 
+void macAddrToString(const uint8_t *mac_addr, char* macAddr) {
+  char macStr1[18];
+  snprintf(macAddr, sizeof(macStr1), "%02x:%02x:%02x:%02x:%02x:%02x",
+           mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+  // return macStr;
+}
+
 // callback when data is sent from Master to Slave
 void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status)
 {
-  char macStr[18];
-  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
-           mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+  char macStr1[18];
+  macAddrToString(mac_addr, macStr1);
   Serial.print("Last Packet Sent to: ");
-  Serial.println(macStr);
-  Serial.print("Last Packet Send Status: ");
-  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+  Serial.println( macStr1 );
 }
 
 void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
