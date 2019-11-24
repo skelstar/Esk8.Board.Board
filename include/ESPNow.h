@@ -232,8 +232,8 @@ void sendData(const uint8_t *data)
 
   // data++;
   const uint8_t *peer_addr = slave.peer_addr;
-  Serial.print("Sending: ");
-  Serial.println(d);
+  Serial.printf("Sending: %d\n", d);
+
   esp_err_t result = esp_now_send(peer_addr, &d, sizeof(d));
 
   Serial.print("Send Status: ");
@@ -272,6 +272,12 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
   Serial.print("Last Packet Recv Data: ");
   Serial.println(*data);
   // echo to slave
-  sendData(data);
-  Serial.println("-------------");
+  if (!btn1.isPressed()) {
+    sendData(data);
+    Serial.println("-------------");
+  }
+  else {
+    Serial.printf("Not replying!\n");
+    Serial.println("-------------");
+  }
 }
