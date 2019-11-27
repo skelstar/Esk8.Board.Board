@@ -1,3 +1,7 @@
+#define DEBUG_OUT Serial
+#define PRINTSTREAM_FALLBACK
+#include "Debug.hpp"
+
 #include <Button2.h>
 #include <Fsm.h>
 #include <TaskScheduler.h>
@@ -294,14 +298,14 @@ void loop()
       {
         Serial.printf("Paired: %s\n", paired ? "true" : "false");
         
-        unsigned long data = 1;
-        uint8_t d;
-        memcpy(&d, &data, sizeof(data));
+        VescData vescdata;
+        vescdata.id = 0;
+
         const uint8_t *peer_addr = slave.peer_addr;
 
-        //esp_err_t result = esp_now_send(peer_addr, &d, sizeof(data));
-
-        sendData(&d, sizeof(data));
+        uint8_t bs[sizeof(vescdata)];
+        memcpy(bs, &vescdata, sizeof(vescdata));
+        esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
       }
     }
   }

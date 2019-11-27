@@ -249,15 +249,23 @@ unsigned long lastPacketRxTime = 0;
 
 void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
 {
-  unsigned long rx;
-  memcpy(/*dest*/&rx, /*src*/data, data_len);
+  VescData rx;
+  memcpy(/*to*/&rx, /*from*/data, data_len);
+
   lastPacketRxTime = millis();
   Serial.print("Last Packet Recv Data: ");
-  Serial.println(rx);
+  Serial.println(rx.id);
+
+  rx.batteryVoltage = 3.4;
+
+  uint8_t bs[sizeof(rx)];
+  memcpy(bs, &rx, sizeof(rx));
+
   // echo to slave
   if (!btn1.isPressed()) {
-    sendData(data, data_len);
-    Serial.println("-------------");
+    sendData(bs, sizeof(bs));
+    DEBUGVAL(rx.id, rx.batteryVoltage);
+Serial.println("-------------");
   }
   else {
     Serial.printf("Not replying!\n");
