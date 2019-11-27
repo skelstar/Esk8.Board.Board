@@ -189,6 +189,7 @@ void initialiseApp()
 }
 //------------------------------------------------------------------
 void initialiseLeds() {
+  Serial.printf("Initialising LEDs (red)\n");
   FastLED.addLeds<WS2812B, PIXEL_PIN, GRB>(strip, NUM_PIXELS);
   FastLED.setBrightness(50);
   allLedsOn(COLOUR_RED);
@@ -293,8 +294,14 @@ void loop()
       {
         Serial.printf("Paired: %s\n", paired ? "true" : "false");
         
-        uint8_t data = 0;
-        sendData(&data);
+        unsigned long data = 1;
+        uint8_t d;
+        memcpy(&d, &data, sizeof(data));
+        const uint8_t *peer_addr = slave.peer_addr;
+
+        //esp_err_t result = esp_now_send(peer_addr, &d, sizeof(data));
+
+        sendData(&d, sizeof(data));
       }
     }
   }

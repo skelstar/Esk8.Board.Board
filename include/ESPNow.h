@@ -39,6 +39,47 @@ void setupESPNow()
   }
 }
 
+bool printSendStatus(esp_err_t status) {
+  if (status == ESP_OK)
+  {
+    // Pair success
+    Serial.println("Success");
+    return true;
+  }
+  else if (status == ESP_ERR_ESPNOW_NOT_INIT)
+  {
+    // How did we get so far!!
+    Serial.println("ESPNOW Not Init");
+    return false;
+  }
+  else if (status == ESP_ERR_ESPNOW_ARG)
+  {
+    Serial.println("Invalid Argument");
+    return false;
+  }
+  else if (status == ESP_ERR_ESPNOW_FULL)
+  {
+    Serial.println("Peer list full");
+    return false;
+  }
+  else if (status == ESP_ERR_ESPNOW_NO_MEM)
+  {
+    Serial.println("Out of memory");
+    return false;
+  }
+  else if (status == ESP_ERR_ESPNOW_EXIST)
+  {
+    Serial.println("Exists");
+    return true;
+  }
+  else
+  {
+    Serial.println("Not sure what happened");
+    return false;
+  }
+
+}
+
 // Check if the slave is already paired with the master.
 // If not, pair the slave with master
 bool pairSlave()
@@ -63,43 +104,7 @@ bool pairSlave()
     {
       // Slave not paired, attempt pair
       esp_err_t addStatus = esp_now_add_peer(&slave);
-      if (addStatus == ESP_OK)
-      {
-        // Pair success
-        Serial.println("Pair success");
-        return true;
-      }
-      else if (addStatus == ESP_ERR_ESPNOW_NOT_INIT)
-      {
-        // How did we get so far!!
-        Serial.println("ESPNOW Not Init");
-        return false;
-      }
-      else if (addStatus == ESP_ERR_ESPNOW_ARG)
-      {
-        Serial.println("Invalid Argument");
-        return false;
-      }
-      else if (addStatus == ESP_ERR_ESPNOW_FULL)
-      {
-        Serial.println("Peer list full");
-        return false;
-      }
-      else if (addStatus == ESP_ERR_ESPNOW_NO_MEM)
-      {
-        Serial.println("Out of memory");
-        return false;
-      }
-      else if (addStatus == ESP_ERR_ESPNOW_EXIST)
-      {
-        Serial.println("Peer Exists");
-        return true;
-      }
-      else
-      {
-        Serial.println("Not sure what happened");
-        return false;
-      }
+      return printSendStatus(addStatus);
     }
   }
   else
@@ -199,52 +204,21 @@ void deletePeer()
 {
   esp_err_t delStatus = esp_now_del_peer(slave.peer_addr);
   Serial.print("Slave Delete Status: ");
-  if (delStatus == ESP_OK)
-  {
-    // Delete success
-    Serial.println("Success");
-  }
-  else if (delStatus == ESP_ERR_ESPNOW_NOT_INIT)
-  {
-    // How did we get so far!!
-    Serial.println("ESPNOW Not Init");
-  }
-  else if (delStatus == ESP_ERR_ESPNOW_ARG)
-  {
-    Serial.println("Invalid Argument");
-  }
-  else if (delStatus == ESP_ERR_ESPNOW_NOT_FOUND)
-  {
-    Serial.println("Peer not found.");
-  }
-  else
-  {
-    Serial.println("Not sure what happened");
-  }
+  printSendStatus(delStatus);
 }
 
 // uint8_t data = 0;
 // send data
-void sendData(const uint8_t *data)
+void sendData(const uint8_t *data, int data_len)
 {
-  uint8_t d;
-  memcpy(&d, data, sizeof(d));
-
-  // data++;
   const uint8_t *peer_addr = slave.peer_addr;
-  Serial.printf("Sending: %d\n", d);
+  // Serial.print("Sending: ");
+  // Serial.println(data);
 
-  esp_err_t result = esp_now_send(peer_addr, &d, sizeof(d));
+  esp_err_t result = esp_now_send(peer_addr, data, data_len);
 
   Serial.print("Send Status: ");
-  if (result == ESP_OK)
-  {
-    Serial.println("Success");
-  }
-  else
-  {
-    Serial.println("Not sure what happened");
-  }
+  printSendStatus(result);
 }
 
 void macAddrToString(const uint8_t *mac_addr, char* macAddr) {
@@ -271,12 +245,14 @@ unsigned long lastPacketRxTime = 0;
 
 void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
 {
+  unsigned long rx;
+  memcpy(/*dest*/&rx, /*src*/data, data_len);
   lastPacketRxTime = millis();
   Serial.print("Last Packet Recv Data: ");
-  Serial.println(*data);
+  Serial.println(rx);
   // echo to slave
   if (!btn1.isPressed()) {
-    sendData(data);
+    sendData(data, data_len);
     Serial.println("-------------");
   }
   else {
