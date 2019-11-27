@@ -294,7 +294,7 @@ void loop()
         Serial.printf("Paired: %s\n", paired ? "true" : "false");
         
         uint8_t data = 0;
-        sendData(&data);
+        sendData(&data, sizeof(data));
       }
     }
   }

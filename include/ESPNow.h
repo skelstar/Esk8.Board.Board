@@ -225,16 +225,16 @@ void deletePeer()
 
 // uint8_t data = 0;
 // send data
-void sendData(const uint8_t *data)
+void sendData(const uint8_t *data, int len)
 {
   uint8_t d;
-  memcpy(&d, data, sizeof(d));
+  memcpy(&d, data, len);
 
   // data++;
   const uint8_t *peer_addr = slave.peer_addr;
   Serial.printf("Sending: %d\n", d);
 
-  esp_err_t result = esp_now_send(peer_addr, &d, sizeof(d));
+  esp_err_t result = esp_now_send(peer_addr, &d, sizeof(len));
 
   Serial.print("Send Status: ");
   if (result == ESP_OK)
@@ -276,7 +276,7 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len)
   Serial.println(*data);
   // echo to slave
   if (!btn1.isPressed()) {
-    sendData(data);
+    sendData(data, data_len);
     Serial.println("-------------");
   }
   else {
