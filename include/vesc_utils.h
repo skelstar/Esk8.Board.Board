@@ -9,6 +9,7 @@
 uint8_t vesc_packet[PACKET_MAX_LENGTH];
 
 VescData vescdata, initialVescData;
+ControllerData controller_packet;
 
 #define VESC_UART_BAUDRATE 115200
 

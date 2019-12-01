@@ -210,16 +210,16 @@ void packetReceived(const uint8_t *data, uint8_t data_len)
 {
   lastPacketRxTime = millis();
 
-  memcpy(/*dest*/&vescdata, /*src*/data, data_len);
-
+  memcpy(/*dest*/&controller_packet, /*src*/data, data_len);
+  DEBUGVAL(controller_packet.throttle, controller_packet.id);
   // echo to slave
   if (!btn1.isPressed()) {
+    vescdata.id = controller_packet.id;
     uint8_t bs[sizeof(vescdata)];
     memcpy(bs, &vescdata, sizeof(vescdata));
-
     client.sendPacket(bs, sizeof(bs));
-    DEBUGVAL(vescdata.id, vescdata.batteryVoltage);
-    DEBUG("-------------");
+
+    DEBUGVAL("sent", controller_packet.id);
   }
   else {
     DEBUG("Not replying!\n");
@@ -282,7 +282,7 @@ void setup()
   });
   client.setOnNotifyEvent(packetReceived);
   client.setOnSentEvent(packetSent);
-  client.initialise();
+  initESPNow(/*master*/ true);
 
   vesc.init(VESC_UART_BAUDRATE);
 
@@ -321,7 +321,6 @@ void loop()
       bool exists = esp_now_is_peer_exist(peer.peer_addr);
       if (exists)
       {
-        // sendData();
       }
       else
       {
@@ -336,7 +335,6 @@ void loop()
       {
         Serial.printf("Paired: %s\n", paired ? "true" : "false");
         
-        VescData vescdata;
         vescdata.id = 0;
 
         const uint8_t *peer_addr = peer.peer_addr;
