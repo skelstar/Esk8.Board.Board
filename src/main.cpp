@@ -200,10 +200,6 @@ void initialiseLeds() {
 }
 //------------------------------------------------------------------
 
-#ifndef espnowClient
-// EspNowClient client;
-#endif
-
 unsigned long lastPacketRxTime = 0;
 
 void packetReceived(const uint8_t *data, uint8_t data_len)
@@ -219,7 +215,7 @@ void packetReceived(const uint8_t *data, uint8_t data_len)
     memcpy(bs, &vescdata, sizeof(vescdata));
     client.sendPacket(bs, sizeof(bs));
 
-    DEBUGVAL("sent", controller_packet.id);
+    DEBUGVAL("sent", vescdata.id);
   }
   else {
     DEBUG("Not replying!\n");
