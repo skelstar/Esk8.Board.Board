@@ -278,7 +278,7 @@ void setup()
   });
   client.setOnNotifyEvent(packetReceived);
   client.setOnSentEvent(packetSent);
-  initESPNow(/*master*/ true);
+  initESPNow();
 
   vesc.init(VESC_UART_BAUDRATE);
 
