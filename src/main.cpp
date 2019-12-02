@@ -7,6 +7,7 @@
 #include <TaskScheduler.h>
 #include <VescData.h>
 #include <espNowClient.h>
+#include <elapsedMillis.h>
 
 #define ADC_EN 14
 #define ADC_PIN 34
@@ -14,6 +15,7 @@
 
 volatile bool responded = true;
 bool vescOnline = false;
+elapsedMillis sinceLastPacket = 0;
 
 void button_init();
 void button_loop();
@@ -204,7 +206,7 @@ unsigned long lastPacketRxTime = 0;
 
 void packetReceived(const uint8_t *data, uint8_t data_len)
 {
-  lastPacketRxTime = millis();
+  sinceLastPacket = 0;
 
   memcpy(/*dest*/&controller_packet, /*src*/data, data_len);
   DEBUGVAL(controller_packet.throttle, controller_packet.id);
@@ -214,8 +216,6 @@ void packetReceived(const uint8_t *data, uint8_t data_len)
     uint8_t bs[sizeof(vescdata)];
     memcpy(bs, &vescdata, sizeof(vescdata));
     client.sendPacket(bs, sizeof(bs));
-
-    DEBUGVAL("sent", vescdata.id);
   }
   else {
     DEBUG("Not replying!\n");
@@ -301,6 +301,7 @@ void setup()
 //----------------------------------------------------------
 unsigned long now = 0;
 bool clientConnected = false;
+#define LAST_PACKET_TIMEOUT 1000
 
 void loop()
 {
@@ -312,7 +313,7 @@ void loop()
   {
     now = millis();
 
-    if (peer.channel == CHANNEL && millis() - lastPacketRxTime < 1000)
+    if (peer.channel == CHANNEL && sinceLastPacket < LAST_PACKET_TIMEOUT)
     {
       bool exists = esp_now_is_peer_exist(peer.peer_addr);
       if (exists)
@@ -323,12 +324,13 @@ void loop()
         Serial.println("Slave pair failed!");
       }
     }
-    else if (clientConnected == false || millis() - lastPacketRxTime > 1000)
+    else if (clientConnected == false || sinceLastPacket > LAST_PACKET_TIMEOUT)
     {
       ScanForPeer();
       bool paired = pairPeer();
       if (paired)
       {
+        sinceLastPacket = 0;
         Serial.printf("Paired: %s\n", paired ? "true" : "false");
         
         vescdata.id = 0;
