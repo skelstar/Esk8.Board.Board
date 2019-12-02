@@ -296,11 +296,9 @@ void setup()
   button_init();
   button_loop();
   #endif
-  //waitForFirstPacketFromVesc();
 }
 //----------------------------------------------------------
 unsigned long now = 0;
-bool clientConnected = false;
 #define LAST_PACKET_TIMEOUT 1000
 
 void loop()
@@ -309,38 +307,22 @@ void loop()
 
   button_loop();
 
-  if (millis() - now > 1000)
+  if (sinceLastPacket > LAST_PACKET_TIMEOUT)
   {
-    now = millis();
-
-    if (peer.channel == CHANNEL && sinceLastPacket < LAST_PACKET_TIMEOUT)
+    ScanForPeer();
+    bool paired = pairPeer();
+    if (paired)
     {
-      bool exists = esp_now_is_peer_exist(peer.peer_addr);
-      if (exists)
-      {
-      }
-      else
-      {
-        Serial.println("Slave pair failed!");
-      }
-    }
-    else if (clientConnected == false || sinceLastPacket > LAST_PACKET_TIMEOUT)
-    {
-      ScanForPeer();
-      bool paired = pairPeer();
-      if (paired)
-      {
-        sinceLastPacket = 0;
-        Serial.printf("Paired: %s\n", paired ? "true" : "false");
-        
-        vescdata.id = 0;
+      sinceLastPacket = 0;
+      Serial.printf("Paired: %s\n", paired ? "true" : "false");
+      
+      vescdata.id = 0;
 
-        const uint8_t *peer_addr = peer.peer_addr;
+      const uint8_t *peer_addr = peer.peer_addr;
 
-        uint8_t bs[sizeof(vescdata)];
-        memcpy(bs, &vescdata, sizeof(vescdata));
-        esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
-      }
+      uint8_t bs[sizeof(vescdata)];
+      memcpy(bs, &vescdata, sizeof(vescdata));
+      esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
     }
   }
 }
