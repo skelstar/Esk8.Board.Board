@@ -1,7 +1,13 @@
+#define DEBUG_OUT Serial
+#define PRINTSTREAM_FALLBACK
+#include "Debug.hpp"
+
 #include <Button2.h>
 #include <Fsm.h>
 #include <TaskScheduler.h>
 #include <VescData.h>
+#include <espNowClient.h>
+#include <elapsedMillis.h>
 
 #define ADC_EN 14
 #define ADC_PIN 34
@@ -9,6 +15,7 @@
 
 volatile bool responded = true;
 bool vescOnline = false;
+elapsedMillis sinceLastPacket = 0;
 
 void button_init();
 void button_loop();
@@ -24,8 +31,6 @@ Button2 btn1(BUTTON_1);
 #include "vesc_utils.h"
 #include "utils.h"
 #include "light-bar.h"
-
-#include "ble_notify.h"
 
 //------------------------------------------------------------------
 
@@ -88,11 +93,11 @@ void addFsmTransitions()
   fsm.add_transition(&state_board_moving, &state_board_stopped, event, NULL);
 }
 //------------------------------------------------------------------
-bool fakeVescData = false;
+bool fakevescdata = false;
 bool fakeMoving = false;
 
 void toggleFakeVescMode() {
-  fakeVescData = !fakeVescData;
+  fakevescdata = !fakevescdata;
   fakeMoving = false;
 }
 
@@ -108,7 +113,7 @@ Task t_GetVescValues(
     [] {
       vescOnline = getVescValues() == true;
 
-      if (fakeVescData) {
+      if (fakevescdata) {
         vescOnline = true;
         vescdata.ampHours = vescdata.ampHours > 0.0 ? vescdata.ampHours + 0.23 : 12.0;
         vescdata.odometer = vescdata.odometer > 0.0 ? vescdata.odometer + 0.1 : 1.0;
@@ -139,10 +144,10 @@ Task t_GetVescValues(
         }
       }
 
-      if (bleClientConnected)
-      {
-        sendDataToClient();
-      }
+      // if (clientConnected)
+      // {
+      //   // sendDataToClient();
+      // }
 
       fsm.run_machine();
     });
@@ -160,14 +165,14 @@ void button_init()
     Serial.printf("btn1.setReleasedHandler()\n");
   });
   btn1.setClickHandler([](Button2 &b) {
-    if (fakeVescData) {
+    if (fakevescdata) {
       fakeMoving = !fakeMoving;
     }
     Serial.printf("btn1.setClickHandler()\n");
   });
   btn1.setLongClickHandler([](Button2 &b) {
     toggleFakeVescMode();
-    Serial.printf("Faking vesc: %d\n", fakeVescData);
+    Serial.printf("Faking vesc: %d\n", fakevescdata);
     // Serial.printf("btn1.setLongClickHandler([](Button2 &b)\n");
   });
   btn1.setDoubleClickHandler([](Button2 &b) {
@@ -189,10 +194,37 @@ void initialiseApp()
 }
 //------------------------------------------------------------------
 void initialiseLeds() {
+  DEBUG("Initialising LEDs (red)\n");
   FastLED.addLeds<WS2812B, PIXEL_PIN, GRB>(strip, NUM_PIXELS);
   FastLED.setBrightness(50);
   allLedsOn(COLOUR_RED);
   FastLED.show();
+}
+//------------------------------------------------------------------
+
+unsigned long lastPacketRxTime = 0;
+
+void packetReceived(const uint8_t *data, uint8_t data_len)
+{
+  sinceLastPacket = 0;
+
+  memcpy(/*dest*/&controller_packet, /*src*/data, data_len);
+  DEBUGVAL(controller_packet.throttle, controller_packet.id);
+  // echo to slave
+  if (!btn1.isPressed()) {
+    vescdata.id = controller_packet.id;
+    uint8_t bs[sizeof(vescdata)];
+    memcpy(bs, &vescdata, sizeof(vescdata));
+    client.sendPacket(bs, sizeof(bs));
+  }
+  else {
+    DEBUG("Not replying!\n");
+    DEBUG("-------------");
+  }
+}
+
+void packetSent() {
+  // DEBUGFN("");
 }
 //------------------------------------------------------------------
 
@@ -238,7 +270,15 @@ void setup()
 
   initialiseLeds();
 
-  setupBLE();
+  client.setOnConnectedEvent([]{
+    Serial.printf("Connected!\n");
+  });
+  client.setOnDisconnectedEvent([]{
+    Serial.println("ESPNow Init Failed, restarting...");
+  });
+  client.setOnNotifyEvent(packetReceived);
+  client.setOnSentEvent(packetSent);
+  initESPNow();
 
   vesc.init(VESC_UART_BAUDRATE);
 
@@ -256,15 +296,34 @@ void setup()
   button_init();
   button_loop();
   #endif
-  //waitForFirstPacketFromVesc();
 }
 //----------------------------------------------------------
+unsigned long now = 0;
+#define LAST_PACKET_TIMEOUT 1000
+
 void loop()
 {
   fsm.run_machine();
 
-  // runner.execute();
-
   button_loop();
+
+  if (sinceLastPacket > LAST_PACKET_TIMEOUT)
+  {
+    ScanForPeer();
+    bool paired = pairPeer();
+    if (paired)
+    {
+      sinceLastPacket = 0;
+      Serial.printf("Paired: %s\n", paired ? "true" : "false");
+      
+      vescdata.id = 0;
+
+      const uint8_t *peer_addr = peer.peer_addr;
+
+      uint8_t bs[sizeof(vescdata)];
+      memcpy(bs, &vescdata, sizeof(vescdata));
+      esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
+    }
+  }
 }
 //----------------------------------------------------------
