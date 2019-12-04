@@ -203,13 +203,19 @@ void initialiseLeds() {
 //------------------------------------------------------------------
 
 unsigned long lastPacketRxTime = 0;
+uint8_t oldThrottle = 127;
 
 void packetReceived(const uint8_t *data, uint8_t data_len)
 {
   sinceLastPacket = 0;
 
   memcpy(/*dest*/&controller_packet, /*src*/data, data_len);
-  DEBUGVAL(controller_packet.throttle, controller_packet.id);
+
+  if (controller_packet.throttle != oldThrottle) 
+  {
+    oldThrottle = controller_packet.throttle;
+    DEBUGVAL(controller_packet.throttle, controller_packet.id);
+  }
   // echo to slave
   if (!btn1.isPressed()) {
     vescdata.id = controller_packet.id;
