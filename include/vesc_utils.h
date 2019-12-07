@@ -9,7 +9,7 @@
 uint8_t vesc_packet[PACKET_MAX_LENGTH];
 
 VescData vescdata, initialVescData;
-ControllerData controller_packet;
+ControllerData controller_packet, old_packet;
 
 #define VESC_UART_BAUDRATE 115200
 
@@ -23,6 +23,13 @@ int32_t rotations_to_meters(int32_t rotations);
 float getDistanceInMeters(int32_t tacho);
 
 //-----------------------------------------------------------------------------------
+void send_to_vesc(uint8_t throttle)
+{
+  vesc.setNunchuckValues(127, throttle, 0, 0);
+  DEBUGVAL("Sent to motor", throttle);
+}
+
+//-----------------------------------------------------------------------------------
 bool getVescValues()
 {
   bool success = vesc.fetch_packet(vesc_packet) > 0;
@@ -33,13 +40,12 @@ bool getVescValues()
     vescdata.moving = vesc.get_rpm(vesc_packet) > 50;
     vescdata.ampHours = vesc.get_amphours_discharged(vesc_packet);
     vescdata.odometer = getDistanceInMeters(/*tacho*/ vesc.get_tachometer(vesc_packet));
-    vescdata.vescOnline = true;
   }
   else {
     vescdata.batteryVoltage = 0.0;
     vescdata.moving = false;
     vescdata.ampHours = 0.0;
-    vescdata.vescOnline = false;
+    vescdata.odometer = 0.0;
   }
   return success;
 }

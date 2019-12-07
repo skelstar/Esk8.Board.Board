@@ -9,97 +9,36 @@
 #include <espNowClient.h>
 #include <elapsedMillis.h>
 
-#define ADC_EN 14
-#define ADC_PIN 34
-#define BUTTON_1 0
 
-volatile bool responded = true;
+elapsedMillis sinceLastControllerPacket = 0;
 bool vescOnline = false;
-elapsedMillis sinceLastPacket = 0;
 
 void button_init();
 void button_loop();
 void initialiseApp();
 
+#define CONTROLLER_TIMEOUT      600
+#define SEND_TO_VESC_INTERVAL   900 // times out after 1s
+
+#define BUTTON_1 0
 #define USING_BUTTONS true
 Button2 btn1(BUTTON_1);
 
-#define NUM_PIXELS  21
-#define PIXEL_PIN   5
-#define BRIGHT_MAX  10
+#define NUM_PIXELS 21
+#define PIXEL_PIN 5
+#define BRIGHT_MAX 10
 
 #include "vesc_utils.h"
 #include "utils.h"
 #include "light-bar.h"
+#include "state_machine.h"
 
 //------------------------------------------------------------------
 
-enum EventsEnum
-{
-  WAITING_FOR_VESC,
-  POWERING_DOWN,
-  VESC_OFFLINE,
-  MOVING,
-  STOPPED
-} event;
-//------------------------------------------------------------------
-State state_waiting_for_vesc([] {
-  Serial.printf("state_waiting_for_vesc\n");
-},
-NULL, NULL);
-//------------------------------------------------------------------
-State state_powering_down([] {
-  Serial.printf("state_powering_down\n");
-},
-NULL, NULL);
-//------------------------------------------------------------------
-State state_offline([] {
-  Serial.printf("state_offline\n");
-},
-NULL, NULL);
-//------------------------------------------------------------------
-State state_board_moving([] {
-  Serial.printf("state_board_moving\n");
-},
-NULL, NULL);
-//------------------------------------------------------------------
-State state_board_stopped([] {
-  Serial.printf("state_board_stopped\n");
-  if (vescOnline)
-  {
-    // lastStableVolts = vescdata.batteryVoltage;
-  }
-},
-NULL, NULL);
-//------------------------------------------------------------------
-Fsm fsm(&state_waiting_for_vesc);
+xQueueHandle xEventQueue;
+xQueueHandle xControllerTaskQueue;
 
-void addFsmTransitions()
-{
-  event = POWERING_DOWN;
-  fsm.add_transition(&state_waiting_for_vesc, &state_powering_down, event, NULL);
-  fsm.add_transition(&state_board_moving, &state_powering_down, event, NULL);
-  fsm.add_transition(&state_board_stopped, &state_powering_down, event, NULL);
-
-  event = VESC_OFFLINE;
-  fsm.add_transition(&state_board_moving, &state_offline, event, NULL);
-  fsm.add_transition(&state_board_stopped, &state_offline, event, NULL);
-
-  event = MOVING;
-  fsm.add_transition(&state_board_stopped, &state_board_moving, event, NULL);
-
-  event = STOPPED;
-  fsm.add_transition(&state_waiting_for_vesc, &state_board_stopped, event, NULL);
-  fsm.add_transition(&state_board_moving, &state_board_stopped, event, NULL);
-}
-//------------------------------------------------------------------
-bool fakevescdata = false;
-bool fakeMoving = false;
-
-void toggleFakeVescMode() {
-  fakevescdata = !fakevescdata;
-  fakeMoving = false;
-}
+SemaphoreHandle_t xVescDataSemaphore;
 
 //------------------------------------------------------------------
 
@@ -111,159 +50,114 @@ Task t_GetVescValues(
     GET_FROM_VESC_INTERVAL,
     TASK_FOREVER,
     [] {
-      vescOnline = getVescValues() == true;
-
-      if (fakevescdata) {
-        vescOnline = true;
-        vescdata.ampHours = vescdata.ampHours > 0.0 ? vescdata.ampHours + 0.23 : 12.0;
-        vescdata.odometer = vescdata.odometer > 0.0 ? vescdata.odometer + 0.1 : 1.0;
-        vescdata.batteryVoltage = 38.4;
-        vescdata.moving = fakeMoving;
-        vescdata.vescOnline = true;
-        Serial.printf("FAKE: ampHours %.1fmAh odo %.1fkm batt: %.1fv \n", vescdata.ampHours, vescdata.odometer, vescdata.batteryVoltage);
+      if (xVescDataSemaphore != NULL && xSemaphoreTake(xVescDataSemaphore, (TickType_t)10) == pdTRUE)
+      {
+        vescOnline = getVescValues() == true;
+        xSemaphoreGive(xVescDataSemaphore);
       }
 
       if (vescOnline == false)
       {
-        fsm.trigger(VESC_OFFLINE);
+        EventsEnum e = EV_VESC_OFFLINE;
+        xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
       }
       else
       {
         if (vescPoweringDown())
         {
-          fsm.trigger(POWERING_DOWN);
+          EventsEnum e = EV_POWERING_DOWN;
+          xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
         }
         else if (vescdata.moving)
         {
-          fsm.trigger(MOVING);
+          EventsEnum e = EV_MOVING;
+          xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
         }
         else
         {
-          fsm.trigger(STOPPED);
-          fsm.run_machine();
+          EventsEnum e = EV_STOPPED;
+          xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
         }
       }
-
-      // if (clientConnected)
-      // {
-      //   // sendDataToClient();
-      // }
-
-      fsm.run_machine();
     });
 
-//------------------------------------------------------------------
+Task t_SendToVesc(
+  SEND_TO_VESC_INTERVAL,
+  TASK_FOREVER,
+  [] {
+    send_to_vesc(controller_packet.throttle);
+  }
+);
 
-#define LONGCLICK_MS    1000
+#include "peripherals.h"
 
-void button_init()
-{
-  btn1.setPressedHandler([](Button2 &b) {
-    Serial.printf("btn1.setPressedHandler()\n");
-  });
-  btn1.setReleasedHandler([](Button2 &b) {
-    Serial.printf("btn1.setReleasedHandler()\n");
-  });
-  btn1.setClickHandler([](Button2 &b) {
-    if (fakevescdata) {
-      fakeMoving = !fakeMoving;
-    }
-    Serial.printf("btn1.setClickHandler()\n");
-  });
-  btn1.setLongClickHandler([](Button2 &b) {
-    toggleFakeVescMode();
-    Serial.printf("Faking vesc: %d\n", fakevescdata);
-    // Serial.printf("btn1.setLongClickHandler([](Button2 &b)\n");
-  });
-  btn1.setDoubleClickHandler([](Button2 &b) {
-    Serial.printf("btn1.setDoubleClickHandler([](Button2 &b)\n");
-  });
-  btn1.setTripleClickHandler([](Button2 &b) {
-    Serial.printf("btn1.setTripleClickHandler([](Button2 &b)\n");
-  });
-}
-
-void button_loop()
-{
-  btn1.loop();
-}
 //------------------------------------------------------------------
 void initialiseApp()
 {
-  fsm.trigger(WAITING_FOR_VESC);
+  fsm.trigger(EV_WAITING_FOR_VESC);
 }
 //------------------------------------------------------------------
-void initialiseLeds() {
-  DEBUG("Initialising LEDs (red)\n");
-  FastLED.addLeds<WS2812B, PIXEL_PIN, GRB>(strip, NUM_PIXELS);
-  FastLED.setBrightness(50);
-  allLedsOn(COLOUR_RED);
-  FastLED.show();
-}
-//------------------------------------------------------------------
-
-unsigned long lastPacketRxTime = 0;
-uint8_t oldThrottle = 127;
 
 void packetReceived(const uint8_t *data, uint8_t data_len)
 {
-  sinceLastPacket = 0;
+  sinceLastControllerPacket = 0;
 
-  memcpy(/*dest*/&controller_packet, /*src*/data, data_len);
+  memcpy(&old_packet, &controller_packet, sizeof(controller_packet));
+  memcpy(/*dest*/ &controller_packet, /*src*/ data, data_len);
+  bool missed_a_packet = controller_packet.id != old_packet.id + 1 && old_packet.id > 0;
+  bool throttle_changed = controller_packet.throttle != old_packet.throttle;
 
-  if (controller_packet.throttle != oldThrottle) 
+  if (missed_a_packet)
   {
-    oldThrottle = controller_packet.throttle;
-    DEBUGVAL(controller_packet.throttle, controller_packet.id);
+    fsm.trigger(EV_MISSED_CONTROLLER_PACKET);
   }
-  // echo to slave
-  if (!btn1.isPressed()) {
-    vescdata.id = controller_packet.id;
-    uint8_t bs[sizeof(vescdata)];
-    memcpy(bs, &vescdata, sizeof(vescdata));
-    client.sendPacket(bs, sizeof(bs));
-  }
-  else {
-    DEBUG("Not replying!\n");
-    DEBUG("-------------");
+
+  if (throttle_changed)
+  {
+    send_to_vesc(controller_packet.throttle);
+    t_SendToVesc.restart();
   }
 }
 
-void packetSent() {
+void packetSent()
+{
   // DEBUGFN("");
 }
+
+#define OTHER_CORE 0
+#define LOOP_CORE 1
 //------------------------------------------------------------------
 
-xQueueHandle xVescTaskQueue;
-xQueueHandle xControllerTaskQueue;
-const TickType_t xVescTicksToWait = pdMS_TO_TICKS(100);
-const TickType_t xControllerTicksToWait = pdMS_TO_TICKS(100);
-
-#define OTHER_CORE  0
-#define LOOP_CORE   1
-
-void vescTask(void *pvParameters)
+void vescTask_0(void *pvParameters)
 {
+  Serial.printf("\nvescTask_0 running on core %d\n", xPortGetCoreID());
 
-  Serial.printf("vescTask running on core %d\n", xPortGetCoreID());
+  vesc.init(VESC_UART_BAUDRATE);
+
+  runner.startNow();
+  runner.addTask(t_GetVescValues);
+  runner.addTask(t_SendToVesc);
+  t_GetVescValues.enable();
+  t_SendToVesc.enable();
 
   while (true)
   {
-    vTaskDelay(10);
     runner.execute();
+
+    vTaskDelay(10);
   }
   vTaskDelete(NULL);
 }
 
-void controllerTask(void *pvParameters)
+void manage_event_queue()
 {
-  Serial.printf("controllerTask running on core %d\n", xPortGetCoreID());
-
-  while (true)
+  BaseType_t xStatus;
+  EventsEnum e;
+  xStatus = xQueueReceive(xEventQueue, &e, pdMS_TO_TICKS(10));
+  if (xStatus == pdPASS)
   {
-    vTaskDelay(10);
+    fsm.trigger(e);
   }
-  vTaskDelete(NULL);
 }
 
 //----------------------------------------------------------
@@ -276,36 +170,30 @@ void setup()
 
   initialiseLeds();
 
-  client.setOnConnectedEvent([]{
+  client.setOnConnectedEvent([] {
     Serial.printf("Connected!\n");
   });
-  client.setOnDisconnectedEvent([]{
+  client.setOnDisconnectedEvent([] {
     Serial.println("ESPNow Init Failed, restarting...");
   });
   client.setOnNotifyEvent(packetReceived);
   client.setOnSentEvent(packetSent);
   initESPNow();
 
-  vesc.init(VESC_UART_BAUDRATE);
-
-  runner.startNow();
-  runner.addTask(t_GetVescValues);
-  t_GetVescValues.enable();
-  
-  xTaskCreatePinnedToCore(vescTask, "vescTask", 10000, NULL, /*priority*/ 0, NULL, OTHER_CORE);
-  xTaskCreatePinnedToCore(controllerTask, "controllerTask", 10000, NULL, /*priority*/ 1, NULL, LOOP_CORE);
+  xTaskCreatePinnedToCore(vescTask_0, "vescTask", 10000, NULL, /*priority*/ 0, NULL, OTHER_CORE);
+  xVescDataSemaphore = xSemaphoreCreateMutex();
+  xEventQueue = xQueueCreate(1, sizeof(EventsEnum));
 
   addFsmTransitions();
   fsm.run_machine();
 
-  #ifdef USING_BUTTONS
+#ifdef USING_BUTTONS
   button_init();
   button_loop();
-  #endif
+#endif
 }
 //----------------------------------------------------------
 unsigned long now = 0;
-#define LAST_PACKET_TIMEOUT 1000
 
 void loop()
 {
@@ -313,15 +201,19 @@ void loop()
 
   button_loop();
 
-  if (sinceLastPacket > LAST_PACKET_TIMEOUT)
+  manage_event_queue();
+
+  if (sinceLastControllerPacket > CONTROLLER_TIMEOUT)
   {
+    fsm.trigger(EV_CONTROLLER_OFFLINE);
+
     ScanForPeer();
     bool paired = pairPeer();
     if (paired)
     {
-      sinceLastPacket = 0;
+      sinceLastControllerPacket = 0;
       Serial.printf("Paired: %s\n", paired ? "true" : "false");
-      
+
       vescdata.id = 0;
 
       const uint8_t *peer_addr = peer.peer_addr;
