@@ -9,16 +9,19 @@
 #include <espNowClient.h>
 #include <elapsedMillis.h>
 
-
 elapsedMillis sinceLastControllerPacket = 0;
+elapsedMillis sinceSentToController = 0;
+
 bool vescOnline = false;
 
 void button_init();
 void button_loop();
 void initialiseApp();
 
-#define CONTROLLER_TIMEOUT      600
-#define SEND_TO_VESC_INTERVAL   900 // times out after 1s
+#define CONTROLLER_TIMEOUT 600
+#define SEND_TO_VESC_INTERVAL 900 // times out after 1s
+#define MISSED_PACKET_COUNT_THAT_ZEROS_THROTTLE 3
+#define SEND_TO_CONTROLLER_INTERVAL 1000
 
 #define BUTTON_1 0
 #define USING_BUTTONS true
@@ -27,6 +30,9 @@ Button2 btn1(BUTTON_1);
 #define NUM_PIXELS 21
 #define PIXEL_PIN 5
 #define BRIGHT_MAX 10
+
+// prototypes
+void send_to_packet_controller();
 
 #include "vesc_utils.h"
 #include "utils.h"
@@ -82,12 +88,11 @@ Task t_GetVescValues(
     });
 
 Task t_SendToVesc(
-  SEND_TO_VESC_INTERVAL,
-  TASK_FOREVER,
-  [] {
-    send_to_vesc(controller_packet.throttle);
-  }
-);
+    SEND_TO_VESC_INTERVAL,
+    TASK_FOREVER,
+    [] {
+      send_to_vesc(controller_packet.throttle);
+    });
 
 #include "peripherals.h"
 
@@ -114,7 +119,7 @@ void packetReceived(const uint8_t *data, uint8_t data_len)
 
   if (throttle_changed)
   {
-    send_to_vesc(controller_packet.throttle);
+    // send_to_vesc(controller_packet.throttle);
     t_SendToVesc.restart();
   }
 }
@@ -126,7 +131,6 @@ void packetSent()
 
 #define OTHER_CORE 0
 #define LOOP_CORE 1
-//------------------------------------------------------------------
 
 void vescTask_0(void *pvParameters)
 {
@@ -148,6 +152,7 @@ void vescTask_0(void *pvParameters)
   }
   vTaskDelete(NULL);
 }
+//------------------------------------------------------------------
 
 void manage_event_queue()
 {
@@ -158,6 +163,15 @@ void manage_event_queue()
   {
     fsm.trigger(e);
   }
+}
+
+void send_to_packet_controller()
+{
+  const uint8_t *peer_addr = peer.peer_addr;
+
+  uint8_t bs[sizeof(vescdata)];
+  memcpy(bs, &vescdata, sizeof(vescdata));
+  esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
 }
 
 //----------------------------------------------------------
@@ -203,6 +217,15 @@ void loop()
 
   manage_event_queue();
 
+  if (sinceSentToController > SEND_TO_CONTROLLER_INTERVAL)
+  {
+    if (!vescdata.moving)
+    {
+      send_to_packet_controller();
+    }
+    sinceSentToController = 0;
+  }
+
   if (sinceLastControllerPacket > CONTROLLER_TIMEOUT)
   {
     fsm.trigger(EV_CONTROLLER_OFFLINE);
@@ -216,11 +239,7 @@ void loop()
 
       vescdata.id = 0;
 
-      const uint8_t *peer_addr = peer.peer_addr;
-
-      uint8_t bs[sizeof(vescdata)];
-      memcpy(bs, &vescdata, sizeof(vescdata));
-      esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
+      send_to_packet_controller();
     }
   }
 }
