@@ -186,6 +186,15 @@ void send_to_packet_controller()
   }
 }
 
+void send_to_packet_controller()
+{
+  const uint8_t *peer_addr = peer.peer_addr;
+
+  uint8_t bs[sizeof(vescdata)];
+  memcpy(bs, &vescdata, sizeof(vescdata));
+  esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
+}
+
 //----------------------------------------------------------
 void setup()
 {
