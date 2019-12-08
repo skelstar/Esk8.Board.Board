@@ -112,15 +112,18 @@ void packetReceived(const uint8_t *data, uint8_t data_len)
   bool missed_a_packet = controller_packet.id != old_packet.id + 1 && old_packet.id > 0;
   bool throttle_changed = controller_packet.throttle != old_packet.throttle;
 
+  if (throttle_changed)
+  {
+    t_SendToVesc.restart();
+  }
+
   if (missed_a_packet)
   {
     fsm.trigger(EV_MISSED_CONTROLLER_PACKET);
   }
-
-  if (throttle_changed)
+  else 
   {
-    // send_to_vesc(controller_packet.throttle);
-    t_SendToVesc.restart();
+    fsm.trigger(EV_RECV_CONTROLLER_PACKET);
   }
 }
 
@@ -164,6 +167,7 @@ void manage_event_queue()
     fsm.trigger(e);
   }
 }
+//----------------------------------------------------------
 
 void send_to_packet_controller()
 {
@@ -172,6 +176,14 @@ void send_to_packet_controller()
   uint8_t bs[sizeof(vescdata)];
   memcpy(bs, &vescdata, sizeof(vescdata));
   esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
+  if (result == ESP_OK)
+  {
+    // DEBUGVAL("Sent to controller", vescdata.missing_packets);
+  }
+  else 
+  {
+    DEBUG("Failed sending to controller");
+  }
 }
 
 //----------------------------------------------------------
@@ -229,6 +241,8 @@ void loop()
   if (sinceLastControllerPacket > CONTROLLER_TIMEOUT)
   {
     fsm.trigger(EV_CONTROLLER_OFFLINE);
+
+    // vescdata.missing_packets = 0;
 
     ScanForPeer();
     bool paired = pairPeer();

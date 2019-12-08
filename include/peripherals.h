@@ -9,9 +9,13 @@ void button_init()
   // btn1.setReleasedHandler([](Button2 &b) {
   //   Serial.printf("btn1.setReleasedHandler()\n");
   // });
-  // btn1.setClickHandler([](Button2 &b) {
-  //   Serial.printf("btn1.setClickHandler()\n");
-  // });
+  btn1.setClickHandler([](Button2 &b) {
+    Serial.printf("btn1.setClickHandler()\n");
+
+    // old_packet.id = controller_packet.id - 5;
+    // fsm.trigger(EV_MISSED_CONTROLLER_PACKET);
+    // fsm.run_machine();
+  });
   // btn1.setLongClickHandler([](Button2 &b) {
   //   Serial.printf("btn1.setLongClickHandler([](Button2 &b)\n");
   // });
