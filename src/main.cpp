@@ -109,27 +109,17 @@ void packetReceived(const uint8_t *data, uint8_t data_len)
 
   memcpy(&old_packet, &controller_packet, sizeof(controller_packet));
   memcpy(/*dest*/ &controller_packet, /*src*/ data, data_len);
-  bool missed_a_packet = controller_packet.id != old_packet.id + 1 && old_packet.id > 0;
+  
   bool throttle_changed = controller_packet.throttle != old_packet.throttle;
 
   if (throttle_changed)
   {
     t_SendToVesc.restart();
   }
-
-  if (missed_a_packet)
-  {
-    fsm.trigger(EV_MISSED_CONTROLLER_PACKET);
-  }
-  else 
-  {
-    fsm.trigger(EV_RECV_CONTROLLER_PACKET);
-  }
 }
 
 void packetSent()
 {
-  // DEBUGFN("");
 }
 
 #define OTHER_CORE 0
@@ -157,7 +147,7 @@ void vescTask_0(void *pvParameters)
 }
 //------------------------------------------------------------------
 
-void manage_event_queue()
+void manage_xEventQueue()
 {
   BaseType_t xStatus;
   EventsEnum e;
@@ -185,17 +175,8 @@ void send_to_packet_controller()
     DEBUG("Failed sending to controller");
   }
 }
-
-void send_to_packet_controller()
-{
-  const uint8_t *peer_addr = peer.peer_addr;
-
-  uint8_t bs[sizeof(vescdata)];
-  memcpy(bs, &vescdata, sizeof(vescdata));
-  esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
-}
-
 //----------------------------------------------------------
+
 void setup()
 {
   Serial.begin(115200);
@@ -219,6 +200,8 @@ void setup()
   xVescDataSemaphore = xSemaphoreCreateMutex();
   xEventQueue = xQueueCreate(1, sizeof(EventsEnum));
 
+  controller_packet.throttle = 127;
+
   addFsmTransitions();
   fsm.run_machine();
 
@@ -236,22 +219,11 @@ void loop()
 
   button_loop();
 
-  manage_event_queue();
-
-  if (sinceSentToController > SEND_TO_CONTROLLER_INTERVAL)
-  {
-    if (!vescdata.moving)
-    {
-      send_to_packet_controller();
-    }
-    sinceSentToController = 0;
-  }
+  manage_xEventQueue();
 
   if (sinceLastControllerPacket > CONTROLLER_TIMEOUT)
   {
     fsm.trigger(EV_CONTROLLER_OFFLINE);
-
-    // vescdata.missing_packets = 0;
 
     ScanForPeer();
     bool paired = pairPeer();
@@ -262,6 +234,15 @@ void loop()
 
       vescdata.id = 0;
 
+      send_to_packet_controller();
+    }
+  }
+
+  if (sinceSentToController > SEND_TO_CONTROLLER_INTERVAL)
+  {
+    sinceSentToController = 0;
+    if (!vescdata.moving)
+    {
       send_to_packet_controller();
     }
   }
