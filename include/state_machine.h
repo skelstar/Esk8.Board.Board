@@ -46,6 +46,24 @@ State state_controller_offline([] {
 },
 NULL, NULL);
 //------------------------------------------------------------------
+void handle_missing_packets()
+{
+  vescdata.missing_packets += controller_packet.id - (old_packet.id + 1);
+
+  uint8_t number_packets_missed = controller_packet.id - (old_packet.id + 1);
+  if (number_packets_missed >= MISSED_PACKET_COUNT_THAT_ZEROS_THROTTLE)
+  {
+    DEBUG("Zero throttle!");
+    vesc.setNunchuckValues(127, 127, 0, 0);
+
+    if (!vescdata.moving)
+    {
+      send_to_packet_controller();
+    }
+  }
+}
+//------------------------------------------------------------------
+
 Fsm fsm(&state_waiting_for_vesc);
 
 void addFsmTransitions()
@@ -72,17 +90,8 @@ void addFsmTransitions()
   fsm.add_transition(&state_board_stopped, &state_controller_offline, event, NULL);
 
   event = EV_MISSED_CONTROLLER_PACKET;
-  fsm.add_transition(&state_waiting_for_vesc, &state_controller_offline, event, [] {
-    DEBUG("Zero throttle!");
-    vesc.setNunchuckValues(127, 127, 0, 0);
-  });
-  fsm.add_transition(&state_board_moving, &state_controller_offline, event, [] {
-    DEBUG("Zero throttle!");
-    vesc.setNunchuckValues(127, 127, 0, 0);
-  });
-  fsm.add_transition(&state_board_stopped, &state_controller_offline, event, [] {
-    DEBUG("Zero throttle!");
-    vesc.setNunchuckValues(127, 127, 0, 0);
-  });
+  fsm.add_transition(&state_waiting_for_vesc, &state_waiting_for_vesc, event, &handle_missing_packets);
+  fsm.add_transition(&state_board_moving, &state_board_moving, event, &handle_missing_packets);
+  fsm.add_transition(&state_board_stopped, &state_board_stopped, event, &handle_missing_packets);
 }
 

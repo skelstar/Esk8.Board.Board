@@ -1,3 +1,17 @@
+## Cores
+### Core 0
+vescTask_0
+- t_GetVescValues
+    - sends to xEventQueue
+- t_SendToVesc
+
+### Core 1
+loop
+- packetReceive() ESP_NOW
+- send_packet_to_controller()
+- state_machine
+- manage_event_queue (xEventQueue)
+
 # TTGO T-Display
 
 ![image](https://github.com/Xinyuan-LilyGO/TTGO-T-Display/blob/master/image/pinmap.jpg)
