@@ -26,7 +26,7 @@ float getDistanceInMeters(int32_t tacho);
 void send_to_vesc(uint8_t throttle)
 {
   vesc.setNunchuckValues(127, throttle, 0, 0);
-  DEBUGVAL("Sent to motor", throttle);
+  // DEBUGVAL("Sent to motor", throttle);
 }
 
 //-----------------------------------------------------------------------------------
