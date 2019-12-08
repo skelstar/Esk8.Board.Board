@@ -109,8 +109,10 @@ void packetReceived(const uint8_t *data, uint8_t data_len)
 
   memcpy(&old_packet, &controller_packet, sizeof(controller_packet));
   memcpy(/*dest*/ &controller_packet, /*src*/ data, data_len);
-  
+
   bool throttle_changed = controller_packet.throttle != old_packet.throttle;
+
+  fsm.trigger(EV_RECV_CONTROLLER_PACKET);
 
   if (throttle_changed)
   {
