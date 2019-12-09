@@ -44,6 +44,7 @@ NULL, NULL);
 //------------------------------------------------------------------
 State state_controller_offline([] {
   Serial.printf("state_controller_offline ---------------------- \n");
+  vescdata.ampHours = vescdata.ampHours + 1;  // number of times gone offline
 },
 NULL, NULL);
 //------------------------------------------------------------------

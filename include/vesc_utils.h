@@ -44,7 +44,7 @@ bool getVescValues()
   else {
     vescdata.batteryVoltage = 0.0;
     vescdata.moving = false;
-    vescdata.ampHours = 0.0;
+    // vescdata.ampHours = 0.0;
     vescdata.odometer = 0.0;
   }
   return success;
