@@ -24,6 +24,8 @@ void initialiseApp();
 #define SEND_TO_VESC_INTERVAL 900 // times out after 1s
 #define MISSED_PACKET_COUNT_THAT_ZEROS_THROTTLE 3
 #define SEND_TO_CONTROLLER_INTERVAL   10 * SECONDS
+// #define SEND_TO_VESC
+
 
 #define BUTTON_1 0
 #define USING_BUTTONS true
@@ -93,7 +95,9 @@ Task t_SendToVesc(
     SEND_TO_VESC_INTERVAL,
     TASK_FOREVER,
     [] {
+      #ifdef SEND_TO_VESC
       send_to_vesc(controller_packet.throttle);
+      #endif
     });
 
 #include "peripherals.h"
