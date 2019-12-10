@@ -18,10 +18,12 @@ void button_init();
 void button_loop();
 void initialiseApp();
 
+#define SECONDS 1000
+
 #define CONTROLLER_TIMEOUT 600
 #define SEND_TO_VESC_INTERVAL 900 // times out after 1s
 #define MISSED_PACKET_COUNT_THAT_ZEROS_THROTTLE 3
-#define SEND_TO_CONTROLLER_INTERVAL 1000
+#define SEND_TO_CONTROLLER_INTERVAL   10 * SECONDS
 
 #define BUTTON_1 0
 #define USING_BUTTONS true
@@ -111,12 +113,18 @@ void packetReceived(const uint8_t *data, uint8_t data_len)
   memcpy(/*dest*/ &controller_packet, /*src*/ data, data_len);
 
   bool throttle_changed = controller_packet.throttle != old_packet.throttle;
+  bool request_update = controller_packet.command & COMMAND_REQUEST_UPDATE;
 
   fsm.trigger(EV_RECV_CONTROLLER_PACKET);
 
   if (throttle_changed)
   {
     t_SendToVesc.restart();
+  }
+
+  if (request_update) 
+  {
+    send_to_packet_controller();
   }
 }
 
@@ -176,6 +184,7 @@ void send_to_packet_controller()
   {
     DEBUG("Failed sending to controller");
   }
+  vescdata.id = vescdata.id + 1;
 }
 //----------------------------------------------------------
 
@@ -236,17 +245,18 @@ void loop()
 
       vescdata.id = 0;
 
+      // always send the first packet (id == 0)
       send_to_packet_controller();
     }
   }
 
-  if (sinceSentToController > SEND_TO_CONTROLLER_INTERVAL)
-  {
-    sinceSentToController = 0;
-    if (!vescdata.moving)
-    {
-      send_to_packet_controller();
-    }
-  }
+  // if (sinceSentToController > SEND_TO_CONTROLLER_INTERVAL)
+  // {
+  //   sinceSentToController = 0;
+  //   if (!vescdata.moving)
+  //   {
+  //     send_to_packet_controller();
+  //   }
+  // }
 }
 //----------------------------------------------------------
