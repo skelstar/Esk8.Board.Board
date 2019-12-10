@@ -44,6 +44,7 @@ NULL, NULL);
 //------------------------------------------------------------------
 State state_controller_offline([] {
   Serial.printf("state_controller_offline ---------------------- \n");
+  vescdata.ampHours = vescdata.ampHours + 1;  // number of times gone offline
 },
 NULL, NULL);
 //------------------------------------------------------------------
@@ -70,13 +71,14 @@ Fsm fsm(&state_waiting_for_vesc);
 void addFsmTransitions()
 {
   // fsm.add_transition(&state_waiting_for_vesc, &state_powering_down, EV_POWERING_DOWN, NULL);
-  fsm.add_transition(&state_waiting_for_vesc, &state_board_stopped, EV_MOVING, NULL);
+  fsm.add_transition(&state_waiting_for_vesc, &state_board_moving, EV_MOVING, NULL);
+  fsm.add_transition(&state_waiting_for_vesc, &state_board_stopped, EV_STOPPED, NULL);
   fsm.add_transition(&state_waiting_for_vesc, &state_controller_offline, EV_CONTROLLER_OFFLINE, NULL);
   fsm.add_transition(&state_waiting_for_vesc, &state_waiting_for_vesc, EV_MISSED_CONTROLLER_PACKET, &handle_missing_packets);
 
 
   // fsm.add_transition(&state_board_moving, &state_powering_down, EV_POWERING_DOWN, NULL);
-  fsm.add_transition(&state_board_moving, &state_board_stopped, EV_MOVING, NULL);
+  fsm.add_transition(&state_board_moving, &state_board_stopped, EV_STOPPED, NULL);
   fsm.add_transition(&state_board_moving, &state_vesc_offline, EV_VESC_OFFLINE, NULL);
   fsm.add_transition(&state_board_moving, &state_controller_offline, EV_CONTROLLER_OFFLINE, NULL);
   fsm.add_transition(&state_board_moving, &state_board_moving, EV_MISSED_CONTROLLER_PACKET, &handle_missing_packets);
@@ -90,6 +92,7 @@ void addFsmTransitions()
   fsm.add_transition(&state_controller_offline, &state_waiting_for_vesc, EV_RECV_CONTROLLER_PACKET, NULL);
 
   fsm.add_transition(&state_vesc_offline, &state_waiting_for_vesc, EV_STOPPED, NULL);
+  fsm.add_transition(&state_vesc_offline, &state_waiting_for_vesc, EV_MOVING, NULL);
   fsm.add_transition(&state_vesc_offline, &state_vesc_offline, EV_MISSED_CONTROLLER_PACKET, []{ Serial.printf("state_vesc_offline - missed controller packet\n"); });
 }
 
