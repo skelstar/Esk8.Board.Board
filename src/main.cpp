@@ -21,11 +21,10 @@ void initialiseApp();
 #define SECONDS 1000
 
 #define CONTROLLER_TIMEOUT 600
-#define SEND_TO_VESC_INTERVAL 900 // times out after 1s
+#define SEND_TO_VESC_INTERVAL 500 // times out after 1s
 #define MISSED_PACKET_COUNT_THAT_ZEROS_THROTTLE 3
 #define SEND_TO_CONTROLLER_INTERVAL   10 * SECONDS
-// #define SEND_TO_VESC
-
+#define SEND_TO_VESC
 
 #define BUTTON_1 0
 #define USING_BUTTONS true
