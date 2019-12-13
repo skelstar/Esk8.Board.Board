@@ -213,11 +213,14 @@ void setup()
   button0.setPressedHandler([](Button2 &btn)
   {
     EventsEnum e = EV_MOVING;
+    vescdata.moving = true;
     xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
   });
   button0.setReleasedHandler([](Button2 &btn)
   {
     EventsEnum e = EV_STOPPED;
+    vescdata.odometer = vescdata.odometer + 0.1;
+    vescdata.moving = false;
     xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
   });
 

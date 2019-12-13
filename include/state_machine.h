@@ -30,6 +30,7 @@ NULL, NULL);
 //------------------------------------------------------------------
 State state_board_moving([] {
   Serial.printf("state_board_moving ---------------------- \n");
+  send_to_packet_controller_1();
 },
 NULL, NULL);
 //------------------------------------------------------------------
