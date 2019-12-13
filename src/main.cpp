@@ -28,14 +28,14 @@ void initialiseApp();
 
 #define BUTTON_1 0
 #define USING_BUTTONS true
-Button2 btn1(BUTTON_1);
+Button2 button0(BUTTON_1);
 
 #define NUM_PIXELS 21
 #define PIXEL_PIN 5
 #define BRIGHT_MAX 10
 
 // prototypes
-void send_to_packet_controller();
+void send_to_packet_controller_1();
 
 #include "vesc_utils.h"
 #include "utils.h"
@@ -127,7 +127,7 @@ void packetReceived(const uint8_t *data, uint8_t data_len)
 
   if (request_update) 
   {
-    send_to_packet_controller();
+    send_to_packet_controller_1();
   }
 }
 
@@ -160,11 +160,11 @@ void vescTask_0(void *pvParameters)
 }
 //------------------------------------------------------------------
 
-void manage_xEventQueue()
+void manage_xEventQueue_1()
 {
   BaseType_t xStatus;
   EventsEnum e;
-  xStatus = xQueueReceive(xEventQueue, &e, pdMS_TO_TICKS(10));
+  xStatus = xQueueReceive(xEventQueue, &e, pdMS_TO_TICKS(0));
   if (xStatus == pdPASS)
   {
     fsm.trigger(e);
@@ -172,16 +172,16 @@ void manage_xEventQueue()
 }
 //----------------------------------------------------------
 
-void send_to_packet_controller()
+void send_to_packet_controller_1()
 {
   const uint8_t *peer_addr = peer.peer_addr;
 
   uint8_t bs[sizeof(vescdata)];
   memcpy(bs, &vescdata, sizeof(vescdata));
   esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
+
   if (result == ESP_OK)
   {
-    // DEBUGVAL("Sent to controller", vescdata.missing_packets);
   }
   else 
   {
@@ -210,6 +210,17 @@ void setup()
   client.setOnSentEvent(packetSent);
   initESPNow();
 
+  button0.setPressedHandler([](Button2 &btn)
+  {
+    EventsEnum e = EV_MOVING;
+    xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+  });
+  button0.setReleasedHandler([](Button2 &btn)
+  {
+    EventsEnum e = EV_STOPPED;
+    xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+  });
+
   xTaskCreatePinnedToCore(vescTask_0, "vescTask", 10000, NULL, /*priority*/ 0, NULL, OTHER_CORE);
   xVescDataSemaphore = xSemaphoreCreateMutex();
   xEventQueue = xQueueCreate(1, sizeof(EventsEnum));
@@ -233,7 +244,7 @@ void loop()
 
   button_loop();
 
-  manage_xEventQueue();
+  manage_xEventQueue_1();
 
   if (sinceLastControllerPacket > CONTROLLER_TIMEOUT)
   {
@@ -249,7 +260,7 @@ void loop()
       vescdata.id = 0;
 
       // always send the first packet (id == 0)
-      send_to_packet_controller();
+      send_to_packet_controller_1();
     }
   }
 
@@ -258,7 +269,7 @@ void loop()
   //   sinceSentToController = 0;
   //   if (!vescdata.moving)
   //   {
-  //     send_to_packet_controller();
+  //     send_to_packet_controller_1();
   //   }
   // }
 }

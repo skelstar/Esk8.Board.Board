@@ -35,10 +35,7 @@ NULL, NULL);
 //------------------------------------------------------------------
 State state_board_stopped([] {
   Serial.printf("state_board_stopped ---------------------- \n");
-  if (vescOnline)
-  {
-    // lastStableVolts = vescdata.batteryVoltage;
-  }
+  send_to_packet_controller_1();
 },
 NULL, NULL);
 //------------------------------------------------------------------
@@ -60,7 +57,7 @@ void handle_missing_packets()
 
     if (!vescdata.moving)
     {
-      send_to_packet_controller();
+      send_to_packet_controller_1();
     }
   }
 }
@@ -91,8 +88,8 @@ void addFsmTransitions()
 
   fsm.add_transition(&state_controller_offline, &state_waiting_for_vesc, EV_RECV_CONTROLLER_PACKET, NULL);
 
-  fsm.add_transition(&state_vesc_offline, &state_waiting_for_vesc, EV_STOPPED, NULL);
-  fsm.add_transition(&state_vesc_offline, &state_waiting_for_vesc, EV_MOVING, NULL);
+  fsm.add_transition(&state_vesc_offline, &state_board_stopped, EV_STOPPED, NULL);
+  fsm.add_transition(&state_vesc_offline, &state_board_moving, EV_MOVING, NULL);
   fsm.add_transition(&state_vesc_offline, &state_vesc_offline, EV_MISSED_CONTROLLER_PACKET, []{ Serial.printf("state_vesc_offline - missed controller packet\n"); });
 }
 
