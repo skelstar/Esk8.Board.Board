@@ -194,7 +194,7 @@ void send_to_packet_controller_1(ReasonType reason)
 
   if (result == ESP_OK)
   {
-    DEBUGVAL(reason);
+    DEBUGVAL(reason_toString(reason));
   }
   else 
   {
