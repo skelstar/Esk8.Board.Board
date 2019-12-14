@@ -124,6 +124,7 @@ void packetReceived(const uint8_t *data, uint8_t data_len)
 
   if (throttle_changed)
   {
+    DEBUGVAL(controller_packet.throttle);
     t_SendToVesc.restart();
   }
 
@@ -155,6 +156,7 @@ void vescTask_0(void *pvParameters)
   runner.startNow();
   runner.addTask(t_GetVescValues);
   runner.addTask(t_SendToVesc);
+
   t_GetVescValues.enable();
   t_SendToVesc.enable();
 
@@ -235,7 +237,7 @@ void setup()
     xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
   });
 
-  xTaskCreatePinnedToCore(vescTask_0, "vescTask", 10000, NULL, /*priority*/ 0, NULL, OTHER_CORE);
+  xTaskCreatePinnedToCore(vescTask_0, "vescTask", 10000, NULL, /*priority*/ 4, NULL, OTHER_CORE);
   xVescDataSemaphore = xSemaphoreCreateMutex();
   xEventQueue = xQueueCreate(1, sizeof(EventsEnum));
 
