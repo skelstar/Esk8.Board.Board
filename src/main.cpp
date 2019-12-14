@@ -8,6 +8,7 @@
 #include <VescData.h>
 #include <espNowClient.h>
 #include <elapsedMillis.h>
+#include <LedLightsLib.h>
 
 elapsedMillis sinceLastControllerPacket = 0;
 elapsedMillis sinceSentToController = 0;
@@ -32,17 +33,19 @@ void initialiseApp();
 #define USING_BUTTONS true
 Button2 button0(BUTTON_1);
 
-#define NUM_PIXELS 21
-#define PIXEL_PIN 5
-#define BRIGHT_MAX 10
+#define NUM_PIXELS  21
+#define PIXEL_PIN   4
+#define BRIGHT_MAX  10
 
 // prototypes
 void send_to_packet_controller_1(ReasonType reason);
 
 #include "vesc_utils.h"
 #include "utils.h"
-#include "light-bar.h"
+// #include "light-bar.h"
 #include "state_machine.h"
+
+LedLightsLib light;
 
 //------------------------------------------------------------------
 
@@ -242,6 +245,12 @@ void setup()
   xEventQueue = xQueueCreate(1, sizeof(EventsEnum));
 
   controller_packet.throttle = 127;
+
+  light.initialise(PIXEL_PIN, NUM_PIXELS);
+
+  light.showBatteryGraph(0.3);
+
+  light.setAll(light.COLOUR_WHITE);
 
   addFsmTransitions();
   fsm.run_machine();

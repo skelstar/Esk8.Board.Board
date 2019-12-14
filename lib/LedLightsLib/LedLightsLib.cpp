@@ -1,15 +1,8 @@
 #include "Arduino.h"
 #include "LedLightsLib.h"
 
-LedLightsLib::LedLightsLib(Variant variant, uint8_t pin, uint8_t numPixels, float batteryCautionPercentage)
+void LedLightsLib::initialise(uint8_t pin, uint8_t numPixels)
 {
-  _batteryCautionPercentage = batteryCautionPercentage;
-  LedLightsLib(variant, pin, numPixels);
-}
-
-LedLightsLib::LedLightsLib(Variant variant, uint8_t pin, uint8_t numPixels)
-{
-  _variant = variant;
   _strip = new Adafruit_NeoPixel(numPixels, pin, NEO_GRBW + NEO_KHZ800);
   _strip->begin();
   _strip->clear();
@@ -18,6 +11,11 @@ LedLightsLib::LedLightsLib(Variant variant, uint8_t pin, uint8_t numPixels)
 
 void LedLightsLib::setAll(uint32_t colour)
 {
+  if (_strip == NULL)
+  {
+    Serial.printf("ERROR: light not initialised");
+  }
+
   for (int i = 0; i < _strip->numPixels(); i++)
   {
     setPixel(i, colour, false);
