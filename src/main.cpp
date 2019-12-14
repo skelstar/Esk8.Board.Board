@@ -12,6 +12,8 @@
 elapsedMillis sinceLastControllerPacket = 0;
 elapsedMillis sinceSentToController = 0;
 
+bool sent_first_packet = false;
+
 bool vescOnline = false;
 
 void button_init();
@@ -35,7 +37,7 @@ Button2 button0(BUTTON_1);
 #define BRIGHT_MAX 10
 
 // prototypes
-void send_to_packet_controller_1();
+void send_to_packet_controller_1(ReasonType reason);
 
 #include "vesc_utils.h"
 #include "utils.h"
@@ -125,9 +127,15 @@ void packetReceived(const uint8_t *data, uint8_t data_len)
     t_SendToVesc.restart();
   }
 
+  if (sent_first_packet == false)
+  {
+    send_to_packet_controller_1(ReasonType::FIRST_PACKET);
+    sent_first_packet = true;
+  }
+
   if (request_update) 
   {
-    send_to_packet_controller_1();
+    send_to_packet_controller_1(ReasonType::REQUESTED);
   }
 }
 
@@ -172,9 +180,11 @@ void manage_xEventQueue_1()
 }
 //----------------------------------------------------------
 
-void send_to_packet_controller_1()
+void send_to_packet_controller_1(ReasonType reason)
 {
   const uint8_t *peer_addr = peer.peer_addr;
+
+  vescdata.reason = reason;
 
   uint8_t bs[sizeof(vescdata)];
   memcpy(bs, &vescdata, sizeof(vescdata));
@@ -182,6 +192,7 @@ void send_to_packet_controller_1()
 
   if (result == ESP_OK)
   {
+    DEBUGVAL(reason);
   }
   else 
   {
@@ -263,17 +274,8 @@ void loop()
       vescdata.id = 0;
 
       // always send the first packet (id == 0)
-      send_to_packet_controller_1();
-    }
+    }      
+    send_to_packet_controller_1(ReasonType::FIRST_PACKET);
   }
-
-  // if (sinceSentToController > SEND_TO_CONTROLLER_INTERVAL)
-  // {
-  //   sinceSentToController = 0;
-  //   if (!vescdata.moving)
-  //   {
-  //     send_to_packet_controller_1();
-  //   }
-  // }
 }
 //----------------------------------------------------------

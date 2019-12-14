@@ -30,13 +30,13 @@ NULL, NULL);
 //------------------------------------------------------------------
 State state_board_moving([] {
   Serial.printf("state_board_moving ---------------------- \n");
-  send_to_packet_controller_1();
+  send_to_packet_controller_1(ReasonType::BOARD_MOVING);
 },
 NULL, NULL);
 //------------------------------------------------------------------
 State state_board_stopped([] {
   Serial.printf("state_board_stopped ---------------------- \n");
-  send_to_packet_controller_1();
+  send_to_packet_controller_1(ReasonType::BOARD_STOPPED);
 },
 NULL, NULL);
 //------------------------------------------------------------------
@@ -58,7 +58,7 @@ void handle_missing_packets()
 
     if (!vescdata.moving)
     {
-      send_to_packet_controller_1();
+      send_to_packet_controller_1(ReasonType::BOARD_STOPPED);
     }
   }
 }
