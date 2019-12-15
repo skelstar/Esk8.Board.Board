@@ -2,7 +2,6 @@
 
 enum EventsEnum
 {
-  EV_WAITING_FOR_VESC,
   EV_POWERING_DOWN,
   EV_VESC_OFFLINE,
   EV_CONTROLLER_OFFLINE,
@@ -12,12 +11,9 @@ enum EventsEnum
   EV_RECV_CONTROLLER_PACKET,
 } event;
 
+elapsedMillis since_stopped;
+bool showing_graph;
 
-//------------------------------------------------------------------
-State state_waiting_for_vesc([] {
-  Serial.printf("state_waiting_for_vesc ---------------------- \n");
-},
-NULL, NULL);
 //------------------------------------------------------------------
 State state_powering_down([] {
   Serial.printf("state_powering_down ---------------------- \n");
@@ -41,16 +37,17 @@ State state_board_stopped(
   [] {
     Serial.printf("state_board_stopped ---------------------- \n");
     send_to_packet_controller_1(ReasonType::BOARD_STOPPED);
+    since_stopped = 0;
+    showing_graph = false;
   },
-  NULL,
-  NULL);
-//------------------------------------------------------------------
-State state_board_stopped_show_graph(
   [] {
-    Serial.printf("state_board_stopped_show_graph ---------------------- \n");
-    light.showBatteryGraph(getBatteryPercentage(vescdata.batteryVoltage)/100.0);
+    if (since_stopped > 3000 && showing_graph == false)
+    {
+      showing_graph = true;
+      Serial.printf("state_board_stopped_show_graph ---------------------- \n");
+      light.showBatteryGraph(getBatteryPercentage(vescdata.batteryVoltage)/100.0);
+    }
   },
-  NULL,
   NULL);
 //------------------------------------------------------------------
 State state_controller_offline([] {
@@ -77,40 +74,26 @@ void handle_missing_packets()
 }
 //------------------------------------------------------------------
 
-Fsm fsm(&state_waiting_for_vesc);
+Fsm fsm(&state_controller_offline);
 
 void addFsmTransitions()
 {
-  fsm.add_transition(&state_waiting_for_vesc, &state_board_moving, EV_MOVING, NULL);
-  fsm.add_transition(&state_waiting_for_vesc, &state_board_stopped, EV_STOPPED, NULL);
-  fsm.add_transition(&state_waiting_for_vesc, &state_controller_offline, EV_CONTROLLER_OFFLINE, NULL);
-  fsm.add_transition(&state_waiting_for_vesc, &state_waiting_for_vesc, EV_MISSED_CONTROLLER_PACKET, &handle_missing_packets);
-
-
-  fsm.add_transition(&state_board_moving, &state_powering_down, EV_POWERING_DOWN, NULL);
-  fsm.add_transition(&state_board_moving, &state_board_stopped, EV_STOPPED, NULL);
-  fsm.add_transition(&state_board_moving, &state_vesc_offline, EV_VESC_OFFLINE, NULL);
-  fsm.add_transition(&state_board_moving, &state_controller_offline, EV_CONTROLLER_OFFLINE, NULL);
-  fsm.add_transition(&state_board_moving, &state_board_moving, EV_MISSED_CONTROLLER_PACKET, &handle_missing_packets);
 
   // stopped
-  fsm.add_timed_transition(&state_board_stopped, &state_board_stopped_show_graph, 3000, NULL);
   fsm.add_transition(&state_board_stopped, &state_powering_down, EV_POWERING_DOWN, NULL);
   fsm.add_transition(&state_board_stopped, &state_board_moving, EV_MOVING, NULL);
   fsm.add_transition(&state_board_stopped, &state_vesc_offline, EV_VESC_OFFLINE, NULL);
   fsm.add_transition(&state_board_stopped, &state_controller_offline, EV_CONTROLLER_OFFLINE, NULL);
-  fsm.add_transition(&state_board_stopped, &state_board_stopped, EV_MISSED_CONTROLLER_PACKET, &handle_missing_packets);
 
-  fsm.add_transition(&state_board_stopped_show_graph, &state_powering_down, EV_POWERING_DOWN, NULL);
-  fsm.add_transition(&state_board_stopped_show_graph, &state_board_moving, EV_MOVING, NULL);
-  fsm.add_transition(&state_board_stopped_show_graph, &state_vesc_offline, EV_VESC_OFFLINE, NULL);
-  fsm.add_transition(&state_board_stopped_show_graph, &state_controller_offline, EV_CONTROLLER_OFFLINE, NULL);
-  fsm.add_transition(&state_board_stopped_show_graph, &state_board_stopped, EV_MISSED_CONTROLLER_PACKET, &handle_missing_packets);
+  // moving
+  fsm.add_transition(&state_board_moving, &state_powering_down, EV_POWERING_DOWN, NULL);
+  fsm.add_transition(&state_board_moving, &state_board_stopped, EV_STOPPED, NULL);
+  fsm.add_transition(&state_board_moving, &state_vesc_offline, EV_VESC_OFFLINE, NULL);
+  fsm.add_transition(&state_board_moving, &state_controller_offline, EV_CONTROLLER_OFFLINE, NULL);
 
-  fsm.add_transition(&state_controller_offline, &state_waiting_for_vesc, EV_RECV_CONTROLLER_PACKET, NULL);
+  fsm.add_transition(&state_controller_offline, &state_vesc_offline, EV_RECV_CONTROLLER_PACKET, NULL);
 
   fsm.add_transition(&state_vesc_offline, &state_board_stopped, EV_STOPPED, NULL);
   fsm.add_transition(&state_vesc_offline, &state_board_moving, EV_MOVING, NULL);
-  fsm.add_transition(&state_vesc_offline, &state_vesc_offline, EV_MISSED_CONTROLLER_PACKET, []{ Serial.printf("state_vesc_offline - missed controller packet\n"); });
 }
 

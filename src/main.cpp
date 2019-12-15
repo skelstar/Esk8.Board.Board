@@ -10,7 +10,6 @@
 #include <elapsedMillis.h>
 
 elapsedMillis sinceLastControllerPacket = 0;
-elapsedMillis sinceSentToController = 0;
 
 bool sent_first_packet = false;
 
@@ -28,9 +27,9 @@ void initialiseApp();
 #define SEND_TO_CONTROLLER_INTERVAL   10 * SECONDS
 #define SEND_TO_VESC
 
-#define BUTTON_1 0
-#define USING_BUTTONS 0
-Button2 button0(BUTTON_1);
+#define BUTTON_0 0
+#define USING_BUTTONS 1
+Button2 button0(BUTTON_0);
 
 #define NUM_PIXELS  21
 #define PIXEL_PIN   4
@@ -110,7 +109,6 @@ Task t_SendToVesc(
 //------------------------------------------------------------------
 void initialiseApp()
 {
-  fsm.trigger(EV_WAITING_FOR_VESC);
 }
 //------------------------------------------------------------------
 
@@ -282,9 +280,8 @@ void loop()
       sinceLastControllerPacket = 0;
       Serial.printf("Paired: %s\n", paired ? "true" : "false");
 
-      vescdata.id = 0;
-
       // always send the first packet (id == 0)
+      vescdata.id = 0;
     }      
     send_to_packet_controller_1(ReasonType::FIRST_PACKET);
   }
