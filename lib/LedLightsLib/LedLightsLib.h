@@ -15,6 +15,7 @@ class LedLightsLib
         uint32_t COLOUR_WHITE = _strip->Color(0, 0, 0, 50);
 
         void initialise(uint8_t pin, uint8_t numPixels);
+        void setStatusIndicators(uint32_t vesc, uint32_t board, uint32_t controller);
         void setAll(uint32_t colour);
         void setPixel(uint8_t pixel, uint32_t colour, bool show);
         uint32_t getColour(uint8_t r, uint8_t g, uint8_t b, uint8_t w);

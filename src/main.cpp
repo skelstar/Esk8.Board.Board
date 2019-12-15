@@ -8,7 +8,6 @@
 #include <VescData.h>
 #include <espNowClient.h>
 #include <elapsedMillis.h>
-#include <LedLightsLib.h>
 
 elapsedMillis sinceLastControllerPacket = 0;
 elapsedMillis sinceSentToController = 0;
@@ -42,10 +41,12 @@ void send_to_packet_controller_1(ReasonType reason);
 
 #include "vesc_utils.h"
 #include "utils.h"
-// #include "light-bar.h"
-#include "state_machine.h"
+#include <LedLightsLib.h>
 
 LedLightsLib light;
+
+#include "state_machine.h"
+
 
 //------------------------------------------------------------------
 
@@ -248,7 +249,12 @@ void setup()
 
   light.initialise(PIXEL_PIN, NUM_PIXELS);
 
-  light.showBatteryGraph(0.3);
+  light.showBatteryGraph(0.3f); // getBatteryPercentage(vescdata.batteryVoltage)/100.0)
+
+  // light.setStatusIndicators(/*vesc*/light.COLOUR_GREEN, /*board*/light.COLOUR_BLUE, /*ctrlr*/light.COLOUR_RED);
+
+  delay(2000);
+
 
   light.setAll(light.COLOUR_WHITE);
 
