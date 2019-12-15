@@ -29,7 +29,7 @@ void initialiseApp();
 #define SEND_TO_VESC
 
 #define BUTTON_1 0
-#define USING_BUTTONS true
+#define USING_BUTTONS 0
 Button2 button0(BUTTON_1);
 
 #define NUM_PIXELS  21
@@ -248,15 +248,7 @@ void setup()
   controller_packet.throttle = 127;
 
   light.initialise(PIXEL_PIN, NUM_PIXELS);
-
-  light.showBatteryGraph(0.3f); // getBatteryPercentage(vescdata.batteryVoltage)/100.0)
-
-  // light.setStatusIndicators(/*vesc*/light.COLOUR_GREEN, /*board*/light.COLOUR_BLUE, /*ctrlr*/light.COLOUR_RED);
-
-  delay(2000);
-
-
-  light.setAll(light.COLOUR_WHITE);
+  light.setAll(light.COLOUR_OFF);
 
   addFsmTransitions();
   fsm.run_machine();
@@ -273,7 +265,9 @@ void loop()
 {
   fsm.run_machine();
 
+#ifdef USING_BUTTONS
   button_loop();
+#endif
 
   manage_xEventQueue_1();
 
