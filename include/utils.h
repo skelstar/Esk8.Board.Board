@@ -50,6 +50,8 @@ char* reason_toString(ReasonType reason)
       return "LAST_WILL";
     case REQUESTED:
       return "REQUESTED";
+    case VESC_OFFLINE:
+      return "VESC_OFFLINE";
     default:
       return "unhandle reason";
   }
