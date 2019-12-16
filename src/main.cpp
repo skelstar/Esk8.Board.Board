@@ -12,7 +12,7 @@
 elapsedMillis sinceLastControllerPacket = 0;
 
 bool sent_first_packet = false;
-
+bool fake_vesc_online = false;
 bool vescOnline = false;
 
 void button_init();
@@ -21,11 +21,17 @@ void initialiseApp();
 
 #define SECONDS 1000
 
-#define CONTROLLER_TIMEOUT 600
+#define USE_TEST_VALUES
+#ifdef USE_TEST_VALUES
+#define CONTROLLER_TIMEOUT 1600
 #define SEND_TO_VESC_INTERVAL 500 // times out after 1s
-#define MISSED_PACKET_COUNT_THAT_ZEROS_THROTTLE 3
-#define SEND_TO_CONTROLLER_INTERVAL   10 * SECONDS
 #define SEND_TO_VESC
+#else
+#define CONTROLLER_TIMEOUT 200
+#define SEND_TO_VESC_INTERVAL 500 // times out after 1s
+#define SEND_TO_VESC
+#endif
+
 
 #define BUTTON_0 0
 #define USING_BUTTONS 1
@@ -70,7 +76,7 @@ Task t_GetVescValues(
         xSemaphoreGive(xVescDataSemaphore);
       }
 
-      if (vescOnline == false)
+      if (vescOnline == false && fake_vesc_online == false)
       {
         EventsEnum e = EV_VESC_OFFLINE;
         xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
@@ -196,7 +202,7 @@ void send_to_packet_controller_1(ReasonType reason)
 
   if (result == ESP_OK)
   {
-    DEBUGVAL(reason_toString(reason));
+    // DEBUGVAL(reason_toString(reason));
   }
   else 
   {
@@ -211,6 +217,13 @@ void setup()
   Serial.begin(115200);
   Serial.println("Start");
 
+  #ifdef USE_TEST_VALUES
+  Serial.printf("\n");
+  Serial.printf("/********************************************************/\n");
+  Serial.printf("/*               WARNING: Using test values!            */\n");
+  Serial.printf("/********************************************************/\n");
+  Serial.printf("\n");
+  #endif
   initialiseApp();
 
   initialiseLeds();
@@ -237,6 +250,11 @@ void setup()
     vescdata.odometer = vescdata.odometer + 0.1;
     vescdata.moving = false;
     xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+  });
+  button0.setLongClickHandler([](Button2 &btn)
+  {
+    fake_vesc_online = true;
+    DEBUGVAL(fake_vesc_online);
   });
 
   xTaskCreatePinnedToCore(vescTask_0, "vescTask", 10000, NULL, /*priority*/ 4, NULL, OTHER_CORE);
