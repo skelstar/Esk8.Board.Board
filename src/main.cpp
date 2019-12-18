@@ -10,8 +10,9 @@
 #include <elapsedMillis.h>
 
 elapsedMillis sinceLastControllerPacket = 0;
-elapsedMillis sinceSentToController = 0;
 
+bool sent_first_packet = false;
+bool fake_vesc_online = false;
 bool vescOnline = false;
 
 void button_init();
@@ -20,27 +21,37 @@ void initialiseApp();
 
 #define SECONDS 1000
 
-#define CONTROLLER_TIMEOUT 600
+#define USE_TEST_VALUES
+#ifdef USE_TEST_VALUES
+#define CONTROLLER_TIMEOUT 1600
 #define SEND_TO_VESC_INTERVAL 500 // times out after 1s
-#define MISSED_PACKET_COUNT_THAT_ZEROS_THROTTLE 3
-#define SEND_TO_CONTROLLER_INTERVAL   10 * SECONDS
 #define SEND_TO_VESC
+#else
+#define CONTROLLER_TIMEOUT 200
+#define SEND_TO_VESC_INTERVAL 500 // times out after 1s
+#define SEND_TO_VESC
+#endif
 
-#define BUTTON_1 0
-#define USING_BUTTONS true
-Button2 btn1(BUTTON_1);
 
-#define NUM_PIXELS 21
-#define PIXEL_PIN 5
-#define BRIGHT_MAX 10
+#define BUTTON_0 0
+#define USING_BUTTONS 1
+Button2 button0(BUTTON_0);
+
+#define NUM_PIXELS  21
+#define PIXEL_PIN   4
+#define BRIGHT_MAX  10
 
 // prototypes
-void send_to_packet_controller();
+void send_to_packet_controller_1(ReasonType reason);
 
 #include "vesc_utils.h"
 #include "utils.h"
-#include "light-bar.h"
+#include <LedLightsLib.h>
+
+LedLightsLib light;
+
 #include "state_machine.h"
+
 
 //------------------------------------------------------------------
 
@@ -65,7 +76,7 @@ Task t_GetVescValues(
         xSemaphoreGive(xVescDataSemaphore);
       }
 
-      if (vescOnline == false)
+      if (vescOnline == false && fake_vesc_online == false)
       {
         EventsEnum e = EV_VESC_OFFLINE;
         xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
@@ -104,7 +115,6 @@ Task t_SendToVesc(
 //------------------------------------------------------------------
 void initialiseApp()
 {
-  fsm.trigger(EV_WAITING_FOR_VESC);
 }
 //------------------------------------------------------------------
 
@@ -122,12 +132,19 @@ void packetReceived(const uint8_t *data, uint8_t data_len)
 
   if (throttle_changed)
   {
+    DEBUGVAL(controller_packet.throttle);
     t_SendToVesc.restart();
+  }
+
+  if (sent_first_packet == false)
+  {
+    send_to_packet_controller_1(ReasonType::FIRST_PACKET);
+    sent_first_packet = true;
   }
 
   if (request_update) 
   {
-    send_to_packet_controller();
+    send_to_packet_controller_1(ReasonType::REQUESTED);
   }
 }
 
@@ -147,6 +164,7 @@ void vescTask_0(void *pvParameters)
   runner.startNow();
   runner.addTask(t_GetVescValues);
   runner.addTask(t_SendToVesc);
+
   t_GetVescValues.enable();
   t_SendToVesc.enable();
 
@@ -160,11 +178,11 @@ void vescTask_0(void *pvParameters)
 }
 //------------------------------------------------------------------
 
-void manage_xEventQueue()
+void manage_xEventQueue_1()
 {
   BaseType_t xStatus;
   EventsEnum e;
-  xStatus = xQueueReceive(xEventQueue, &e, pdMS_TO_TICKS(10));
+  xStatus = xQueueReceive(xEventQueue, &e, pdMS_TO_TICKS(0));
   if (xStatus == pdPASS)
   {
     fsm.trigger(e);
@@ -172,16 +190,19 @@ void manage_xEventQueue()
 }
 //----------------------------------------------------------
 
-void send_to_packet_controller()
+void send_to_packet_controller_1(ReasonType reason)
 {
   const uint8_t *peer_addr = peer.peer_addr;
+
+  vescdata.reason = reason;
 
   uint8_t bs[sizeof(vescdata)];
   memcpy(bs, &vescdata, sizeof(vescdata));
   esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
+
   if (result == ESP_OK)
   {
-    // DEBUGVAL("Sent to controller", vescdata.missing_packets);
+    // DEBUGVAL(reason_toString(reason));
   }
   else 
   {
@@ -196,6 +217,13 @@ void setup()
   Serial.begin(115200);
   Serial.println("Start");
 
+  #ifdef USE_TEST_VALUES
+  Serial.printf("\n");
+  Serial.printf("/********************************************************/\n");
+  Serial.printf("/*               WARNING: Using test values!            */\n");
+  Serial.printf("/********************************************************/\n");
+  Serial.printf("\n");
+  #endif
   initialiseApp();
 
   initialiseLeds();
@@ -210,11 +238,33 @@ void setup()
   client.setOnSentEvent(packetSent);
   initESPNow();
 
-  xTaskCreatePinnedToCore(vescTask_0, "vescTask", 10000, NULL, /*priority*/ 0, NULL, OTHER_CORE);
+  button0.setPressedHandler([](Button2 &btn)
+  {
+    EventsEnum e = EV_MOVING;
+    vescdata.moving = true;
+    xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+  });
+  button0.setReleasedHandler([](Button2 &btn)
+  {
+    EventsEnum e = EV_STOPPED;
+    vescdata.odometer = vescdata.odometer + 0.1;
+    vescdata.moving = false;
+    xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+  });
+  button0.setLongClickHandler([](Button2 &btn)
+  {
+    fake_vesc_online = true;
+    DEBUGVAL(fake_vesc_online);
+  });
+
+  xTaskCreatePinnedToCore(vescTask_0, "vescTask", 10000, NULL, /*priority*/ 4, NULL, OTHER_CORE);
   xVescDataSemaphore = xSemaphoreCreateMutex();
   xEventQueue = xQueueCreate(1, sizeof(EventsEnum));
 
   controller_packet.throttle = 127;
+
+  light.initialise(PIXEL_PIN, NUM_PIXELS);
+  light.setAll(light.COLOUR_OFF);
 
   addFsmTransitions();
   fsm.run_machine();
@@ -231,9 +281,11 @@ void loop()
 {
   fsm.run_machine();
 
+#ifdef USING_BUTTONS
   button_loop();
+#endif
 
-  manage_xEventQueue();
+  manage_xEventQueue_1();
 
   if (sinceLastControllerPacket > CONTROLLER_TIMEOUT)
   {
@@ -246,20 +298,10 @@ void loop()
       sinceLastControllerPacket = 0;
       Serial.printf("Paired: %s\n", paired ? "true" : "false");
 
-      vescdata.id = 0;
-
       // always send the first packet (id == 0)
-      send_to_packet_controller();
-    }
+      vescdata.id = 0;
+    }      
+    send_to_packet_controller_1(ReasonType::FIRST_PACKET);
   }
-
-  // if (sinceSentToController > SEND_TO_CONTROLLER_INTERVAL)
-  // {
-  //   sinceSentToController = 0;
-  //   if (!vescdata.moving)
-  //   {
-  //     send_to_packet_controller();
-  //   }
-  // }
 }
 //----------------------------------------------------------

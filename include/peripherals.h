@@ -9,13 +9,13 @@ void button_init()
   // btn1.setReleasedHandler([](Button2 &b) {
   //   Serial.printf("btn1.setReleasedHandler()\n");
   // });
-  btn1.setClickHandler([](Button2 &b) {
-    Serial.printf("btn1.setClickHandler()\n");
+  // btn1.setClickHandler([](Button2 &b) {
+  //   Serial.printf("btn1.setClickHandler()\n");
 
     // old_packet.id = controller_packet.id - 5;
     // fsm.trigger(EV_MISSED_CONTROLLER_PACKET);
     // fsm.run_machine();
-  });
+  // });
   // btn1.setLongClickHandler([](Button2 &b) {
   //   Serial.printf("btn1.setLongClickHandler([](Button2 &b)\n");
   // });
@@ -29,13 +29,13 @@ void button_init()
 
 void button_loop()
 {
-  btn1.loop();
+  button0.loop();
 }
 //------------------------------------------------------------------
 void initialiseLeds() {
-  DEBUG("Initialising LEDs (red)\n");
-  FastLED.addLeds<WS2812B, PIXEL_PIN, GRB>(strip, NUM_PIXELS);
-  FastLED.setBrightness(50);
-  allLedsOn(COLOUR_RED);
-  FastLED.show();
+  // DEBUG("Initialising LEDs (red)\n");
+  // FastLED.addLeds<WS2812B, PIXEL_PIN, GRB>(strip, NUM_PIXELS);
+  // FastLED.setBrightness(50);
+  // allLedsOn(COLOUR_RED);
+  // FastLED.show();
 }
