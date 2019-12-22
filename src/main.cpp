@@ -6,8 +6,9 @@
 #include <Fsm.h>
 #include <TaskScheduler.h>
 #include <VescData.h>
-#include <espNowClient.h>
 #include <elapsedMillis.h>
+
+VescData vescdata, initialVescData;
 
 elapsedMillis sinceLastControllerPacket = 0;
 
@@ -17,7 +18,6 @@ bool vescOnline = false;
 
 void button_init();
 void button_loop();
-void initialiseApp();
 
 #define SECONDS 1000
 
@@ -25,7 +25,7 @@ void initialiseApp();
 #ifdef USE_TEST_VALUES
 #define CONTROLLER_TIMEOUT 1600
 #define SEND_TO_VESC_INTERVAL 500 // times out after 1s
-#define SEND_TO_VESC
+// #define SEND_TO_VESC
 #else
 #define CONTROLLER_TIMEOUT 200
 #define SEND_TO_VESC_INTERVAL 500 // times out after 1s
@@ -52,6 +52,19 @@ LedLightsLib light;
 
 #include "state_machine.h"
 
+void client_connected()
+{
+  TRIGGER(EV_CONTROLLER_CONNECTED);
+}
+
+void client_disconnected()
+{
+  TRIGGER(EV_CONTROLLER_OFFLINE);
+}
+
+
+#include <ble_notify.h>
+
 
 //------------------------------------------------------------------
 
@@ -70,35 +83,35 @@ Task t_GetVescValues(
     GET_FROM_VESC_INTERVAL,
     TASK_FOREVER,
     [] {
-      if (xVescDataSemaphore != NULL && xSemaphoreTake(xVescDataSemaphore, (TickType_t)10) == pdTRUE)
-      {
-        vescOnline = getVescValues() == true;
-        xSemaphoreGive(xVescDataSemaphore);
-      }
+      // if (xVescDataSemaphore != NULL && xSemaphoreTake(xVescDataSemaphore, (TickType_t)10) == pdTRUE)
+      // {
+      //   vescOnline = getVescValues() == true;
+      //   xSemaphoreGive(xVescDataSemaphore);
+      // }
 
-      if (vescOnline == false && fake_vesc_online == false)
-      {
-        EventsEnum e = EV_VESC_OFFLINE;
-        xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
-      }
-      else
-      {
-        if (vescPoweringDown())
-        {
-          EventsEnum e = EV_POWERING_DOWN;
-          xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
-        }
-        else if (vescdata.moving)
-        {
-          EventsEnum e = EV_MOVING;
-          xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
-        }
-        else
-        {
-          EventsEnum e = EV_STOPPED;
-          xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
-        }
-      }
+      // if (vescOnline == false && fake_vesc_online == false)
+      // {
+      //   EventsEnum e = EV_VESC_OFFLINE;
+      //   xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+      // }
+      // else
+      // {
+      //   if (vescPoweringDown())
+      //   {
+      //     EventsEnum e = EV_POWERING_DOWN;
+      //     xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+      //   }
+      //   else if (vescdata.moving)
+      //   {
+      //     EventsEnum e = EV_MOVING;
+      //     xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+      //   }
+      //   else
+      //   {
+      //     EventsEnum e = EV_STOPPED;
+      //     xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+      //   }
+      // }
     });
 
 Task t_SendToVesc(
@@ -113,10 +126,6 @@ Task t_SendToVesc(
 #include "peripherals.h"
 
 //------------------------------------------------------------------
-void initialiseApp()
-{
-}
-//------------------------------------------------------------------
 
 void packetReceived(const uint8_t *data, uint8_t data_len)
 {
@@ -128,7 +137,7 @@ void packetReceived(const uint8_t *data, uint8_t data_len)
   bool throttle_changed = controller_packet.throttle != old_packet.throttle;
   bool request_update = controller_packet.command & COMMAND_REQUEST_UPDATE;
 
-  fsm.trigger(EV_RECV_CONTROLLER_PACKET);
+  TRIGGER(EV_RECV_CONTROLLER_PACKET);
 
   if (throttle_changed)
   {
@@ -185,30 +194,31 @@ void manage_xEventQueue_1()
   xStatus = xQueueReceive(xEventQueue, &e, pdMS_TO_TICKS(0));
   if (xStatus == pdPASS)
   {
-    fsm.trigger(e);
+    TRIGGER(e);
   }
 }
 //----------------------------------------------------------
 
 void send_to_packet_controller_1(ReasonType reason)
 {
-  const uint8_t *peer_addr = peer.peer_addr;
+  sendDataToClient();
+  // const uint8_t *peer_addr = peer.peer_addr;
 
-  vescdata.reason = reason;
+  // vescdata.reason = reason;
 
-  uint8_t bs[sizeof(vescdata)];
-  memcpy(bs, &vescdata, sizeof(vescdata));
-  esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
+  // uint8_t bs[sizeof(vescdata)];
+  // memcpy(bs, &vescdata, sizeof(vescdata));
+  // esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
 
-  if (result == ESP_OK)
-  {
-    // DEBUGVAL(reason_toString(reason));
-  }
-  else 
-  {
-    DEBUG("Failed sending to controller");
-  }
-  vescdata.id = vescdata.id + 1;
+  // if (result == ESP_OK)
+  // {
+  //   // DEBUGVAL(reason_toString(reason));
+  // }
+  // else 
+  // {
+  //   DEBUG("Failed sending to controller");
+  // }
+  // vescdata.id = vescdata.id + 1;
 }
 //----------------------------------------------------------
 
@@ -224,47 +234,18 @@ void setup()
   Serial.printf("/********************************************************/\n");
   Serial.printf("\n");
   #endif
-  initialiseApp();
 
-  initialiseLeds();
+  light_init();
 
-  client.setOnConnectedEvent([] {
-    Serial.printf("Connected!\n");
-  });
-  client.setOnDisconnectedEvent([] {
-    Serial.println("ESPNow Init Failed, restarting...");
-  });
-  client.setOnNotifyEvent(packetReceived);
-  client.setOnSentEvent(packetSent);
-  initESPNow();
+  button_init();
 
-  button0.setPressedHandler([](Button2 &btn)
-  {
-    EventsEnum e = EV_MOVING;
-    vescdata.moving = true;
-    xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
-  });
-  button0.setReleasedHandler([](Button2 &btn)
-  {
-    EventsEnum e = EV_STOPPED;
-    vescdata.odometer = vescdata.odometer + 0.1;
-    vescdata.moving = false;
-    xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
-  });
-  button0.setLongClickHandler([](Button2 &btn)
-  {
-    fake_vesc_online = true;
-    DEBUGVAL(fake_vesc_online);
-  });
+  setupBLE();
 
   xTaskCreatePinnedToCore(vescTask_0, "vescTask", 10000, NULL, /*priority*/ 4, NULL, OTHER_CORE);
   xVescDataSemaphore = xSemaphoreCreateMutex();
   xEventQueue = xQueueCreate(1, sizeof(EventsEnum));
 
   controller_packet.throttle = 127;
-
-  light.initialise(PIXEL_PIN, NUM_PIXELS);
-  light.setAll(light.COLOUR_OFF);
 
   addFsmTransitions();
   fsm.run_machine();
@@ -287,21 +268,21 @@ void loop()
 
   manage_xEventQueue_1();
 
-  if (sinceLastControllerPacket > CONTROLLER_TIMEOUT)
-  {
-    fsm.trigger(EV_CONTROLLER_OFFLINE);
+  // if (sinceLastControllerPacket > CONTROLLER_TIMEOUT)
+  // {
+  //   TRIGGER(EV_CONTROLLER_OFFLINE);
 
-    ScanForPeer();
-    bool paired = pairPeer();
-    if (paired)
-    {
-      sinceLastControllerPacket = 0;
-      Serial.printf("Paired: %s\n", paired ? "true" : "false");
+    // ScanForPeer();
+    // bool paired = pairPeer();
+    // if (paired)
+    // {
+    //   sinceLastControllerPacket = 0;
+    //   Serial.printf("Paired: %s\n", paired ? "true" : "false");
 
-      // always send the first packet (id == 0)
-      vescdata.id = 0;
-    }      
-    send_to_packet_controller_1(ReasonType::FIRST_PACKET);
-  }
+    //   // always send the first packet (id == 0)
+    //   vescdata.id = 0;
+    // }      
+    // send_to_packet_controller_1(ReasonType::FIRST_PACKET);
+  // }
 }
 //----------------------------------------------------------
