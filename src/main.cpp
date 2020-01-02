@@ -8,7 +8,14 @@
 #include <VescData.h>
 #include <elapsedMillis.h>
 
+// prototypes
+void packet_available_cb(uint16_t from_id);
+
+#include "nrf.h"
+
 VescData vescdata, initialVescData;
+
+ControllerPacket old_packet;
 
 elapsedMillis sinceLastControllerPacket = 0;
 
@@ -21,7 +28,7 @@ void button_loop();
 
 #define SECONDS 1000
 
-#define USE_TEST_VALUES
+// #define USE_TEST_VALUES
 #ifdef USE_TEST_VALUES
 #define CONTROLLER_TIMEOUT 1600
 #define SEND_TO_VESC_INTERVAL 500 // times out after 1s
@@ -42,7 +49,7 @@ Button2 button0(BUTTON_0);
 #define BRIGHT_MAX  10
 
 // prototypes
-void send_to_packet_controller_1(ReasonType reason);
+void send_to_packet_controller(ReasonType reason);
 
 #include "vesc_utils.h"
 #include "utils.h"
@@ -52,19 +59,29 @@ LedLightsLib light;
 
 #include "state_machine.h"
 
-void client_connected()
+void controller_connected()
 {
   TRIGGER(EV_CONTROLLER_CONNECTED);
 }
 
-void client_disconnected()
+void controller_disconnected()
 {
   TRIGGER(EV_CONTROLLER_OFFLINE);
 }
 
+void packet_available_cb(uint16_t from_id)
+{
+  controller_id = from_id;
+  
+  // DEBUGVAL("packet_available_cb", from_id, nrf24.controllerPacket.id);
 
-#include <ble_notify.h>
-
+  int missed_packets = nrf24.controllerPacket.id - (old_packet.id + 1);
+  if (missed_packets > 0)
+  {
+    DEBUGVAL("Missed packet from controller!", missed_packets);
+  }
+  memcpy(&old_packet, &nrf24.controllerPacket, sizeof(ControllerPacket));
+}
 
 //------------------------------------------------------------------
 
@@ -83,35 +100,35 @@ Task t_GetVescValues(
     GET_FROM_VESC_INTERVAL,
     TASK_FOREVER,
     [] {
-      // if (xVescDataSemaphore != NULL && xSemaphoreTake(xVescDataSemaphore, (TickType_t)10) == pdTRUE)
-      // {
-      //   vescOnline = getVescValues() == true;
-      //   xSemaphoreGive(xVescDataSemaphore);
-      // }
+      if (xVescDataSemaphore != NULL && xSemaphoreTake(xVescDataSemaphore, (TickType_t)10) == pdTRUE)
+      {
+        vescOnline = getVescValues() == true;
+        xSemaphoreGive(xVescDataSemaphore);
+      }
 
-      // if (vescOnline == false && fake_vesc_online == false)
-      // {
-      //   EventsEnum e = EV_VESC_OFFLINE;
-      //   xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
-      // }
-      // else
-      // {
-      //   if (vescPoweringDown())
-      //   {
-      //     EventsEnum e = EV_POWERING_DOWN;
-      //     xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
-      //   }
-      //   else if (vescdata.moving)
-      //   {
-      //     EventsEnum e = EV_MOVING;
-      //     xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
-      //   }
-      //   else
-      //   {
-      //     EventsEnum e = EV_STOPPED;
-      //     xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
-      //   }
-      // }
+      if (vescOnline == false && fake_vesc_online == false)
+      {
+        EventsEnum e = EV_VESC_OFFLINE;
+        xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+      }
+      else
+      {
+        if (vescPoweringDown())
+        {
+          EventsEnum e = EV_POWERING_DOWN;
+          xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+        }
+        else if (vescdata.moving)
+        {
+          EventsEnum e = EV_MOVING;
+          xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+        }
+        else
+        {
+          EventsEnum e = EV_STOPPED;
+          xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+        }
+      }
     });
 
 Task t_SendToVesc(
@@ -119,7 +136,7 @@ Task t_SendToVesc(
     TASK_FOREVER,
     [] {
       #ifdef SEND_TO_VESC
-      send_to_vesc(controller_packet.throttle);
+      send_to_vesc(nrf24.controllerPacket.throttle);
       #endif
     });
 
@@ -131,34 +148,30 @@ void packetReceived(const uint8_t *data, uint8_t data_len)
 {
   sinceLastControllerPacket = 0;
 
-  memcpy(&old_packet, &controller_packet, sizeof(controller_packet));
-  memcpy(/*dest*/ &controller_packet, /*src*/ data, data_len);
+  // memcpy(&old_packet, &controller_packet, sizeof(controller_packet));
+  // memcpy(/*dest*/ &controller_packet, /*src*/ data, data_len);
 
-  bool throttle_changed = controller_packet.throttle != old_packet.throttle;
-  bool request_update = controller_packet.command & COMMAND_REQUEST_UPDATE;
+  // bool throttle_changed = controller_packet.throttle != old_packet.throttle;
+  // bool request_update = controller_packet.command & COMMAND_REQUEST_UPDATE;
 
   TRIGGER(EV_RECV_CONTROLLER_PACKET);
 
-  if (throttle_changed)
-  {
-    DEBUGVAL(controller_packet.throttle);
-    t_SendToVesc.restart();
-  }
+  // if (throttle_changed)
+  // {
+  //   DEBUGVAL(controller_packet.throttle);
+  //   t_SendToVesc.restart();
+  // }
 
   if (sent_first_packet == false)
   {
-    send_to_packet_controller_1(ReasonType::FIRST_PACKET);
+    send_to_packet_controller(ReasonType::FIRST_PACKET);
     sent_first_packet = true;
   }
 
-  if (request_update) 
-  {
-    send_to_packet_controller_1(ReasonType::REQUESTED);
-  }
-}
-
-void packetSent()
-{
+  // if (request_update) 
+  // {
+  //   send_to_packet_controller(ReasonType::REQUESTED);
+  // }
 }
 
 #define OTHER_CORE 0
@@ -199,9 +212,18 @@ void manage_xEventQueue_1()
 }
 //----------------------------------------------------------
 
-void send_to_packet_controller_1(ReasonType reason)
+void send_to_packet_controller(ReasonType reason)
 {
-  sendDataToClient();
+  bool success = nrf_send_to_controller();
+  if (success)
+  {
+    DEBUGVAL("Sent to controller", nrf24.boardPacket.id);
+  }
+  else 
+  {
+    DEBUG("ERROR sending packet to controller!");
+  }
+  nrf24.boardPacket.id = nrf24.boardPacket.id + 1;
   // const uint8_t *peer_addr = peer.peer_addr;
 
   // vescdata.reason = reason;
@@ -239,13 +261,13 @@ void setup()
 
   button_init();
 
-  setupBLE();
+  bool nrf_ok = nrf_setup();
 
   xTaskCreatePinnedToCore(vescTask_0, "vescTask", 10000, NULL, /*priority*/ 4, NULL, OTHER_CORE);
   xVescDataSemaphore = xSemaphoreCreateMutex();
   xEventQueue = xQueueCreate(1, sizeof(EventsEnum));
 
-  controller_packet.throttle = 127;
+  nrf24.controllerPacket.throttle = 127;
 
   addFsmTransitions();
   fsm.run_machine();
@@ -257,6 +279,7 @@ void setup()
 }
 //----------------------------------------------------------
 unsigned long now = 0;
+elapsedMillis since_sent_to_controller = 0;
 
 void loop()
 {
@@ -267,6 +290,14 @@ void loop()
 #endif
 
   manage_xEventQueue_1();
+
+  nrf24.update();
+
+  if (since_sent_to_controller > 3000)
+  {
+    since_sent_to_controller = 0;
+    send_to_packet_controller(ReasonType::REQUESTED);
+  }
 
   // if (sinceLastControllerPacket > CONTROLLER_TIMEOUT)
   // {
@@ -282,7 +313,7 @@ void loop()
     //   // always send the first packet (id == 0)
     //   vescdata.id = 0;
     // }      
-    // send_to_packet_controller_1(ReasonType::FIRST_PACKET);
+    // send_to_packet_controller(ReasonType::FIRST_PACKET);
   // }
 }
 //----------------------------------------------------------

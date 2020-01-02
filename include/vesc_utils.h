@@ -8,8 +8,6 @@
 
 uint8_t vesc_packet[PACKET_MAX_LENGTH];
 
-ControllerData controller_packet, old_packet;
-
 #define VESC_UART_BAUDRATE 115200
 
 #define POWERING_DOWN_BATT_VOLTS_START NUM_BATT_CELLS * 3.0

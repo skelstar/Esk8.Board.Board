@@ -31,7 +31,7 @@ State state_powering_down(
     []
     {
       DEBUG("state_powering_down ---------------------- \n");
-      send_to_packet_controller_1(ReasonType::LAST_WILL);
+      send_to_packet_controller(ReasonType::LAST_WILL);
     },
     NULL, NULL);
 //------------------------------------------------------------------
@@ -39,7 +39,7 @@ State state_vesc_offline(
     STATE_VESC_OFFLINE,
     [] {
       DEBUG("state_vesc_offline ---------------------- \n");
-      send_to_packet_controller_1(ReasonType::VESC_OFFLINE);
+      send_to_packet_controller(ReasonType::VESC_OFFLINE);
     },
     NULL, NULL);
 //------------------------------------------------------------------
@@ -47,7 +47,7 @@ State state_board_moving(
     STATE_BOARD_MOVING,
     [] {
       DEBUG("state_board_moving ---------------------- \n");
-      send_to_packet_controller_1(ReasonType::BOARD_MOVING);
+      send_to_packet_controller(ReasonType::BOARD_MOVING);
       light.setAll(light.COLOUR_WHITE);
     },
     NULL, NULL);
@@ -56,7 +56,7 @@ State state_board_stopped(
     STATE_BOARD_STOPPED,
     [] {
       DEBUG("state_board_stopped ---------------------- \n");
-      send_to_packet_controller_1(ReasonType::BOARD_STOPPED);
+      send_to_packet_controller(ReasonType::BOARD_STOPPED);
       since_stopped = 0;
       showing_graph = false;
     },
