@@ -15,7 +15,7 @@ void packet_available_cb(uint16_t from_id);
 
 VescData vescdata, initialVescData;
 
-ControllerPacket old_packet;
+ControllerData old_packet;
 
 elapsedMillis sinceLastControllerPacket = 0;
 
@@ -72,15 +72,21 @@ void controller_disconnected()
 void packet_available_cb(uint16_t from_id)
 {
   controller_id = from_id;
-  
-  // DEBUGVAL("packet_available_cb", from_id, nrf24.controllerPacket.id);
 
   int missed_packets = nrf24.controllerPacket.id - (old_packet.id + 1);
   if (missed_packets > 0)
   {
     DEBUGVAL("Missed packet from controller!", missed_packets);
   }
-  memcpy(&old_packet, &nrf24.controllerPacket, sizeof(ControllerPacket));
+  memcpy(&old_packet, &nrf24.controllerPacket, sizeof(ControllerData));
+
+  TRIGGER(EV_RECV_CONTROLLER_PACKET, NULL);
+
+  bool request_update = nrf24.controllerPacket.command & COMMAND_REQUEST_UPDATE;
+  if (request_update) 
+  {
+    send_to_packet_controller(ReasonType::REQUESTED);
+  }
 }
 
 //------------------------------------------------------------------
@@ -144,36 +150,6 @@ Task t_SendToVesc(
 
 //------------------------------------------------------------------
 
-void packetReceived(const uint8_t *data, uint8_t data_len)
-{
-  sinceLastControllerPacket = 0;
-
-  // memcpy(&old_packet, &controller_packet, sizeof(controller_packet));
-  // memcpy(/*dest*/ &controller_packet, /*src*/ data, data_len);
-
-  // bool throttle_changed = controller_packet.throttle != old_packet.throttle;
-  // bool request_update = controller_packet.command & COMMAND_REQUEST_UPDATE;
-
-  TRIGGER(EV_RECV_CONTROLLER_PACKET);
-
-  // if (throttle_changed)
-  // {
-  //   DEBUGVAL(controller_packet.throttle);
-  //   t_SendToVesc.restart();
-  // }
-
-  if (sent_first_packet == false)
-  {
-    send_to_packet_controller(ReasonType::FIRST_PACKET);
-    sent_first_packet = true;
-  }
-
-  // if (request_update) 
-  // {
-  //   send_to_packet_controller(ReasonType::REQUESTED);
-  // }
-}
-
 #define OTHER_CORE 0
 #define LOOP_CORE 1
 
@@ -214,6 +190,10 @@ void manage_xEventQueue_1()
 
 void send_to_packet_controller(ReasonType reason)
 {
+  // send last controllerPacket.id as boardPacket.id
+  nrf24.boardPacket.id = nrf24.controllerPacket.id;
+  nrf24.boardPacket.reason = reason;
+
   bool success = nrf_send_to_controller();
   if (success)
   {
@@ -221,9 +201,8 @@ void send_to_packet_controller(ReasonType reason)
   }
   else 
   {
-    DEBUG("ERROR sending packet to controller!");
+    TRIGGER(EV_CONTROLLER_OFFLINE, "EV_CONTROLLER_OFFLINE");
   }
-  nrf24.boardPacket.id = nrf24.boardPacket.id + 1;
   // const uint8_t *peer_addr = peer.peer_addr;
 
   // vescdata.reason = reason;
@@ -293,11 +272,11 @@ void loop()
 
   nrf24.update();
 
-  if (since_sent_to_controller > 3000)
-  {
-    since_sent_to_controller = 0;
-    send_to_packet_controller(ReasonType::REQUESTED);
-  }
+  // if (since_sent_to_controller > 3000)
+  // {
+  //   since_sent_to_controller = 0;
+  //   send_to_packet_controller(ReasonType::REQUESTED);
+  // }
 
   // if (sinceLastControllerPacket > CONTROLLER_TIMEOUT)
   // {
