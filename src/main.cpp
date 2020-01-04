@@ -32,6 +32,9 @@ void button_loop();
 #ifdef USE_TEST_VALUES
 #define CONTROLLER_TIMEOUT 1600
 #define SEND_TO_VESC_INTERVAL 500 // times out after 1s
+// #define DEBUG_TRIGGER_ENABLED    1
+// #define DEBUG_PRINT_STATE_NAME_ENABLED 1
+// #define DEBUG_THROTTLE_ENABLED   1
 // #define SEND_TO_VESC
 #else
 #define CONTROLLER_TIMEOUT 200
@@ -83,6 +86,10 @@ void packet_available_cb(uint16_t from_id)
     DEBUGVAL("Missed packet from controller!", missed_packets, missed_packets_accumulated);
   }
   memcpy(&old_packet, &nrf24.controllerPacket, sizeof(ControllerData));
+
+#ifdef DEBUG_THROTTLE_ENABLED
+  DEBUGVAL(nrf24.controllerPacket.throttle);
+#endif
 
   TRIGGER(EV_RECV_CONTROLLER_PACKET, NULL);
 
