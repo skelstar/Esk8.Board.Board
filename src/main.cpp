@@ -28,7 +28,7 @@ void button_loop();
 
 #define SECONDS 1000
 
-// #define USE_TEST_VALUES
+#define USE_TEST_VALUES
 #ifdef USE_TEST_VALUES
 #define CONTROLLER_TIMEOUT 1600
 #define SEND_TO_VESC_INTERVAL 500 // times out after 1s
@@ -57,6 +57,8 @@ void send_to_packet_controller(ReasonType reason);
 
 LedLightsLib light;
 
+uint16_t missed_packets_accumulated = 0;
+
 #include "state_machine.h"
 
 void controller_connected()
@@ -66,7 +68,7 @@ void controller_connected()
 
 void controller_disconnected()
 {
-  TRIGGER(EV_CONTROLLER_OFFLINE);
+  TRIGGER(EV_CONTROLLER_OFFLINE, "controller_disconnected()");
 }
 
 void packet_available_cb(uint16_t from_id)
@@ -74,9 +76,11 @@ void packet_available_cb(uint16_t from_id)
   controller_id = from_id;
 
   int missed_packets = nrf24.controllerPacket.id - (old_packet.id + 1);
-  if (missed_packets > 0)
+  if (missed_packets > 0 && old_packet.id > 0)
   {
-    DEBUGVAL("Missed packet from controller!", missed_packets);
+    missed_packets_accumulated += missed_packets;
+    nrf24.boardPacket.ampHours = (float)missed_packets_accumulated;
+    DEBUGVAL("Missed packet from controller!", missed_packets, missed_packets_accumulated);
   }
   memcpy(&old_packet, &nrf24.controllerPacket, sizeof(ControllerData));
 
@@ -201,7 +205,7 @@ void send_to_packet_controller(ReasonType reason)
   }
   else 
   {
-    TRIGGER(EV_CONTROLLER_OFFLINE, "EV_CONTROLLER_OFFLINE");
+    TRIGGER(EV_CONTROLLER_OFFLINE, "EV_CONTROLLER_OFFLINE: Couldn't send to controller");
   }
   // const uint8_t *peer_addr = peer.peer_addr;
 
