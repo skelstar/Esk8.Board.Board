@@ -1,15 +1,8 @@
 #include "Arduino.h"
 #include "LedLightsLib.h"
 
-LedLightsLib::LedLightsLib(Variant variant, uint8_t pin, uint8_t numPixels, float batteryCautionPercentage)
+void LedLightsLib::initialise(uint8_t pin, uint8_t numPixels)
 {
-  _batteryCautionPercentage = batteryCautionPercentage;
-  LedLightsLib(variant, pin, numPixels);
-}
-
-LedLightsLib::LedLightsLib(Variant variant, uint8_t pin, uint8_t numPixels)
-{
-  _variant = variant;
   _strip = new Adafruit_NeoPixel(numPixels, pin, NEO_GRBW + NEO_KHZ800);
   _strip->begin();
   _strip->clear();
@@ -18,10 +11,37 @@ LedLightsLib::LedLightsLib(Variant variant, uint8_t pin, uint8_t numPixels)
 
 void LedLightsLib::setAll(uint32_t colour)
 {
+  if (_strip == NULL)
+  {
+    Serial.printf("ERROR: light not initialised");
+  }
+
   for (int i = 0; i < _strip->numPixels(); i++)
   {
     setPixel(i, colour, false);
   }
+  _strip->show();
+}
+
+void LedLightsLib::setStatusIndicators(uint32_t vesc, uint32_t board, uint32_t controller)
+{
+  _strip->clear();
+  
+  int i = 3;
+  setPixel(i++, controller, false);
+  setPixel(i++, controller, false);
+  setPixel(i++, controller, false);
+
+  i = i + 2;
+  setPixel(i++, board, false);
+  setPixel(i++, board, false);
+  setPixel(i++, board, false);
+
+  i = i + 2;
+  setPixel(i++, vesc, false);
+  setPixel(i++, vesc, false);
+  setPixel(i++, vesc, false);
+
   _strip->show();
 }
 
@@ -45,20 +65,15 @@ void LedLightsLib::showBatteryGraph(float percentage)
   {
     return;
   }
-  uint32_t colour = percentage > _batteryCautionPercentage
-                        ? COLOUR_GREEN
-                        : COLOUR_RED;
+
+  uint8_t p = percentage * _strip->numPixels();
 
   for (uint8_t i = 0; i < _strip->numPixels(); i++)
   {
-    if (i / (_strip->numPixels() * 0.0) <= percentage)
-    {
-      setPixel(i, colour, false);
-    }
-    else
-    {
-      _strip->setPixelColor(i, COLOUR_OFF);
-    }
+    uint32_t c = (i <= p)
+      ? COLOUR_GREEN
+      : COLOUR_OFF;
+    _strip->setPixelColor(i, c);
   }
   _strip->show();
   return;

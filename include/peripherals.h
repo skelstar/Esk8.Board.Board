@@ -3,39 +3,34 @@
 
 void button_init()
 {
-  // btn1.setPressedHandler([](Button2 &b) {
-  //   Serial.printf("btn1.setPressedHandler()\n");
-  // });
-  // btn1.setReleasedHandler([](Button2 &b) {
-  //   Serial.printf("btn1.setReleasedHandler()\n");
-  // });
-  btn1.setClickHandler([](Button2 &b) {
-    Serial.printf("btn1.setClickHandler()\n");
-
-    // old_packet.id = controller_packet.id - 5;
-    // fsm.trigger(EV_MISSED_CONTROLLER_PACKET);
-    // fsm.run_machine();
+  button0.setPressedHandler([](Button2 &btn)
+  {
+    EventsEnum e = EV_MOVING;
+    vescdata.moving = true;
+    DEBUGVAL(vescdata.moving);
+    xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
   });
-  // btn1.setLongClickHandler([](Button2 &b) {
-  //   Serial.printf("btn1.setLongClickHandler([](Button2 &b)\n");
-  // });
-  // btn1.setDoubleClickHandler([](Button2 &b) {
-  //   Serial.printf("btn1.setDoubleClickHandler([](Button2 &b)\n");
-  // });
-  // btn1.setTripleClickHandler([](Button2 &b) {
-  //   Serial.printf("btn1.setTripleClickHandler([](Button2 &b)\n");
-  // });
+  button0.setReleasedHandler([](Button2 &btn)
+  {
+    EventsEnum e = EV_STOPPED;
+    vescdata.odometer = vescdata.odometer + 0.1;
+    vescdata.moving = false;
+    DEBUGVAL(vescdata.moving);
+    xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+  });
+  button0.setLongClickHandler([](Button2 &btn)
+  {
+    // fake_vesc_online = true;
+    // DEBUGVAL(fake_vesc_online);
+  });
 }
 
 void button_loop()
 {
-  btn1.loop();
+  button0.loop();
 }
 //------------------------------------------------------------------
-void initialiseLeds() {
-  DEBUG("Initialising LEDs (red)\n");
-  FastLED.addLeds<WS2812B, PIXEL_PIN, GRB>(strip, NUM_PIXELS);
-  FastLED.setBrightness(50);
-  allLedsOn(COLOUR_RED);
-  FastLED.show();
+void light_init() {
+  light.initialise(PIXEL_PIN, NUM_PIXELS);
+  light.setAll(light.COLOUR_OFF);
 }
