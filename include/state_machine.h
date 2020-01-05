@@ -83,6 +83,7 @@ void addFsmTransitions()
   fsm.add_transition(&state_controller_offline, &state_board_stopped, EV_CONTROLLER_CONNECTED, NULL);
   fsm.add_transition(&state_board_stopped, &state_controller_offline, EV_CONTROLLER_OFFLINE, NULL);
   fsm.add_transition(&state_board_moving, &state_controller_offline, EV_CONTROLLER_OFFLINE, NULL);
+  fsm.add_transition(&state_vesc_offline, &state_controller_offline, EV_CONTROLLER_OFFLINE, NULL);
 
   // stopped
   fsm.add_transition(&state_board_stopped, &state_powering_down, EV_POWERING_DOWN, NULL);
@@ -110,7 +111,7 @@ void PRINT_STATE(const char *state_name)
 #endif
 }
 
-void TRIGGER(uint8_t x, char *s)
+void TRIGGER(EventsEnum x, char *s)
 {
   if (s != NULL)
   {
@@ -121,7 +122,7 @@ void TRIGGER(uint8_t x, char *s)
   fsm.trigger(x);
 }
 
-void TRIGGER(uint8_t x)
+void TRIGGER(EventsEnum x)
 {
 #ifdef DEBUG_TRIGGER_ENABLED
   switch (x)
