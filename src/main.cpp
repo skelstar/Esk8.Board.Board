@@ -36,9 +36,12 @@ void button_loop();
 #endif
 
 
+#ifdef USING_BUTTONS
+
 #define BUTTON_0 0
-#define USING_BUTTONS 1
 Button2 button0(BUTTON_0);
+
+#endif
 
 #define NUM_PIXELS  21
 #define PIXEL_PIN   4
@@ -100,9 +103,20 @@ void packet_available_cb(uint16_t from_id)
 
 //------------------------------------------------------------------
 
+void send_to_fsm_event_queue(EventsEnum e)
+{
+  xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+}
+
 Scheduler runner;
 
 #define GET_FROM_VESC_INTERVAL 1000
+
+#ifdef FAKE_VESC_ONLINE
+  bool fake_vesc_online = true;
+#else
+  bool fake_vesc_online = false;
+#endif 
 
 Task t_GetVescValues_0(
     GET_FROM_VESC_INTERVAL,
@@ -114,27 +128,23 @@ Task t_GetVescValues_0(
         xSemaphoreGive(xVescDataSemaphore);
       }
 
-      if (vescOnline == false)
+      if (vescOnline == false && !fake_vesc_online)
       {
-        EventsEnum e = EV_VESC_OFFLINE;
-        xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+        send_to_fsm_event_queue(EV_VESC_OFFLINE);
       }
       else
       {
         if (vescPoweringDown())
         {
-          EventsEnum e = EV_POWERING_DOWN;
-          xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+          send_to_fsm_event_queue(EV_POWERING_DOWN);
         }
         else if (vescdata.moving)
         {
-          EventsEnum e = EV_MOVING;
-          xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+          send_to_fsm_event_queue(EV_MOVING);
         }
         else
         {
-          EventsEnum e = EV_STOPPED;
-          xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+          send_to_fsm_event_queue(EV_STOPPED);
         }
       }
     });
@@ -208,23 +218,6 @@ void send_to_packet_controller(ReasonType reason)
   {
     TRIGGER(EV_CONTROLLER_OFFLINE, "EV_CONTROLLER_OFFLINE: Couldn't send to controller");
   }
-  // const uint8_t *peer_addr = peer.peer_addr;
-
-  // vescdata.reason = reason;
-
-  // uint8_t bs[sizeof(vescdata)];
-  // memcpy(bs, &vescdata, sizeof(vescdata));
-  // esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
-
-  // if (result == ESP_OK)
-  // {
-  //   // DEBUGVAL(reason_toString(reason));
-  // }
-  // else 
-  // {
-  //   DEBUG("Failed sending to controller");
-  // }
-  // vescdata.id = vescdata.id + 1;
 }
 //----------------------------------------------------------
 
@@ -232,6 +225,8 @@ void setup()
 {
   Serial.begin(115200);
   Serial.println("Start");
+
+  bool nrf_ok = nrf_setup();
 
   #ifdef USE_TEST_VALUES
   Serial.printf("\n");
@@ -241,11 +236,17 @@ void setup()
   Serial.printf("\n");
   #endif
 
+  #ifdef FAKE_VESC_ONLINE
+  Serial.printf("\n");
+  Serial.printf("/********************************************************/\n");
+  Serial.printf("/*               WARNING: FAKE VESC ONLINE !            */\n");
+  Serial.printf("/********************************************************/\n");
+  Serial.printf("\n");
+  #endif
+
   light_init();
 
   button_init();
-
-  bool nrf_ok = nrf_setup();
 
   xTaskCreatePinnedToCore(vescTask_0, "vescTask", 10000, NULL, /*priority*/ 4, NULL, OTHER_CORE);
   xVescDataSemaphore = xSemaphoreCreateMutex();
