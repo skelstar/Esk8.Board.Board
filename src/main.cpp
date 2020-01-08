@@ -27,19 +27,12 @@ void button_loop();
 
 #define SECONDS 1000
 
-// #define USE_TEST_VALUES
 #ifdef USE_TEST_VALUES
 #define CONTROLLER_TIMEOUT 1600
-#define SEND_TO_VESC_INTERVAL 200 // times out after 1s
-// #define DEBUG_TRIGGER_ENABLED    1
-#define DEBUG_PRINT_STATE_NAME_ENABLED 1
-// #define DEBUG_THROTTLE_ENABLED   1
 #define SEND_TO_VESC
 #else
 #define CONTROLLER_TIMEOUT 250
-#define SEND_TO_VESC_INTERVAL 200 // times out after 1s
 #define SEND_TO_VESC
-#define DEBUG_PRINT_STATE_NAME_ENABLED 1
 #endif
 
 
@@ -111,7 +104,7 @@ Scheduler runner;
 
 #define GET_FROM_VESC_INTERVAL 1000
 
-Task t_GetVescValues(
+Task t_GetVescValues_0(
     GET_FROM_VESC_INTERVAL,
     TASK_FOREVER,
     [] {
@@ -146,15 +139,6 @@ Task t_GetVescValues(
       }
     });
 
-Task t_SendToVesc(
-    SEND_TO_VESC_INTERVAL,
-    TASK_FOREVER,
-    [] {
-      // #ifdef SEND_TO_VESC
-      // send_to_vesc(nrf24.controllerPacket.throttle);
-      // #endif
-    });
-
 #include "peripherals.h"
 
 //------------------------------------------------------------------
@@ -173,11 +157,9 @@ void vescTask_0(void *pvParameters)
   vesc.init(VESC_UART_BAUDRATE);
 
   runner.startNow();
-  runner.addTask(t_GetVescValues);
-  // runner.addTask(t_SendToVesc);
+  runner.addTask(t_GetVescValues_0);
 
-  t_GetVescValues.enable();
-  // t_SendToVesc.enable();
+  t_GetVescValues_0.enable();
 
   while (true)
   {
