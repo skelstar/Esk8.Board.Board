@@ -14,13 +14,23 @@ uint16_t controller_id;
 
 bool nrf_setup()
 {
-  nrf24.begin(&radio, &network, nrf24.RF24_SERVER, controller_packet_available_cb);
+  nrf24.begin(&radio, &network, controller_packet_available_cb);
   return true;
+}
+
+void nrf_update()
+{
+  nrf24.update();
+}  
+
+void nrf_read(uint8_t *data, uint8_t data_len)
+{
+  nrf24.read_into(data, data_len);
 }
 
 bool nrf_send_to_controller()
 {
   uint8_t bs[sizeof(VescData)];
-  memcpy(bs, &nrf24.boardPacket, sizeof(VescData));
+  memcpy(bs, &board_packet, sizeof(VescData));
   return nrf24.sendPacket(controller_id, /*type*/0, bs, sizeof(VescData));
 }

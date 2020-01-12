@@ -96,7 +96,7 @@ void fsm_add_transitions()
   fsm.add_transition(&state_board_moving, &state_vesc_offline, EV_VESC_OFFLINE, NULL);
 
   fsm.add_transition(&state_controller_offline, &state_vesc_offline, EV_RECV_CONTROLLER_PACKET, [] {
-    nrf24.boardPacket.id = 0;
+    board_packet.id = 0;
     send_to_packet_controller(ReasonType::FIRST_PACKET);
   });
 

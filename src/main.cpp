@@ -8,13 +8,13 @@
 #include <elapsedMillis.h>
 
 // prototypes
-void controller_packet_available_cb(uint16_t from_id);
+void controller_packet_available_cb(uint16_t from_id, uint8_t type);
+
+VescData vescdata, initialVescData, board_packet;
+
+ControllerData controller_packet, old_packet;
 
 #include "nrf.h"
-
-VescData vescdata, initialVescData;
-
-ControllerData old_packet;
 
 elapsedMillis since_last_controller_packet = 0;
 
@@ -71,9 +71,24 @@ SemaphoreHandle_t xVescDataSemaphore;
 * sends command to xSendToVescQueue
 * if REQUEST then send_to_packet_controller
 */
-void controller_packet_available_cb(uint16_t from_id)
+void controller_packet_available_cb(uint16_t from_id, uint8_t type)
 {
   controller_id = from_id;
+
+  switch (type)
+  {
+    case 0:
+      uint8_t buff[sizeof(ControllerData)];
+      nrf_read(buff, sizeof(ControllerData));
+      memcpy(&controller_packet, &buff, sizeof(ControllerData));
+      break;
+    case 1:
+      DEBUGVAL(type);
+      send_to_packet_controller(ReasonType::REQUESTED);
+      break;
+    default:
+      break;
+  }
 
   if (since_last_controller_packet > CONTROLLER_TIMEOUT)
   {
@@ -86,21 +101,21 @@ void controller_packet_available_cb(uint16_t from_id)
 
   since_last_controller_packet = 0;
 
-  int missed_packets = nrf24.controllerPacket.id - (old_packet.id + 1);
+  int missed_packets = controller_packet.id - (old_packet.id + 1);
   if (missed_packets > 0 && old_packet.id > 0)
   {
     DEBUGVAL("Missed packet from controller!", missed_packets);
   }
 
-  memcpy(&old_packet, &nrf24.controllerPacket, sizeof(ControllerData));
+  memcpy(&old_packet, &controller_packet, sizeof(ControllerData));
 
 #ifdef DEBUG_THROTTLE_ENABLED
-  DEBUGVAL(nrf24.controllerPacket.throttle);
+  DEBUGVAL(controller_packet.throttle, controller_packet.id);
 #endif
 
   TRIGGER(EV_RECV_CONTROLLER_PACKET, NULL);
 
-  bool request_update = nrf24.controllerPacket.command & COMMAND_REQUEST_UPDATE;
+  bool request_update = controller_packet.command & COMMAND_REQUEST_UPDATE;
   if (request_update) 
   {
     send_to_packet_controller(ReasonType::REQUESTED);
@@ -185,7 +200,7 @@ void vescTask_0(void *pvParameters)
     if (send_to_vesc_now)
     {
       #ifdef SEND_TO_VESC
-      send_to_vesc(nrf24.controllerPacket.throttle);
+      send_to_vesc(controller_packet.throttle);
       #endif
     }
 
@@ -209,14 +224,14 @@ void fsm_event_handler()
 
 void send_to_packet_controller(ReasonType reason)
 {
-  // send last controllerPacket.id as boardPacket.id
-  nrf24.boardPacket.id = nrf24.controllerPacket.id;
-  nrf24.boardPacket.reason = reason;
+  // send last controller_packet.id as boardPacket.id
+  board_packet.id = controller_packet.id;
+  board_packet.reason = reason;
 
   bool success = nrf_send_to_controller();
 
 #ifdef DEBUG_SEND_TO_PACKET_CONTROLLER
-    DEBUGVAL("Sent to controller", nrf24.boardPacket.id, reason_toString(reason));
+    DEBUGVAL("Sent to controller", board_packet.id, reason_toString(reason));
 #endif
 
 }
@@ -255,7 +270,7 @@ void setup()
   xSendToVescQueue = xQueueCreate(1, sizeof(uint8_t));
 
 
-  nrf24.controllerPacket.throttle = 127;
+  controller_packet.throttle = 127;
 
   fsm_add_transitions();
   fsm.run_machine();
@@ -278,6 +293,6 @@ void loop()
 
   fsm_event_handler();
 
-  nrf24.update();
+  nrf_update();
 }
 //----------------------------------------------------------
