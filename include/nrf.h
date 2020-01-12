@@ -14,12 +14,13 @@ uint16_t controller_id;
 
 bool nrf_setup()
 {
-  nrf24.begin(&radio, &network, nrf24.RF24_SERVER, packet_available_cb);
+  nrf24.begin(&radio, &network, nrf24.RF24_SERVER, controller_packet_available_cb);
   return true;
 }
 
-
 bool nrf_send_to_controller()
 {
-  return nrf24.sendPacket(controller_id);
+  uint8_t bs[sizeof(VescData)];
+  memcpy(bs, &nrf24.boardPacket, sizeof(VescData));
+  return nrf24.sendPacket(controller_id, /*type*/0, bs, sizeof(VescData));
 }

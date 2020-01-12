@@ -77,7 +77,7 @@ State state_controller_offline(
 
 Fsm fsm(&state_controller_offline);
 
-void addFsmTransitions()
+void fsm_add_transitions()
 {
   // online/offline
   fsm.add_transition(&state_controller_offline, &state_board_stopped, EV_CONTROLLER_CONNECTED, NULL);

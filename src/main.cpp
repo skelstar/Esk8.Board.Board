@@ -4,12 +4,11 @@
 
 #include <Button2.h>
 #include <Fsm.h>
-#include <TaskScheduler.h>
 #include <VescData.h>
 #include <elapsedMillis.h>
 
 // prototypes
-void packet_available_cb(uint16_t from_id);
+void controller_packet_available_cb(uint16_t from_id);
 
 #include "nrf.h"
 
@@ -67,31 +66,33 @@ xQueueHandle xSendToVescQueue;
 SemaphoreHandle_t xVescDataSemaphore;
 
 //------------------------------------------------------------------
-
-void packet_available_cb(uint16_t from_id)
+/*
+* checks timeout
+* sends command to xSendToVescQueue
+* if REQUEST then send_to_packet_controller
+*/
+void controller_packet_available_cb(uint16_t from_id)
 {
   controller_id = from_id;
 
   if (since_last_controller_packet > CONTROLLER_TIMEOUT)
   {
-    // would have been timeout
+    TRIGGER(EV_CONTROLLER_OFFLINE);
     DEBUGVAL(since_last_controller_packet, CONTROLLER_TIMEOUT);
   }
+
+  uint8_t e = 1;
+  xQueueSendToFront(xSendToVescQueue, &e, pdMS_TO_TICKS(10));
 
   since_last_controller_packet = 0;
 
   int missed_packets = nrf24.controllerPacket.id - (old_packet.id + 1);
   if (missed_packets > 0 && old_packet.id > 0)
   {
-    // missed_packets_accumulated += missed_packets;
-    // nrf24.boardPacket.ampHours = (float)missed_packets_accumulated;
-    DEBUGVAL("Missed packet from controller!", missed_packets); //, missed_packets_accumulated);
+    DEBUGVAL("Missed packet from controller!", missed_packets);
   }
 
   memcpy(&old_packet, &nrf24.controllerPacket, sizeof(ControllerData));
-
-  uint8_t e = 1;
-  xQueueSendToFront(xSendToVescQueue, &e, pdMS_TO_TICKS(10));
 
 #ifdef DEBUG_THROTTLE_ENABLED
   DEBUGVAL(nrf24.controllerPacket.throttle);
@@ -113,8 +114,6 @@ void send_to_fsm_event_queue(EventsEnum e)
   xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
 }
 
-Scheduler runner;
-
 #define GET_FROM_VESC_INTERVAL 1000
 
 #ifdef FAKE_VESC_ONLINE
@@ -123,43 +122,43 @@ Scheduler runner;
   bool fake_vesc_online = false;
 #endif 
 
-Task t_GetVescValues_0(
-    GET_FROM_VESC_INTERVAL,
-    TASK_FOREVER,
-    [] {
-      if (xVescDataSemaphore != NULL && xSemaphoreTake(xVescDataSemaphore, (TickType_t)10) == pdTRUE)
-      {
-        vescOnline = getVescValues() == true;
-        xSemaphoreGive(xVescDataSemaphore);
-      }
+void try_get_values_from_vesc()
+{
+  if (xVescDataSemaphore != NULL && xSemaphoreTake(xVescDataSemaphore, (TickType_t)10) == pdTRUE)
+  {
+    vescOnline = getVescValues() == true;
+    xSemaphoreGive(xVescDataSemaphore);
+  }
 
-      if (vescOnline == false && !fake_vesc_online)
-      {
-        send_to_fsm_event_queue(EV_VESC_OFFLINE);
-      }
-      else
-      {
-        if (vescPoweringDown())
-        {
-          send_to_fsm_event_queue(EV_POWERING_DOWN);
-        }
-        else if (vescdata.moving)
-        {
-          send_to_fsm_event_queue(EV_MOVING);
-        }
-        else
-        {
-          send_to_fsm_event_queue(EV_STOPPED);
-        }
-      }
-    });
+  if (vescOnline == false && !fake_vesc_online)
+  {
+    send_to_fsm_event_queue(EV_VESC_OFFLINE);
+  }
+  else
+  {
+    if (vescPoweringDown())
+    {
+      send_to_fsm_event_queue(EV_POWERING_DOWN);
+    }
+    else if (vescdata.moving)
+    {
+      send_to_fsm_event_queue(EV_MOVING);
+    }
+    else
+    {
+      send_to_fsm_event_queue(EV_STOPPED);
+    }
+  }
+}
 
 #include "peripherals.h"
 
 //------------------------------------------------------------------
 
 #define OTHER_CORE 0
-#define LOOP_CORE 1
+#define LOOP_CORE 
+
+elapsedMillis since_got_values_from_vesc = 0;
 
 void vescTask_0(void *pvParameters)
 {
@@ -171,19 +170,19 @@ void vescTask_0(void *pvParameters)
 
   vesc.init(VESC_UART_BAUDRATE);
 
-  runner.startNow();
-  runner.addTask(t_GetVescValues_0);
-
-  t_GetVescValues_0.enable();
-
   while (true)
   {
-    runner.execute();
+    // get values from vesc
+    if (since_got_values_from_vesc > GET_FROM_VESC_INTERVAL)
+    {
+      since_got_values_from_vesc = 0;
+      try_get_values_from_vesc();
+    }
 
-    BaseType_t xStatus;
+    // send to vesc
     uint8_t e;
-    xStatus = xQueueReceive(xSendToVescQueue, &e, pdMS_TO_TICKS(0));
-    if (xStatus == pdPASS)
+    bool send_to_vesc_now = xQueueReceive(xSendToVescQueue, &e, pdMS_TO_TICKS(0)) == pdPASS;
+    if (send_to_vesc_now)
     {
       #ifdef SEND_TO_VESC
       send_to_vesc(nrf24.controllerPacket.throttle);
@@ -196,12 +195,12 @@ void vescTask_0(void *pvParameters)
 }
 //------------------------------------------------------------------
 
-void manage_xEventQueue_1()
+void fsm_event_handler()
 {
-  BaseType_t xStatus;
   EventsEnum e;
-  xStatus = xQueueReceive(xEventQueue, &e, pdMS_TO_TICKS(0));
-  if (xStatus == pdPASS)
+  bool event_ready = xQueueReceive(xEventQueue, &e, pdMS_TO_TICKS(0)) == pdPASS;
+
+  if (event_ready)
   {
     TRIGGER(e);
   }
@@ -258,7 +257,7 @@ void setup()
 
   nrf24.controllerPacket.throttle = 127;
 
-  addFsmTransitions();
+  fsm_add_transitions();
   fsm.run_machine();
 
 #ifdef USING_BUTTONS
@@ -267,7 +266,6 @@ void setup()
 #endif
 }
 //----------------------------------------------------------
-unsigned long now = 0;
 elapsedMillis since_sent_to_controller = 0;
 
 void loop()
@@ -278,13 +276,8 @@ void loop()
   button_loop();
 #endif
 
-  manage_xEventQueue_1();
+  fsm_event_handler();
 
   nrf24.update();
-
-  if (since_last_controller_packet > CONTROLLER_TIMEOUT)
-  {
-    TRIGGER(EV_CONTROLLER_OFFLINE);
-  }
 }
 //----------------------------------------------------------
