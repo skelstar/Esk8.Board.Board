@@ -28,7 +28,7 @@ void button_loop();
 #define SECONDS 1000
 
 #ifdef USE_TEST_VALUES
-#define CONTROLLER_TIMEOUT 1600
+#define CONTROLLER_TIMEOUT 1100
 #define SEND_TO_VESC
 #else
 #define CONTROLLER_TIMEOUT 250
@@ -56,8 +56,6 @@ void send_to_packet_controller(ReasonType reason);
 
 LedLightsLib light;
 
-uint16_t missed_packets_accumulated = 0;
-
 #include "state_machine.h"
 
 //------------------------------------------------------------------
@@ -73,14 +71,21 @@ SemaphoreHandle_t xVescDataSemaphore;
 void packet_available_cb(uint16_t from_id)
 {
   controller_id = from_id;
+
+  if (since_last_controller_packet > CONTROLLER_TIMEOUT)
+  {
+    // would have been timeout
+    DEBUGVAL(since_last_controller_packet, CONTROLLER_TIMEOUT);
+  }
+
   since_last_controller_packet = 0;
 
   int missed_packets = nrf24.controllerPacket.id - (old_packet.id + 1);
   if (missed_packets > 0 && old_packet.id > 0)
   {
-    missed_packets_accumulated += missed_packets;
-    nrf24.boardPacket.ampHours = (float)missed_packets_accumulated;
-    DEBUGVAL("Missed packet from controller!", missed_packets, missed_packets_accumulated);
+    // missed_packets_accumulated += missed_packets;
+    // nrf24.boardPacket.ampHours = (float)missed_packets_accumulated;
+    DEBUGVAL("Missed packet from controller!", missed_packets); //, missed_packets_accumulated);
   }
 
   memcpy(&old_packet, &nrf24.controllerPacket, sizeof(ControllerData));
@@ -210,14 +215,11 @@ void send_to_packet_controller(ReasonType reason)
   nrf24.boardPacket.reason = reason;
 
   bool success = nrf_send_to_controller();
-  if (success)
-  {
-    DEBUGVAL("Sent to controller", nrf24.boardPacket.id);
-  }
-  else 
-  {
-    TRIGGER(EV_CONTROLLER_OFFLINE, "EV_CONTROLLER_OFFLINE: Couldn't send to controller");
-  }
+
+#ifdef DEBUG_SEND_TO_PACKET_CONTROLLER
+    DEBUGVAL("Sent to controller", nrf24.boardPacket.id, reason_toString(reason));
+#endif
+
 }
 //----------------------------------------------------------
 
