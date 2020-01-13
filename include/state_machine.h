@@ -95,10 +95,7 @@ void fsm_add_transitions()
   fsm.add_transition(&state_board_moving, &state_board_stopped, EV_STOPPED, NULL);
   fsm.add_transition(&state_board_moving, &state_vesc_offline, EV_VESC_OFFLINE, NULL);
 
-  fsm.add_transition(&state_controller_offline, &state_vesc_offline, EV_RECV_CONTROLLER_PACKET, [] {
-    board_packet.id = 0;
-    send_to_packet_controller(ReasonType::FIRST_PACKET);
-  });
+  fsm.add_transition(&state_controller_offline, &state_vesc_offline, EV_RECV_CONTROLLER_PACKET, NULL);
 
   fsm.add_transition(&state_vesc_offline, &state_board_stopped, EV_STOPPED, NULL);
   fsm.add_transition(&state_vesc_offline, &state_board_moving, EV_MOVING, NULL);

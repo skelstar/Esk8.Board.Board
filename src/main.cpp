@@ -83,10 +83,10 @@ void controller_packet_available_cb(uint16_t from_id, uint8_t type)
       memcpy(&controller_packet, &buff, sizeof(ControllerData));
       break;
     case 1:
-      DEBUGVAL(type);
       send_to_packet_controller(ReasonType::REQUESTED);
       break;
     default:
+      DEBUGVAL("unhandled type", type);
       break;
   }
 
@@ -224,14 +224,13 @@ void fsm_event_handler()
 
 void send_to_packet_controller(ReasonType reason)
 {
-  // send last controller_packet.id as boardPacket.id
-  board_packet.id = controller_packet.id;
+  board_packet.id++;
   board_packet.reason = reason;
 
   bool success = nrf_send_to_controller();
 
 #ifdef DEBUG_SEND_TO_PACKET_CONTROLLER
-    DEBUGVAL("Sent to controller", board_packet.id, reason_toString(reason));
+    DEBUGVAL("Sent to controller", board_packet.id, reason_toString(reason), success);
 #endif
 
 }

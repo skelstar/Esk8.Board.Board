@@ -5,6 +5,9 @@
 #define SPI_CE  33
 #define SPI_CS  26
 
+#define NRF_ADDRESS_SERVER    0
+#define NRF_ADDRESS_CLIENT    1
+
 RF24 radio(SPI_CE, SPI_CS);
 RF24Network network(radio);
 
@@ -14,7 +17,7 @@ uint16_t controller_id;
 
 bool nrf_setup()
 {
-  nrf24.begin(&radio, &network, controller_packet_available_cb);
+  nrf24.begin(&radio, &network, NRF_ADDRESS_SERVER, controller_packet_available_cb);
   return true;
 }
 
