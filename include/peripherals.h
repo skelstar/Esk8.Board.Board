@@ -3,6 +3,7 @@
 
 void button_init()
 {
+  #ifdef USING_BUTTONS
   button0.setPressedHandler([](Button2 &btn)
   {
     EventsEnum e = EV_MOVING;
@@ -23,11 +24,14 @@ void button_init()
     // fake_vesc_online = true;
     // DEBUGVAL(fake_vesc_online);
   });
+  #endif
 }
 
 void button_loop()
 {
+#ifdef USING_BUTTONS
   button0.loop();
+#endif
 }
 //------------------------------------------------------------------
 void light_init() {

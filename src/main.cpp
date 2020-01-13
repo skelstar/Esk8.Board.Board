@@ -4,16 +4,21 @@
 
 #include <Button2.h>
 #include <Fsm.h>
-#include <TaskScheduler.h>
 #include <VescData.h>
 #include <elapsedMillis.h>
 
-VescData vescdata, initialVescData;
+// prototypes
+void controller_packet_available_cb(uint16_t from_id, uint8_t type);
 
-elapsedMillis sinceLastControllerPacket = 0;
+VescData vescdata, initialVescData, board_packet;
+
+ControllerData controller_packet, old_packet;
+
+#include "nrf.h"
+
+elapsedMillis since_last_controller_packet = 0;
 
 bool sent_first_packet = false;
-bool fake_vesc_online = false;
 bool vescOnline = false;
 
 void button_init();
@@ -21,28 +26,28 @@ void button_loop();
 
 #define SECONDS 1000
 
-#define USE_TEST_VALUES
 #ifdef USE_TEST_VALUES
-#define CONTROLLER_TIMEOUT 1600
-#define SEND_TO_VESC_INTERVAL 500 // times out after 1s
-// #define SEND_TO_VESC
+#define CONTROLLER_TIMEOUT 1100
+#define SEND_TO_VESC
 #else
-#define CONTROLLER_TIMEOUT 200
-#define SEND_TO_VESC_INTERVAL 500 // times out after 1s
+#define CONTROLLER_TIMEOUT 250
 #define SEND_TO_VESC
 #endif
 
 
+#ifdef USING_BUTTONS
+
 #define BUTTON_0 0
-#define USING_BUTTONS 1
 Button2 button0(BUTTON_0);
+
+#endif
 
 #define NUM_PIXELS  21
 #define PIXEL_PIN   4
 #define BRIGHT_MAX  10
 
 // prototypes
-void send_to_packet_controller_1(ReasonType reason);
+void send_to_packet_controller(ReasonType reason);
 
 #include "vesc_utils.h"
 #include "utils.h"
@@ -52,134 +57,152 @@ LedLightsLib light;
 
 #include "state_machine.h"
 
-void client_connected()
-{
-  TRIGGER(EV_CONTROLLER_CONNECTED);
-}
-
-void client_disconnected()
-{
-  TRIGGER(EV_CONTROLLER_OFFLINE);
-}
-
-
-#include <ble_notify.h>
-
-
 //------------------------------------------------------------------
 
 xQueueHandle xEventQueue;
 xQueueHandle xControllerTaskQueue;
+xQueueHandle xSendToVescQueue;
 
 SemaphoreHandle_t xVescDataSemaphore;
 
 //------------------------------------------------------------------
+/*
+* checks timeout
+* sends command to xSendToVescQueue
+* if REQUEST then send_to_packet_controller
+*/
+void controller_packet_available_cb(uint16_t from_id, uint8_t type)
+{
+  controller_id = from_id;
 
-Scheduler runner;
+  switch (type)
+  {
+    case 0:
+      uint8_t buff[sizeof(ControllerData)];
+      nrf_read(buff, sizeof(ControllerData));
+      memcpy(&controller_packet, &buff, sizeof(ControllerData));
+      break;
+    case 1:
+      send_to_packet_controller(ReasonType::REQUESTED);
+      break;
+    default:
+      DEBUGVAL("unhandled type", type);
+      break;
+  }
+
+  if (since_last_controller_packet > CONTROLLER_TIMEOUT)
+  {
+    TRIGGER(EV_CONTROLLER_OFFLINE);
+    DEBUGVAL(since_last_controller_packet, CONTROLLER_TIMEOUT);
+  }
+
+  uint8_t e = 1;
+  xQueueSendToFront(xSendToVescQueue, &e, pdMS_TO_TICKS(10));
+
+  since_last_controller_packet = 0;
+
+  int missed_packets = controller_packet.id - (old_packet.id + 1);
+  if (missed_packets > 0 && old_packet.id > 0)
+  {
+    DEBUGVAL("Missed packet from controller!", missed_packets);
+  }
+
+  memcpy(&old_packet, &controller_packet, sizeof(ControllerData));
+
+#ifdef DEBUG_PRINT_THROTTLE_VALUE
+  DEBUGVAL(controller_packet.throttle, controller_packet.id);
+#endif
+
+  TRIGGER(EV_RECV_CONTROLLER_PACKET, NULL);
+
+  bool request_update = controller_packet.command & COMMAND_REQUEST_UPDATE;
+  if (request_update) 
+  {
+    send_to_packet_controller(ReasonType::REQUESTED);
+  }
+}
+
+//------------------------------------------------------------------
+
+void send_to_fsm_event_queue(EventsEnum e)
+{
+  xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+}
 
 #define GET_FROM_VESC_INTERVAL 1000
 
-Task t_GetVescValues(
-    GET_FROM_VESC_INTERVAL,
-    TASK_FOREVER,
-    [] {
-      // if (xVescDataSemaphore != NULL && xSemaphoreTake(xVescDataSemaphore, (TickType_t)10) == pdTRUE)
-      // {
-      //   vescOnline = getVescValues() == true;
-      //   xSemaphoreGive(xVescDataSemaphore);
-      // }
+#ifdef FAKE_VESC_ONLINE
+  bool fake_vesc_online = true;
+#else
+  bool fake_vesc_online = false;
+#endif 
 
-      // if (vescOnline == false && fake_vesc_online == false)
-      // {
-      //   EventsEnum e = EV_VESC_OFFLINE;
-      //   xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
-      // }
-      // else
-      // {
-      //   if (vescPoweringDown())
-      //   {
-      //     EventsEnum e = EV_POWERING_DOWN;
-      //     xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
-      //   }
-      //   else if (vescdata.moving)
-      //   {
-      //     EventsEnum e = EV_MOVING;
-      //     xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
-      //   }
-      //   else
-      //   {
-      //     EventsEnum e = EV_STOPPED;
-      //     xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
-      //   }
-      // }
-    });
+void try_get_values_from_vesc()
+{
+  if (xVescDataSemaphore != NULL && xSemaphoreTake(xVescDataSemaphore, (TickType_t)10) == pdTRUE)
+  {
+    vescOnline = getVescValues() == true;
+    xSemaphoreGive(xVescDataSemaphore);
+  }
 
-Task t_SendToVesc(
-    SEND_TO_VESC_INTERVAL,
-    TASK_FOREVER,
-    [] {
-      #ifdef SEND_TO_VESC
-      send_to_vesc(controller_packet.throttle);
-      #endif
-    });
+  if (vescOnline == false && !fake_vesc_online)
+  {
+    send_to_fsm_event_queue(EV_VESC_OFFLINE);
+  }
+  else
+  {
+    if (vescPoweringDown())
+    {
+      send_to_fsm_event_queue(EV_POWERING_DOWN);
+    }
+    else if (vescdata.moving)
+    {
+      send_to_fsm_event_queue(EV_MOVING);
+    }
+    else
+    {
+      send_to_fsm_event_queue(EV_STOPPED);
+    }
+  }
+}
 
 #include "peripherals.h"
 
 //------------------------------------------------------------------
 
-void packetReceived(const uint8_t *data, uint8_t data_len)
-{
-  sinceLastControllerPacket = 0;
-
-  memcpy(&old_packet, &controller_packet, sizeof(controller_packet));
-  memcpy(/*dest*/ &controller_packet, /*src*/ data, data_len);
-
-  bool throttle_changed = controller_packet.throttle != old_packet.throttle;
-  bool request_update = controller_packet.command & COMMAND_REQUEST_UPDATE;
-
-  TRIGGER(EV_RECV_CONTROLLER_PACKET);
-
-  if (throttle_changed)
-  {
-    DEBUGVAL(controller_packet.throttle);
-    t_SendToVesc.restart();
-  }
-
-  if (sent_first_packet == false)
-  {
-    send_to_packet_controller_1(ReasonType::FIRST_PACKET);
-    sent_first_packet = true;
-  }
-
-  if (request_update) 
-  {
-    send_to_packet_controller_1(ReasonType::REQUESTED);
-  }
-}
-
-void packetSent()
-{
-}
-
 #define OTHER_CORE 0
-#define LOOP_CORE 1
+#define LOOP_CORE 
+
+elapsedMillis since_got_values_from_vesc = 0;
 
 void vescTask_0(void *pvParameters)
 {
   Serial.printf("\nvescTask_0 running on core %d\n", xPortGetCoreID());
 
+  #ifndef SEND_TO_VESC
+  Serial.printf("*** NOT SENDING TO VESC\n");
+  #endif
+
   vesc.init(VESC_UART_BAUDRATE);
-
-  runner.startNow();
-  runner.addTask(t_GetVescValues);
-  runner.addTask(t_SendToVesc);
-
-  t_GetVescValues.enable();
-  t_SendToVesc.enable();
 
   while (true)
   {
-    runner.execute();
+    // get values from vesc
+    if (since_got_values_from_vesc > GET_FROM_VESC_INTERVAL)
+    {
+      since_got_values_from_vesc = 0;
+      try_get_values_from_vesc();
+    }
+
+    // send to vesc
+    uint8_t e;
+    bool send_to_vesc_now = xQueueReceive(xSendToVescQueue, &e, pdMS_TO_TICKS(0)) == pdPASS;
+    if (send_to_vesc_now)
+    {
+      #ifdef SEND_TO_VESC
+      send_to_vesc(controller_packet.throttle);
+      #endif
+    }
 
     vTaskDelay(10);
   }
@@ -187,38 +210,29 @@ void vescTask_0(void *pvParameters)
 }
 //------------------------------------------------------------------
 
-void manage_xEventQueue_1()
+void fsm_event_handler()
 {
-  BaseType_t xStatus;
   EventsEnum e;
-  xStatus = xQueueReceive(xEventQueue, &e, pdMS_TO_TICKS(0));
-  if (xStatus == pdPASS)
+  bool event_ready = xQueueReceive(xEventQueue, &e, pdMS_TO_TICKS(0)) == pdPASS;
+
+  if (event_ready)
   {
     TRIGGER(e);
   }
 }
 //----------------------------------------------------------
 
-void send_to_packet_controller_1(ReasonType reason)
+void send_to_packet_controller(ReasonType reason)
 {
-  sendDataToClient();
-  // const uint8_t *peer_addr = peer.peer_addr;
+  board_packet.id++;
+  board_packet.reason = reason;
 
-  // vescdata.reason = reason;
+  bool success = nrf_send_to_controller();
 
-  // uint8_t bs[sizeof(vescdata)];
-  // memcpy(bs, &vescdata, sizeof(vescdata));
-  // esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
+#ifdef DEBUG_PRINT_SENT_TO_CONTROLLER
+    DEBUGVAL("Sent to controller", board_packet.id, reason_toString(reason), success);
+#endif
 
-  // if (result == ESP_OK)
-  // {
-  //   // DEBUGVAL(reason_toString(reason));
-  // }
-  // else 
-  // {
-  //   DEBUG("Failed sending to controller");
-  // }
-  // vescdata.id = vescdata.id + 1;
 }
 //----------------------------------------------------------
 
@@ -226,6 +240,8 @@ void setup()
 {
   Serial.begin(115200);
   Serial.println("Start");
+
+  bool nrf_ok = nrf_setup();
 
   #ifdef USE_TEST_VALUES
   Serial.printf("\n");
@@ -235,19 +251,27 @@ void setup()
   Serial.printf("\n");
   #endif
 
+  #ifdef FAKE_VESC_ONLINE
+  Serial.printf("\n");
+  Serial.printf("/********************************************************/\n");
+  Serial.printf("/*               WARNING: FAKE VESC ONLINE !            */\n");
+  Serial.printf("/********************************************************/\n");
+  Serial.printf("\n");
+  #endif
+
   light_init();
 
   button_init();
 
-  setupBLE();
-
   xTaskCreatePinnedToCore(vescTask_0, "vescTask", 10000, NULL, /*priority*/ 4, NULL, OTHER_CORE);
   xVescDataSemaphore = xSemaphoreCreateMutex();
   xEventQueue = xQueueCreate(1, sizeof(EventsEnum));
+  xSendToVescQueue = xQueueCreate(1, sizeof(uint8_t));
+
 
   controller_packet.throttle = 127;
 
-  addFsmTransitions();
+  fsm_add_transitions();
   fsm.run_machine();
 
 #ifdef USING_BUTTONS
@@ -256,7 +280,7 @@ void setup()
 #endif
 }
 //----------------------------------------------------------
-unsigned long now = 0;
+elapsedMillis since_sent_to_controller = 0;
 
 void loop()
 {
@@ -266,23 +290,8 @@ void loop()
   button_loop();
 #endif
 
-  manage_xEventQueue_1();
+  fsm_event_handler();
 
-  // if (sinceLastControllerPacket > CONTROLLER_TIMEOUT)
-  // {
-  //   TRIGGER(EV_CONTROLLER_OFFLINE);
-
-    // ScanForPeer();
-    // bool paired = pairPeer();
-    // if (paired)
-    // {
-    //   sinceLastControllerPacket = 0;
-    //   Serial.printf("Paired: %s\n", paired ? "true" : "false");
-
-    //   // always send the first packet (id == 0)
-    //   vescdata.id = 0;
-    // }      
-    // send_to_packet_controller_1(ReasonType::FIRST_PACKET);
-  // }
+  nrf_update();
 }
 //----------------------------------------------------------
