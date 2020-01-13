@@ -109,7 +109,7 @@ void controller_packet_available_cb(uint16_t from_id, uint8_t type)
 
   memcpy(&old_packet, &controller_packet, sizeof(ControllerData));
 
-#ifdef DEBUG_THROTTLE_ENABLED
+#ifdef DEBUG_PRINT_THROTTLE_VALUE
   DEBUGVAL(controller_packet.throttle, controller_packet.id);
 #endif
 
@@ -229,7 +229,7 @@ void send_to_packet_controller(ReasonType reason)
 
   bool success = nrf_send_to_controller();
 
-#ifdef DEBUG_SEND_TO_PACKET_CONTROLLER
+#ifdef DEBUG_PRINT_SENT_TO_CONTROLLER
     DEBUGVAL("Sent to controller", board_packet.id, reason_toString(reason), success);
 #endif
 

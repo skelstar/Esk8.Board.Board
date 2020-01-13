@@ -112,7 +112,7 @@ void TRIGGER(EventsEnum x, char *s)
 {
   if (s != NULL)
   {
-#ifdef DEBUG_TRIGGER_ENABLED
+#ifdef DEBUG_PRINT_FSM_TRIGGER
     Serial.printf("EVENT: %s\n", s);
 #endif
   }
@@ -121,7 +121,7 @@ void TRIGGER(EventsEnum x, char *s)
 
 void TRIGGER(EventsEnum x)
 {
-#ifdef DEBUG_TRIGGER_ENABLED
+#ifdef DEBUG_PRINT_FSM_TRIGGER
   switch (x)
   {
   case EV_POWERING_DOWN:
