@@ -99,6 +99,12 @@ void controller_packet_available_cb(uint16_t from_id, uint8_t type)
   uint8_t e = 1;
   xQueueSendToFront(xSendToVescQueue, &e, pdMS_TO_TICKS(10));
 
+  if (sent_first_packet == false)
+  {
+    sent_first_packet = true;
+    send_to_packet_controller(ReasonType::FIRST_PACKET);
+  }
+
   since_last_controller_packet = 0;
 
   int missed_packets = controller_packet.id - (old_packet.id + 1);
@@ -224,7 +230,6 @@ void fsm_event_handler()
 
 void send_to_packet_controller(ReasonType reason)
 {
-  board_packet.id++;
   board_packet.reason = reason;
 
   bool success = nrf_send_to_controller();
@@ -233,6 +238,7 @@ void send_to_packet_controller(ReasonType reason)
     DEBUGVAL("Sent to controller", board_packet.id, reason_toString(reason), success);
 #endif
 
+  board_packet.id++;
 }
 //----------------------------------------------------------
 
