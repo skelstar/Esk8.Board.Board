@@ -39,10 +39,7 @@ bool getVescValues()
     vescdata.odometer = getDistanceInMeters(/*tacho*/ vesc.get_tachometer(vesc_packet));
   }
   else {
-    vescdata.batteryVoltage = 0.0;
     vescdata.moving = false;
-    // vescdata.ampHours = 0.0;
-    vescdata.odometer = 0.0;
   }
   return success;
 }

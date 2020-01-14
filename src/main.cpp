@@ -34,7 +34,6 @@ void button_loop();
 #define SEND_TO_VESC
 #endif
 
-
 #ifdef USING_BUTTONS
 
 #define BUTTON_0 0
@@ -42,9 +41,9 @@ Button2 button0(BUTTON_0);
 
 #endif
 
-#define NUM_PIXELS  21
-#define PIXEL_PIN   4
-#define BRIGHT_MAX  10
+#define NUM_PIXELS 21
+#define PIXEL_PIN 4
+#define BRIGHT_MAX 10
 
 // prototypes
 void send_to_packet_controller(ReasonType reason);
@@ -77,17 +76,17 @@ void controller_packet_available_cb(uint16_t from_id, uint8_t type)
 
   switch (type)
   {
-    case 0:
-      uint8_t buff[sizeof(ControllerData)];
-      nrf_read(buff, sizeof(ControllerData));
-      memcpy(&controller_packet, &buff, sizeof(ControllerData));
-      break;
-    case 1:
-      send_to_packet_controller(ReasonType::REQUESTED);
-      break;
-    default:
-      DEBUGVAL("unhandled type", type);
-      break;
+  case 0:
+    uint8_t buff[sizeof(ControllerData)];
+    nrf_read(buff, sizeof(ControllerData));
+    memcpy(&controller_packet, &buff, sizeof(ControllerData));
+    break;
+  case 1:
+    send_to_packet_controller(ReasonType::REQUESTED);
+    break;
+  default:
+    DEBUGVAL("unhandled type", type);
+    break;
   }
 
   if (since_last_controller_packet > CONTROLLER_TIMEOUT)
@@ -122,7 +121,7 @@ void controller_packet_available_cb(uint16_t from_id, uint8_t type)
   TRIGGER(EV_RECV_CONTROLLER_PACKET, NULL);
 
   bool request_update = controller_packet.command & COMMAND_REQUEST_UPDATE;
-  if (request_update) 
+  if (request_update)
   {
     send_to_packet_controller(ReasonType::REQUESTED);
   }
@@ -138,10 +137,10 @@ void send_to_fsm_event_queue(EventsEnum e)
 #define GET_FROM_VESC_INTERVAL 1000
 
 #ifdef FAKE_VESC_ONLINE
-  bool fake_vesc_online = true;
+bool fake_vesc_online = true;
 #else
-  bool fake_vesc_online = false;
-#endif 
+bool fake_vesc_online = false;
+#endif
 
 void try_get_values_from_vesc()
 {
@@ -177,7 +176,7 @@ void try_get_values_from_vesc()
 //------------------------------------------------------------------
 
 #define OTHER_CORE 0
-#define LOOP_CORE 
+#define LOOP_CORE
 
 elapsedMillis since_got_values_from_vesc = 0;
 
@@ -185,9 +184,9 @@ void vescTask_0(void *pvParameters)
 {
   Serial.printf("\nvescTask_0 running on core %d\n", xPortGetCoreID());
 
-  #ifndef SEND_TO_VESC
+#ifndef SEND_TO_VESC
   Serial.printf("*** NOT SENDING TO VESC\n");
-  #endif
+#endif
 
   vesc.init(VESC_UART_BAUDRATE);
 
@@ -205,9 +204,9 @@ void vescTask_0(void *pvParameters)
     bool send_to_vesc_now = xQueueReceive(xSendToVescQueue, &e, pdMS_TO_TICKS(0)) == pdPASS;
     if (send_to_vesc_now)
     {
-      #ifdef SEND_TO_VESC
+#ifdef SEND_TO_VESC
       send_to_vesc(controller_packet.throttle);
-      #endif
+#endif
     }
 
     vTaskDelay(10);
@@ -232,11 +231,26 @@ void send_to_packet_controller(ReasonType reason)
 {
   board_packet.reason = reason;
 
-  bool success = nrf_send_to_controller();
+  uint8_t success, retries = 0;
+  do
+  {
+    success = nrf_send_to_controller();
+    if (success == false)
+    {
+      vTaskDelay(1);
+    }
+  } while (!success && retries++ < 4);
 
 #ifdef DEBUG_PRINT_SENT_TO_CONTROLLER
-    DEBUGVAL("Sent to controller", board_packet.id, reason_toString(reason), success);
+  if (retries > 0)
+  {
+    DEBUGVAL("Sent to controller", board_packet.id, reason_toString(reason), success, retries);
+  }
 #endif
+
+  if (success == false)
+  {
+  }
 
   board_packet.id++;
 }
@@ -249,21 +263,21 @@ void setup()
 
   bool nrf_ok = nrf_setup();
 
-  #ifdef USE_TEST_VALUES
+#ifdef USE_TEST_VALUES
   Serial.printf("\n");
   Serial.printf("/********************************************************/\n");
   Serial.printf("/*               WARNING: Using test values!            */\n");
   Serial.printf("/********************************************************/\n");
   Serial.printf("\n");
-  #endif
+#endif
 
-  #ifdef FAKE_VESC_ONLINE
+#ifdef FAKE_VESC_ONLINE
   Serial.printf("\n");
   Serial.printf("/********************************************************/\n");
   Serial.printf("/*               WARNING: FAKE VESC ONLINE !            */\n");
   Serial.printf("/********************************************************/\n");
   Serial.printf("\n");
-  #endif
+#endif
 
   light_init();
 
@@ -273,7 +287,6 @@ void setup()
   xVescDataSemaphore = xSemaphoreCreateMutex();
   xEventQueue = xQueueCreate(1, sizeof(EventsEnum));
   xSendToVescQueue = xQueueCreate(1, sizeof(uint8_t));
-
 
   controller_packet.throttle = 127;
 
