@@ -31,9 +31,43 @@ void nrf_read(uint8_t *data, uint8_t data_len)
   nrf24.read_into(data, data_len);
 }
 
+uint8_t send_with_retries(uint16_t to, uint8_t *data, uint8_t data_len, uint8_t num_retries)
+{
+  uint8_t success, retries = 0;
+  do
+  {
+    success = nrf24.sendPacket(to, /*type*/ 0, data, data_len);
+    if (success == false)
+    {
+      vTaskDelay(1);
+    }
+  } while (!success && retries++ < num_retries);
+
+  return retries;
+}
+
+#define NUM_SEND_RETRIES   10
+
 bool nrf_send_to_controller()
 {
   uint8_t bs[sizeof(VescData)];
   memcpy(bs, &board_packet, sizeof(VescData));
-  return nrf24.sendPacket(controller_id, /*type*/0, bs, sizeof(VescData));
+
+  uint8_t retries = send_with_retries(controller_id, bs, sizeof(VescData), NUM_SEND_RETRIES);
+
+  bool success = retries < NUM_SEND_RETRIES;
+
+#ifdef LOG_RETRIES
+
+  retry_logger.log(retries);
+
+  if (retries > 0 || board_packet.id & 20 == 0)
+  {
+    float retry_rate = retry_logger.get_retry_rate();
+    DEBUGVAL(retry_logger.get_sum_retries(), retry_rate, success, board_packet.id);
+  }
+#endif
+
+  return success;
 }
+

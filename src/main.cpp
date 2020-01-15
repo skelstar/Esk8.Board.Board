@@ -14,7 +14,6 @@ VescData vescdata, initialVescData, board_packet;
 
 ControllerData controller_packet, old_packet;
 
-#include "nrf.h"
 
 elapsedMillis since_last_controller_packet = 0;
 
@@ -48,9 +47,15 @@ Button2 button0(BUTTON_0);
 // prototypes
 void send_to_packet_controller(ReasonType reason);
 
+#include "RetryLoggerLib.h"
+
+RetryLoggerLib retry_logger(100);
+
 #include "vesc_utils.h"
 #include "utils.h"
+#include "nrf.h"
 #include <LedLightsLib.h>
+
 
 LedLightsLib light;
 
@@ -91,8 +96,14 @@ void controller_packet_available_cb(uint16_t from_id, uint8_t type)
 
   if (since_last_controller_packet > CONTROLLER_TIMEOUT)
   {
-    TRIGGER(EV_CONTROLLER_OFFLINE);
-    DEBUGVAL(since_last_controller_packet, CONTROLLER_TIMEOUT);
+    board_packet.reason = ReasonType::BOARD_STOPPED;
+    DEBUG("Sending 'test-online' packet");
+    if (nrf_send_to_controller() == false)
+    {
+      TRIGGER(EV_CONTROLLER_OFFLINE);
+      DEBUGVAL(since_last_controller_packet, CONTROLLER_TIMEOUT);
+    }
+    board_packet.id++;
   }
 
   uint8_t e = 1;
@@ -231,26 +242,11 @@ void send_to_packet_controller(ReasonType reason)
 {
   board_packet.reason = reason;
 
-  uint8_t success, retries = 0;
-  do
-  {
-    success = nrf_send_to_controller();
-    if (success == false)
-    {
-      vTaskDelay(1);
-    }
-  } while (!success && retries++ < 4);
+  bool success = nrf_send_to_controller();
 
 #ifdef DEBUG_PRINT_SENT_TO_CONTROLLER
-  if (retries > 0)
-  {
-    DEBUGVAL("Sent to controller", board_packet.id, reason_toString(reason), success, retries);
-  }
+  DEBUGVAL("Sent to controller", board_packet.id, reason_toString(reason), success, retries);
 #endif
-
-  if (success == false)
-  {
-  }
 
   board_packet.id++;
 }
