@@ -79,6 +79,8 @@ void controller_packet_available_cb(uint16_t from_id, uint8_t type)
 {
   controller_id = from_id;
 
+  DEBUGVAL("controller_packet_available_cb");
+
   switch (type)
   {
   case 0:
