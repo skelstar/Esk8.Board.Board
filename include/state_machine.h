@@ -156,3 +156,9 @@ uint8_t get_from_state()
 {
   return fsm.get_from_state();
 }
+
+void send_to_fsm_event_queue(EventsEnum e)
+{
+  xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+}
+

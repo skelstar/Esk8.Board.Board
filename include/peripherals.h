@@ -35,6 +35,6 @@ void button_loop()
 }
 //------------------------------------------------------------------
 void light_init() {
-  light.initialise(PIXEL_PIN, NUM_PIXELS);
-  light.setAll(light.COLOUR_OFF);
+  // light.initialise(PIXEL_PIN, NUM_PIXELS);
+  // light.setAll(light.COLOUR_OFF);
 }

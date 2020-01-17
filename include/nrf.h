@@ -36,7 +36,7 @@ uint8_t send_with_retries(uint16_t to, uint8_t *data, uint8_t data_len, uint8_t 
   uint8_t success, retries = 0;
   do
   {
-    success = nrf24.sendPacket(to, /*type*/ 0, data, data_len);
+    success = nrf24.send_packet(to, /*type*/ 0, data, data_len);
     if (success == false)
     {
       vTaskDelay(1);
