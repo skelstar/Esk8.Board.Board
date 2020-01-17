@@ -19,7 +19,6 @@ bool sent_first_packet = false;
 bool vescOnline = false;
 
 void button_init();
-void button_loop();
 
 #define SECONDS 1000
 
@@ -61,8 +60,6 @@ enum EventsEnum
 
 // LedLightsLib light;
 
-// #include "state_machine.h"
-
 //------------------------------------------------------------------
 
 // xQueueHandle xEventQueue;
@@ -71,24 +68,13 @@ xQueueHandle xSendToVescQueue;
 
 SemaphoreHandle_t xVescDataSemaphore;
 
-//------------------------------------------------------------------
-
-void fsm_event_handler()
-{
-  // EventsEnum e;
-  // bool event_ready = xQueueReceive(xEventQueue, &e, pdMS_TO_TICKS(0)) == pdPASS;
-
-  // if (event_ready)
-  // {
-  //   TRIGGER(e);
-  // }
-}
 //----------------------------------------------------------
 
 Smoothed <float> retry_log;
 
-
 bool send_to_packet_controller(ReasonType reason);
+
+elapsedMillis since_last_controller_packet = 0;
 
 #include "nrf_fsm.h"
 #include "peripherals.h"
@@ -125,35 +111,21 @@ void setup()
 
   light_init();
 
-  button_init();
-
   xTaskCreatePinnedToCore(vescTask_0, "vescTask_0", 10000, NULL, /*priority*/ 4, NULL, 0);
+  xTaskCreatePinnedToCore(commsTask_1, "commsTask_1", 10000, NULL, /*priority*/ 4, NULL, 1);
+  xTaskCreatePinnedToCore(fsmTask_1, "fsmTask_1", 4096, NULL, /*priority*/ 3, NULL, 1);
+  // xTaskCreatePinnedToCore(buttonTask_1, "buttonTask_1", 4096, NULL, /*priority*/ 2, NULL, 1);
+  
   xVescDataSemaphore = xSemaphoreCreateMutex();
   // xEventQueue = xQueueCreate(1, sizeof(EventsEnum));
 
   controller_packet.throttle = 127;
 
-  // fsm_add_transitions();
-  // fsm.run_machine();
-
-#ifdef USING_BUTTONS
-  button_init();
-  button_loop();
-#endif
+  vTaskDelay(100);
 }
 //----------------------------------------------------------
-elapsedMillis since_sent_to_controller = 0;
-
 void loop()
 {
-  nrf_fsm.run_machine();
-
-#ifdef USING_BUTTONS
-  button_loop();
-#endif
-
-  // fsm_event_handler();
-
-  nrf24.update();
+  vTaskDelete(NULL);
 }
 //----------------------------------------------------------

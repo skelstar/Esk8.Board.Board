@@ -21,7 +21,6 @@ void PRINT_NRF_STATE(const char *state_name);
 void NRF_EVENT(NrfEvent x, char *s);
 
 elapsedMillis since_requested;
-elapsedMillis since_last_controller_packet = 0;
 
 //-------------------------------------------------------
 State nrf_normal(

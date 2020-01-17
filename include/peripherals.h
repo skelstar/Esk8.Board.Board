@@ -3,7 +3,6 @@
 
 void button_init()
 {
-#ifdef USING_BUTTONS
   button0.setPressedHandler([](Button2 &btn) {
     EventsEnum e = EV_MOVING;
     vescdata.moving = true;
@@ -17,21 +16,8 @@ void button_init()
   });
   button0.setLongClickHandler([](Button2 &btn) {
   });
-#endif
 }
 
-elapsedMillis since_checked_button = 0;
-
-void button_loop()
-{
-#ifdef USING_BUTTONS
-  if (since_checked_button > 500)
-  {
-    since_checked_button = 0;
-    button0.loop();
-  }
-#endif
-}
 //------------------------------------------------------------------
 void light_init()
 {
