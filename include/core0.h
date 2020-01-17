@@ -8,8 +8,11 @@
 #include <VescData.h>
 #endif
 
+void try_get_values_from_vesc();
 
 elapsedMillis since_got_values_from_vesc = 0;
+
+#define GET_FROM_VESC_INTERVAL 1000
 
 void vescTask_0(void *pvParameters)
 {
@@ -43,4 +46,42 @@ void vescTask_0(void *pvParameters)
     vTaskDelay(10);
   }
   vTaskDelete(NULL);
+}
+
+
+
+
+#ifdef FAKE_VESC_ONLINE
+bool fake_vesc_online = true;
+#else
+bool fake_vesc_online = false;
+#endif
+
+void try_get_values_from_vesc()
+{
+  if (xVescDataSemaphore != NULL && xSemaphoreTake(xVescDataSemaphore, (TickType_t)10) == pdTRUE)
+  {
+    vescOnline = getVescValues() == true;
+    xSemaphoreGive(xVescDataSemaphore);
+  }
+
+  if (vescOnline == false && !fake_vesc_online)
+  {
+    // send_to_fsm_event_queue(EV_VESC_OFFLINE);
+  }
+  else
+  {
+    if (vescPoweringDown())
+    {
+      // send_to_fsm_event_queue(EV_POWERING_DOWN);
+    }
+    else if (vescdata.moving)
+    {
+      // send_to_fsm_event_queue(EV_MOVING);
+    }
+    else
+    {
+      // send_to_fsm_event_queue(EV_STOPPED);
+    }
+  }
 }

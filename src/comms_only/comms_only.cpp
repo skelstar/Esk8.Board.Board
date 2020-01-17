@@ -60,44 +60,6 @@ SemaphoreHandle_t xVescDataSemaphore;
 
 //------------------------------------------------------------------
 
-
-#define GET_FROM_VESC_INTERVAL 1000
-
-#ifdef FAKE_VESC_ONLINE
-bool fake_vesc_online = true;
-#else
-bool fake_vesc_online = false;
-#endif
-
-void try_get_values_from_vesc()
-{
-  if (xVescDataSemaphore != NULL && xSemaphoreTake(xVescDataSemaphore, (TickType_t)10) == pdTRUE)
-  {
-    vescOnline = getVescValues() == true;
-    xSemaphoreGive(xVescDataSemaphore);
-  }
-
-  if (vescOnline == false && !fake_vesc_online)
-  {
-    // send_to_fsm_event_queue(EV_VESC_OFFLINE);
-  }
-  else
-  {
-    if (vescPoweringDown())
-    {
-      // send_to_fsm_event_queue(EV_POWERING_DOWN);
-    }
-    else if (vescdata.moving)
-    {
-      // send_to_fsm_event_queue(EV_MOVING);
-    }
-    else
-    {
-      // send_to_fsm_event_queue(EV_STOPPED);
-    }
-  }
-}
-
 #include "peripherals.h"
 
 //------------------------------------------------------------------
@@ -118,6 +80,11 @@ void fsm_event_handler()
 
 Smoothed <float> retry_log;
 
+
+bool send_to_packet_controller(ReasonType reason);
+
+#include "nrf_fsm.h"
+
 #include "core0.h"
 #include "core1.h"
 
@@ -129,6 +96,8 @@ void setup()
   nrf24.begin(&radio, &network, /*address*/ 0, controller_packet_available_cb);
 
   retry_log.begin(SMOOTHED_AVERAGE, 10000 / CONTROLLER_SEND_MS);
+
+  add_nrf_fsm_transitions();
 
 #ifdef USE_TEST_VALUES
   Serial.printf("\n");
@@ -170,7 +139,7 @@ elapsedMillis since_sent_to_controller = 0;
 
 void loop()
 {
-  // fsm.run_machine();
+  nrf_fsm.run_machine();
 
 #ifdef USING_BUTTONS
   button_loop();

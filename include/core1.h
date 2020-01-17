@@ -24,37 +24,25 @@ bool send_to_packet_controller(ReasonType reason);
 * if REQUEST then send_to_packet_controller
 */
 
-elapsedMillis since_last_controller_packet = 0;
-
 void controller_packet_available_cb(uint16_t from_id, uint8_t type)
 {
-  // DEBUGVAL("controller_packet_available_cb");
-
-  switch (type)
-  {
-  case 0:
-    read_board_packet();
-    break;
-  case 1:
-    send_to_packet_controller(ReasonType::REQUESTED);
-    break;
-  default:
-    DEBUGVAL("unhandled type", type);
-    break;
-  }
-
-  if (since_last_controller_packet > CONTROLLER_TIMEOUT)
-  {
-    DEBUG("Sending 'test-online' packet");
-    if (send_to_packet_controller(ReasonType::REQUESTED) == false)
-    {
-      DEBUG("unable to response to request (excessive retires)");
-    }
-    board_packet.id++;
-  }
   since_last_controller_packet = 0;
+  read_board_packet();
+  NRF_EVENT(EV_NRF_PACKET, NULL);
+  nrf_fsm.run_machine();
 
-  uint8_t e = 1;
+  // if (since_last_controller_packet > CONTROLLER_TIMEOUT)
+  // {
+  //   DEBUG("Sending 'test-online' packet");
+  //   if (send_to_packet_controller(ReasonType::REQUESTED) == false)
+  //   {
+  //     DEBUG("unable to response to request (excessive retires)");
+  //   }
+  //   board_packet.id++;
+  // }
+  // since_last_controller_packet = 0;
+
+  // uint8_t e = 1;
   // xQueueSendToFront(xSendToVescQueue, &e, pdMS_TO_TICKS(10));
 
   // if (sent_first_packet == false)
