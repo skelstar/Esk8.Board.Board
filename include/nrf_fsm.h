@@ -12,6 +12,8 @@ enum NrfEvent
   EV_NRF_RESPONDED,
   EV_NRF_TIMING_OUT,
   EV_NRF_TIMED_OUT,
+  EV_NRF_SEND_MOVING,
+  EV_NRF_SEND_STOPPED,
 };
 
 // prototypes
@@ -58,6 +60,38 @@ State nrf_requested(
     },
     NULL);
 //-------------------------------------------------------
+State nrf_stopped(
+    [] {
+      PRINT_NRF_STATE("NRF: nrf_stopped.........");
+    },
+    [] {
+      if (send_to_packet_controller(ReasonType::BOARD_STOPPED))
+      {
+        NRF_EVENT(EV_NRF_RESPONDED, "EV_NRF_RESPONDED");
+      }
+      else
+      {
+        NRF_EVENT(EV_NRF_TIMING_OUT, "EV_NRF_TIMING_OUT");
+      }
+    },
+    NULL);
+//-------------------------------------------------------
+State nrf_moving(
+    [] {
+      PRINT_NRF_STATE("NRF: nrf_moving.........");
+    },
+    [] {
+      if (send_to_packet_controller(ReasonType::BOARD_MOVING))
+      {
+        NRF_EVENT(EV_NRF_RESPONDED, "EV_NRF_RESPONDED");
+      }
+      else
+      {
+        NRF_EVENT(EV_NRF_TIMING_OUT, "EV_NRF_TIMING_OUT");
+      }
+    },
+    NULL);
+//-------------------------------------------------------
 State nrf_timing_out(
     [] {
       PRINT_NRF_STATE("NRF: nrf_timing_out.........");
@@ -88,11 +122,20 @@ void add_nrf_fsm_transitions()
 {
   // nrf_normal
   nrf_fsm.add_transition(&nrf_normal, &nrf_requested, EV_NRF_REQUESTED, NULL);
-  nrf_fsm.add_transition(&nrf_normal, &nrf_timing_out, EV_NRF_TIMED_OUT, NULL);
   nrf_fsm.add_transition(&nrf_normal, &nrf_timing_out, EV_NRF_TIMING_OUT, NULL);
   // nrf requested
   nrf_fsm.add_transition(&nrf_requested, &nrf_normal, EV_NRF_RESPONDED, NULL);
   nrf_fsm.add_transition(&nrf_requested, &nrf_timing_out, EV_NRF_TIMING_OUT, NULL);
+  // nrf_stopped
+  nrf_fsm.add_transition(&nrf_normal, &nrf_stopped, EV_NRF_SEND_STOPPED, NULL);
+  nrf_fsm.add_transition(&nrf_requested, &nrf_stopped, EV_NRF_SEND_STOPPED, NULL);
+  nrf_fsm.add_transition(&nrf_stopped, &nrf_timing_out, EV_NRF_TIMING_OUT, NULL);
+  nrf_fsm.add_transition(&nrf_stopped, &nrf_normal, EV_NRF_RESPONDED, NULL);
+  // nrf_moving
+  nrf_fsm.add_transition(&nrf_normal, &nrf_moving, EV_NRF_SEND_MOVING, NULL);
+  nrf_fsm.add_transition(&nrf_requested, &nrf_moving, EV_NRF_SEND_MOVING, NULL);
+  nrf_fsm.add_transition(&nrf_moving, &nrf_timing_out, EV_NRF_TIMING_OUT, NULL);
+  nrf_fsm.add_transition(&nrf_moving, &nrf_normal, EV_NRF_RESPONDED, NULL);
   // nrf_timing_out
   nrf_fsm.add_transition(&nrf_timing_out, &nrf_normal, EV_NRF_RESPONDED, NULL);
   nrf_fsm.add_transition(&nrf_timing_out, &nrf_timedout, EV_NRF_TIMED_OUT, NULL);

@@ -19,15 +19,17 @@ bool send_to_packet_controller(ReasonType reason);
 
 //------------------------------------------------------------------
 /*
-* checks timeout
 * sends command to xSendToVescQueue
-* if REQUEST then send_to_packet_controller
 */
 
 void controller_packet_available_cb(uint16_t from_id, uint8_t type)
 {
   since_last_controller_packet = 0;
   read_board_packet();
+
+  uint8_t e = 1;
+  xQueueSendToFront(xSendToVescQueue, &e, pdMS_TO_TICKS(10));
+
   NRF_EVENT(EV_NRF_PACKET, NULL);
   nrf_fsm.run_machine();
 

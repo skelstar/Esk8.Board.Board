@@ -39,6 +39,19 @@ Button2 button0(BUTTON_0);
 
 #endif
 
+enum EventsEnum
+{
+  EV_POWERING_DOWN,
+  EV_VESC_OFFLINE,
+  EV_CONTROLLER_CONNECTED,
+  EV_CONTROLLER_OFFLINE,
+  EV_MOVING,
+  EV_STOPPED,
+  EV_MISSED_CONTROLLER_PACKET,
+  EV_RECV_CONTROLLER_PACKET,
+};
+
+
 #define NUM_PIXELS 21
 #define PIXEL_PIN 4
 #define BRIGHT_MAX 10
@@ -52,17 +65,11 @@ Button2 button0(BUTTON_0);
 
 //------------------------------------------------------------------
 
-xQueueHandle xEventQueue;
+// xQueueHandle xEventQueue;
 xQueueHandle xControllerTaskQueue;
 xQueueHandle xSendToVescQueue;
 
 SemaphoreHandle_t xVescDataSemaphore;
-
-//------------------------------------------------------------------
-
-#include "peripherals.h"
-
-//------------------------------------------------------------------
 
 //------------------------------------------------------------------
 
@@ -84,6 +91,7 @@ Smoothed <float> retry_log;
 bool send_to_packet_controller(ReasonType reason);
 
 #include "nrf_fsm.h"
+#include "peripherals.h"
 
 #include "core0.h"
 #include "core1.h"
@@ -122,7 +130,6 @@ void setup()
   xTaskCreatePinnedToCore(vescTask_0, "vescTask_0", 10000, NULL, /*priority*/ 4, NULL, 0);
   xVescDataSemaphore = xSemaphoreCreateMutex();
   // xEventQueue = xQueueCreate(1, sizeof(EventsEnum));
-  xSendToVescQueue = xQueueCreate(1, sizeof(uint8_t));
 
   controller_packet.throttle = 127;
 
