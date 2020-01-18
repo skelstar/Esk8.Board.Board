@@ -35,6 +35,7 @@ bool controller_connected = true;
 //------------------------------------------------------------------
 
 #include <comms_2.h>
+#include <peripherals.h>
 
 //-------------------------------------------------------
 void setup()
@@ -42,6 +43,8 @@ void setup()
   Serial.begin(115200);
 
   nrf24.begin(&radio, &network, COMMS_BOARD, packet_available_cb);
+
+  button_init();
 
   DEBUG("Ready to rx from controller...");
 }
@@ -51,6 +54,8 @@ elapsedMillis since_sent_to_board;
 void loop()
 {
   nrf24.update();
+
+  button0.loop();
 
   if (controller_timed_out() && controller_connected)
   {
