@@ -15,6 +15,16 @@
 #define COMMS_BOARD 00
 #define COMMS_CONTROLLER  01
 
+enum NrfEvent
+{
+  EV_NRF_PACKET,
+  EV_NRF_REQUESTED,
+  EV_NRF_RESPONDED,
+  EV_NRF_TIMING_OUT,
+  EV_NRF_TIMED_OUT,
+  EV_NRF_SEND_MOVING,
+  EV_NRF_SEND_STOPPED,
+};
 //------------------------------------------------------------------
 
 VescData board_packet;
@@ -28,38 +38,44 @@ RF24Network network(radio);
 
 #define NUM_RETRIES 5
 
-//------------------------------------------------------------------
-
-void send_to_controller();
+elapsedMillis since_last_controller_packet;
 
 //------------------------------------------------------------------
+
+bool send_packet_to_controller(ReasonType reason);
+
+//------------------------------------------------------------------
+
+#include <nrf_fsm_2.h>
 
 void packet_available_cb(uint16_t from_id, uint8_t type)
 {
+  since_last_controller_packet = 0;
+
   uint8_t buff[sizeof(ControllerData)];
   nrf24.read_into(buff, sizeof(ControllerData));
   memcpy(&controller_packet, &buff, sizeof(ControllerData));
 
-  if (controller_packet.command == 1)
-  {
-    board_packet.reason = ReasonType::REQUESTED;
-    send_to_controller();
-  }
+  NRF_EVENT(EV_NRF_PACKET, NULL);
 
   DEBUGVAL(from_id, controller_packet.id);
 }
 
-void send_to_controller()
+bool send_packet_to_controller(ReasonType reason)
 {
+  board_packet.reason = reason;
+
   uint8_t buff[sizeof(VescData)];
   memcpy(&buff, &board_packet, sizeof(VescData));
-
+  
   uint8_t retries = nrf24.send_with_retries(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(VescData), 5);
   if (retries > 0)
   {
     DEBUGVAL(retries);
   }
   board_packet.id++;
+
+  return retries < 5;
 }
 
 void setup()
@@ -67,6 +83,8 @@ void setup()
   Serial.begin(115200);
 
   nrf24.begin(&radio, &network, COMMS_BOARD, packet_available_cb);
+
+  add_nrf_fsm_transitions();
 
   DEBUG("Ready to rx from board...");
 }
@@ -76,6 +94,8 @@ elapsedMillis since_sent_to_board;
 void loop()
 {
   nrf24.update();
+
+  nrf_fsm.run_machine();
 
   vTaskDelay(10);
 }
