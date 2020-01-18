@@ -22,7 +22,7 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
     memcpy(&controller_packet, &buff, sizeof(ControllerData));
 
 #ifdef SEND_TO_VESC
-    send_to_vesc(controller_packet.throttle);
+    send_to_vesc(controller_packet.throttle, controller_packet.cruise_control);
 #endif
 
 #ifdef PRINT_THROTTLE
@@ -82,7 +82,6 @@ void handle_request_command()
   {
     DEBUGVAL("RESPONSE", retries);
   }
-  // DEBUGVAL("sent response", board_packet.id);
 }
 //------------------------------------------------------
 void handle_first_packet()
