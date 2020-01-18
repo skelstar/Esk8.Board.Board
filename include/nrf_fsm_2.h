@@ -23,7 +23,6 @@ void NRF_EVENT(NrfEvent x, char *s);
 
 elapsedMillis since_requested;
 
-#define SEND_TO_BOARD_INTERVAL 1000
 
 //-------------------------------------------------------
 State nrf_normal(
@@ -36,10 +35,6 @@ State nrf_normal(
         since_requested = 0;
         controller_packet.command = 0;
         NRF_EVENT(EV_NRF_REQUESTED, "EV_NRF_REQUESTED");
-      }
-      else if (controller_packet.id == 0)
-      {
-        NRF_EVENT(EV_NRF_FIRST_PACKET, "EV_NRF_FIRST_PACKET");
       }
       // else if (since_last_controller_packet > controller_config.send_interval + 100)
       else if (since_last_controller_packet > SEND_TO_BOARD_INTERVAL + 100)
@@ -116,8 +111,8 @@ void add_nrf_fsm_transitions()
   // nrf_timed_out
   nrf_fsm.add_transition(&nrf_timedout, &nrf_normal, EV_NRF_PACKET, NULL);
   // first packet
-  nrf_fsm.add_transition(&nrf_requested, &nrf_got_first_packet, EV_NRF_FIRST_PACKET, NULL);
-  nrf_fsm.add_transition(&nrf_got_first_packet, &nrf_normal, EV_NRF_PACKET, NULL);
+  // nrf_fsm.add_transition(&nrf_requested, &nrf_got_first_packet, EV_NRF_FIRST_PACKET, NULL);
+  // nrf_fsm.add_transition(&nrf_got_first_packet, &nrf_normal, EV_NRF_PACKET, NULL);
 }
 
 //-------------------------------------------------------
