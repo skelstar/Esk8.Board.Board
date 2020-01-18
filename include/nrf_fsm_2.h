@@ -5,6 +5,18 @@
 #include <VescData.h>
 #endif
 
+enum NrfEvent
+{
+  EV_NRF_PACKET,
+  EV_NRF_REQUESTED,
+  EV_NRF_RESPONDED,
+  EV_NRF_TIMING_OUT,
+  EV_NRF_TIMED_OUT,
+  EV_NRF_SEND_MOVING,
+  EV_NRF_SEND_STOPPED,
+  EV_NRF_FIRST_PACKET,
+};
+
 // prototypes
 void PRINT_NRF_STATE(const char *state_name);
 void NRF_EVENT(NrfEvent x, char *s);
@@ -24,6 +36,10 @@ State nrf_normal(
         since_requested = 0;
         controller_packet.command = 0;
         NRF_EVENT(EV_NRF_REQUESTED, "EV_NRF_REQUESTED");
+      }
+      else if (controller_packet.id == 0)
+      {
+        NRF_EVENT(EV_NRF_FIRST_PACKET, "EV_NRF_FIRST_PACKET");
       }
       // else if (since_last_controller_packet > controller_config.send_interval + 100)
       else if (since_last_controller_packet > SEND_TO_BOARD_INTERVAL + 100)
@@ -75,6 +91,14 @@ State nrf_timedout(
     NULL,
     NULL);
 //-------------------------------------------------------
+State nrf_got_first_packet(
+    [] {
+      PRINT_NRF_STATE("NRF: nrf_got_first_packet.........");
+    },
+    [] {
+    },
+    NULL);
+//-------------------------------------------------------
 
 Fsm nrf_fsm(&nrf_normal);
 
@@ -91,6 +115,9 @@ void add_nrf_fsm_transitions()
   nrf_fsm.add_transition(&nrf_timing_out, &nrf_timedout, EV_NRF_TIMED_OUT, NULL);
   // nrf_timed_out
   nrf_fsm.add_transition(&nrf_timedout, &nrf_normal, EV_NRF_PACKET, NULL);
+  // first packet
+  nrf_fsm.add_transition(&nrf_normal, &nrf_got_first_packet, EV_NRF_FIRST_PACKET, NULL);
+  nrf_fsm.add_transition(&nrf_got_first_packet, &nrf_normal, EV_NRF_PACKET, NULL);
 }
 
 //-------------------------------------------------------
