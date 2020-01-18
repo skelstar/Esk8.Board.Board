@@ -90,20 +90,6 @@ void commsTask_1(void *pvParameters)
 }
 //----------------------------------------------------------
 
-void fsmTask_1(void *pvParameters)
-{
-  while (true)
-  {
-    nrf_fsm.run_machine();
-
-    nrf24.update();
-
-    vTaskDelay(1);
-  }
-  vTaskDelete(NULL);
-}
-//----------------------------------------------------------
-
 void buttonTask_1(void *pvParameters)
 {
 #define BUTTON_CHECK_INTERVAL 500
@@ -131,10 +117,23 @@ void buttonTask_1(void *pvParameters)
 //-----------------------------------------------------------------------
 void send_to_vesc_queue()
 {
-  uint8_t e = 1;
   if (xSendToVescQueue != NULL)
   {
+    uint8_t e = 1;
     xQueueSendToFront(xSendToVescQueue, &e, pdMS_TO_TICKS(10));
   }
 }
 //-----------------------------------------------------------------------
+
+void fsmTask_1(void *pvParameters)
+{
+  while (true)
+  {
+    nrf_fsm.run_machine();
+
+    vTaskDelay(1);
+  }
+  vTaskDelete(NULL);
+}
+//-----------------------------------------------------------------------------------
+

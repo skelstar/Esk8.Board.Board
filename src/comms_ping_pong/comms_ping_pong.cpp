@@ -35,6 +35,12 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
   nrf24.read_into(buff, sizeof(ControllerData));
   memcpy(&board_packet, &buff, sizeof(ControllerData));
 
+  uint8_t retries = nrf24.send_with_retries(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(ControllerData), 5);
+  if (retries > 0)
+  {
+    DEBUGVAL(retries);
+  }
+
   DEBUGVAL(from_id, board_packet.id);
 }
 
@@ -51,18 +57,20 @@ elapsedMillis since_sent_to_board;
 
 void loop()
 {
-  if (since_sent_to_board > 3000)
-  {
-    since_sent_to_board = 0;
-    DEBUG("sending..");
+  // if (since_sent_to_board > 3000)
+  // {
+  //   since_sent_to_board = 0;
+  //   DEBUG("sending..");
 
-    uint8_t bs[sizeof(VescData)];
-    memcpy(bs, &board_packet, sizeof(VescData));
+  //   uint8_t bs[sizeof(VescData)];
+  //   memcpy(bs, &board_packet, sizeof(VescData));
 
-    uint8_t retries = nrf24.send_with_retries(/*to*/COMMS_CONTROLLER, /*type*/ 0, bs, sizeof(VescData), NUM_RETRIES);
-    DEBUGVAL(retries);
-    board_packet.id++;
-  }
+  //   uint8_t retries = nrf24.send_with_retries(/*to*/COMMS_CONTROLLER, /*type*/ 0, bs, sizeof(VescData), NUM_RETRIES);
+  //   DEBUGVAL(retries);
+  //   board_packet.id++;
+  // }
 
   nrf24.update();
+
+  vTaskDelay(10);
 }
