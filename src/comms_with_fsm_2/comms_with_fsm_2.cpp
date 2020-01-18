@@ -19,29 +19,47 @@
 
 VescData board_packet;
 
+ControllerData controller_packet;
+
 NRF24L01Lib nrf24;
 
 RF24 radio(SPI_CE, SPI_CS);
 RF24Network network(radio);
 
 #define NUM_RETRIES 5
+
+//------------------------------------------------------------------
+
+void send_to_controller();
+
 //------------------------------------------------------------------
 
 void packet_available_cb(uint16_t from_id, uint8_t type)
 {
-  ControllerData board_packet;
-
   uint8_t buff[sizeof(ControllerData)];
   nrf24.read_into(buff, sizeof(ControllerData));
-  memcpy(&board_packet, &buff, sizeof(ControllerData));
+  memcpy(&controller_packet, &buff, sizeof(ControllerData));
 
-  uint8_t retries = nrf24.send_with_retries(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(ControllerData), 5);
+  if (controller_packet.command == 1)
+  {
+    board_packet.reason = ReasonType::REQUESTED;
+    send_to_controller();
+  }
+
+  DEBUGVAL(from_id, controller_packet.id);
+}
+
+void send_to_controller()
+{
+  uint8_t buff[sizeof(VescData)];
+  memcpy(&buff, &board_packet, sizeof(VescData));
+
+  uint8_t retries = nrf24.send_with_retries(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(VescData), 5);
   if (retries > 0)
   {
     DEBUGVAL(retries);
   }
-
-  DEBUGVAL(from_id, board_packet.id);
+  board_packet.id++;
 }
 
 void setup()
