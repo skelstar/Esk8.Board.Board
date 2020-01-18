@@ -32,8 +32,15 @@ RF24Network network(radio);
 elapsedMillis since_last_controller_packet;
 bool controller_connected = true;
 
+class BoardState
+{
+  public:
+    bool vesc_data_ready;
+} state;
+
 //------------------------------------------------------------------
 
+#include <vesc_comms_2.h>
 #include <comms_2.h>
 #include <peripherals.h>
 
@@ -43,6 +50,7 @@ void setup()
   Serial.begin(115200);
 
   nrf24.begin(&radio, &network, COMMS_BOARD, packet_available_cb);
+  vesc.init(VESC_UART_BAUDRATE);
 
   button_init();
 
@@ -56,6 +64,8 @@ void loop()
   nrf24.update();
 
   button0.loop();
+
+  vesc_update();
 
   if (controller_timed_out() && controller_connected)
   {
