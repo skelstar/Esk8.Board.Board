@@ -15,16 +15,6 @@
 #define COMMS_BOARD 00
 #define COMMS_CONTROLLER  01
 
-enum NrfEvent
-{
-  EV_NRF_PACKET,
-  EV_NRF_REQUESTED,
-  EV_NRF_RESPONDED,
-  EV_NRF_TIMING_OUT,
-  EV_NRF_TIMED_OUT,
-  EV_NRF_SEND_MOVING,
-  EV_NRF_SEND_STOPPED,
-};
 //------------------------------------------------------------------
 
 VescData board_packet;

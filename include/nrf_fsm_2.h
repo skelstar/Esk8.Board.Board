@@ -116,7 +116,7 @@ void add_nrf_fsm_transitions()
   // nrf_timed_out
   nrf_fsm.add_transition(&nrf_timedout, &nrf_normal, EV_NRF_PACKET, NULL);
   // first packet
-  nrf_fsm.add_transition(&nrf_normal, &nrf_got_first_packet, EV_NRF_FIRST_PACKET, NULL);
+  nrf_fsm.add_transition(&nrf_requested, &nrf_got_first_packet, EV_NRF_FIRST_PACKET, NULL);
   nrf_fsm.add_transition(&nrf_got_first_packet, &nrf_normal, EV_NRF_PACKET, NULL);
 }
 

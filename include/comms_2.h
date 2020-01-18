@@ -23,6 +23,7 @@ bool send_packet_to_controller(ReasonType reason)
   {
     DEBUGVAL(retries);
   }
+  DEBUGVAL("sending", board_packet.id);
   board_packet.id++;
 
   return retries < 5;
