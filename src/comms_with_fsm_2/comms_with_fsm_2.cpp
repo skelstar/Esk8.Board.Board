@@ -20,6 +20,7 @@
 VescData board_packet;
 
 ControllerData controller_packet;
+ControllerConfig controller_config;
 
 NRF24L01Lib nrf24;
 
@@ -33,12 +34,6 @@ bool controller_connected = true;
 
 //------------------------------------------------------------------
 
-// uint8_t send_packet_to_controller(ReasonType reason);
-
-//------------------------------------------------------------------
-
-// #include <nrf_fsm_2.h>
-
 #include <comms_2.h>
 
 //-------------------------------------------------------
@@ -48,9 +43,7 @@ void setup()
 
   nrf24.begin(&radio, &network, COMMS_BOARD, packet_available_cb);
 
-  // add_nrf_fsm_transitions();
-
-  DEBUG("Ready to rx from board...");
+  DEBUG("Ready to rx from controller...");
 }
 
 elapsedMillis since_sent_to_board;
@@ -64,8 +57,6 @@ void loop()
     controller_connected = false;
     DEBUG("controller_timed_out!!!");
   }
-
-  // nrf_fsm.run_machine();
 
   vTaskDelay(10);
 }

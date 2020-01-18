@@ -3,6 +3,7 @@ elapsedMillis since_requested;
 
 void handle_request_command();
 void handle_first_packet();
+void handle_config_packet();
 
 #define NUM_RETRIES   5
 #define FIRST_PACKET  0
@@ -13,23 +14,28 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
   since_last_controller_packet = 0;
   controller_connected = true;
 
-  uint8_t buff[sizeof(ControllerData)];
-  nrf24.read_into(buff, sizeof(ControllerData));
-  memcpy(&controller_packet, &buff, sizeof(ControllerData));
-
-  // COMMAND_REQUEST_UPDATE
-  if (controller_packet.command == COMMAND_REQUEST_UPDATE)
+  if (type == PacketType::CONTROL)
   {
-    handle_request_command();
+    uint8_t buff[sizeof(ControllerData)];
+    nrf24.read_into(buff, sizeof(ControllerData));
+    memcpy(&controller_packet, &buff, sizeof(ControllerData));
+
+    // COMMAND_REQUEST_UPDATE
+    if (controller_packet.command == COMMAND_REQUEST_UPDATE)
+    {
+      handle_request_command();
+    }
+    else if (controller_packet.id == FIRST_PACKET)
+    {
+      handle_first_packet();
+    }
   }
-  else if (controller_packet.id == FIRST_PACKET)
+  else if (type == PacketType::CONFIG)
   {
-    handle_first_packet();
+    handle_config_packet();
   }
 
-  // NRF_EVENT(EV_NRF_PACKET, NULL);
-
-  DEBUGVAL(from_id, controller_packet.id, controller_packet.command);
+  DEBUGVAL(from_id, controller_packet.id, controller_packet.throttle);
 }
 //------------------------------------------------------
 uint8_t send_packet_to_controller(ReasonType reason)
@@ -67,9 +73,20 @@ void handle_first_packet()
   DEBUG("handle_first_packet();");
 }
 //------------------------------------------------------
-#define CONTROLLER_SEND_TO_BOARD_INTERVAL 1000
+void handle_config_packet()
+{
+  uint8_t buff[sizeof(ControllerConfig)];
+  nrf24.read_into(buff, sizeof(ControllerConfig));
+  memcpy(&controller_config, &buff, sizeof(ControllerConfig));
+  DEBUGVAL("***controller_config***", controller_config.send_interval);
+}
+//------------------------------------------------------
 
 bool controller_timed_out()
 {
-  return since_last_controller_packet > CONTROLLER_SEND_TO_BOARD_INTERVAL + 100;
+  if (controller_config.send_interval == 0)
+  {
+    return false;
+  }
+  return since_last_controller_packet > controller_config.send_interval + 100;
 }
