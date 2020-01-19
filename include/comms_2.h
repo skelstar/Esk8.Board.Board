@@ -4,6 +4,7 @@ elapsedMillis since_requested;
 void handle_request_command();
 void handle_first_packet();
 void handle_config_packet();
+uint8_t manage_throttle(uint8_t controller_throttle);
 
 #define NUM_RETRIES 5
 #define FIRST_PACKET 0
@@ -21,8 +22,10 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
     nrf24.read_into(buff, sizeof(ControllerData));
     memcpy(&controller_packet, &buff, sizeof(ControllerData));
 
+    uint8_t throttle = manage_throttle(controller_packet.throttle);
+
 #ifdef SEND_TO_VESC
-    send_to_vesc(controller_packet.throttle, controller_packet.cruise_control);
+    send_to_vesc(throttle, controller_packet.cruise_control);
 #endif
 
 #ifdef PRINT_THROTTLE
@@ -93,10 +96,9 @@ void handle_config_packet()
   uint8_t buff[sizeof(ControllerConfig)];
   nrf24.read_into(buff, sizeof(ControllerConfig));
   memcpy(&controller_config, &buff, sizeof(ControllerConfig));
-  DEBUGVAL("***controller_config***", controller_config.send_interval);
+  DEBUGVAL("***controller_config***", controller_config.send_interval, controller_config.throttle_smoothing_period);
 }
 //------------------------------------------------------
-
 bool controller_timed_out()
 {
   if (controller_config.send_interval == 0)
@@ -104,4 +106,25 @@ bool controller_timed_out()
     return false;
   }
   return since_last_controller_packet > controller_config.send_interval + 100;
+}
+//------------------------------------------------------
+/*
+if enabled
+  get smoothed throttle. If not accelerating then don't smooth
+else
+  return bare throttle
+*/
+uint8_t manage_throttle(uint8_t controller_throttle)
+{
+  #ifdef FEATURE_THROTTLE_SMOOTHING
+    // if not accelerating then removing smoothing
+    if (controller_throttle < smoothed_throttle.getLast())
+    {
+      smoothed_throttle.clear();
+    }
+    smoothed_throttle.add(controller_throttle);
+    return smoothed_throttle.get();
+#else
+    return controller_throttle;
+#endif
 }

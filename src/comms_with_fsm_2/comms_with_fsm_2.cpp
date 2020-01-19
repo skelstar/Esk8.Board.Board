@@ -5,6 +5,7 @@
 #include <Arduino.h>
 #include <VescData.h>
 #include <elapsedMillis.h>
+#include <Smoothed.h>
 
 #include <RF24Network.h>
 #include <NRF24L01Lib.h>
@@ -13,7 +14,7 @@
 #define SPI_CS 26
 
 #define COMMS_BOARD 00
-#define COMMS_CONTROLLER  01
+#define COMMS_CONTROLLER 01
 
 //------------------------------------------------------------------
 
@@ -32,10 +33,12 @@ RF24Network network(radio);
 elapsedMillis since_last_controller_packet;
 bool controller_connected = true;
 
+Smoothed<int> smoothed_throttle;
+
 class BoardState
 {
-  public:
-    bool vesc_data_ready;
+public:
+  bool vesc_data_ready;
 } state;
 
 //------------------------------------------------------------------
@@ -49,6 +52,11 @@ void setup()
 {
   Serial.begin(115200);
 
+#ifdef FEATURE_THROTTLE_SMOOTHING
+  unsigned int smooth_factor = 2000 / 200;
+  smoothed_throttle.begin(SMOOTHED_AVERAGE, smooth_factor);
+#endif
+
   nrf24.begin(&radio, &network, COMMS_BOARD, packet_available_cb);
   vesc.init(VESC_UART_BAUDRATE);
 
@@ -57,7 +65,7 @@ void setup()
   DEBUG("Ready to rx from controller...");
 }
 
-elapsedMillis since_sent_to_board;
+elapsedMillis since_sent_to_board, since_smoothed_report;
 
 void loop()
 {
@@ -72,6 +80,16 @@ void loop()
     controller_connected = false;
     DEBUG("controller_timed_out!!!");
   }
+
+#ifdef PRINT_SMOOTHED_REPORT
+#ifdef FEATURE_THROTTLE_SMOOTHING
+  if (since_smoothed_report > 1000)
+  {
+    since_smoothed_report = 0;
+    DEBUGVAL(smoothed_throttle.get());
+  }
+#endif
+#endif
 
   vTaskDelay(10);
 }
