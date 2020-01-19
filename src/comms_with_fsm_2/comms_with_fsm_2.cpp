@@ -1,4 +1,4 @@
-#define DEBUG_OUT Serial
+// #define DEBUG_OUT Serial
 #define PRINTSTREAM_FALLBACK
 #include "Debug.hpp"
 
