@@ -3,7 +3,9 @@
 
 #include <Button2.h>
 
-#define BUTTON_0  0
+#define BUTTON_0    0
+#define PIXEL_PIN   4
+#define NUM_PIXELS 21
 
 Button2 button0(BUTTON_0);
 
@@ -25,6 +27,6 @@ void button_init()
 //------------------------------------------------------------------
 void light_init()
 {
-  // light.initialise(PIXEL_PIN, NUM_PIXELS);
-  // light.setAll(light.COLOUR_OFF);
+  light.initialise(PIXEL_PIN, NUM_PIXELS);
+  light.setAll(light.COLOUR_OFF);
 }

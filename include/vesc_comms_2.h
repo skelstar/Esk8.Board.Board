@@ -16,7 +16,7 @@ uint8_t vesc_packet[PACKET_MAX_LENGTH];
 
 void try_get_values_from_vesc();
 
-#include <vesc_utils_2.h>
+#include <vesc_utils.h>
 //-----------------------------------------------------------------------
 
 #define GET_FROM_VESC_INTERVAL 1000
