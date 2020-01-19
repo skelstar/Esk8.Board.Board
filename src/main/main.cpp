@@ -1,4 +1,4 @@
-// #define DEBUG_OUT Serial
+#define DEBUG_OUT Serial
 #define PRINTSTREAM_FALLBACK
 #include "Debug.hpp"
 
@@ -45,10 +45,55 @@ public:
 LedLightsLib light;
 
 //------------------------------------------------------------------
+enum xEvent
+{
+  xEV_MOVING,
+  xEV_STOPPED,
+};
 
+xQueueHandle xEventQueue;
+
+void send_to_event_queue(xEvent e)
+{
+  xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+}
+
+//------------------------------------------------------------------
 #include <vesc_comms_2.h>
 #include <controller_comms.h>
 #include <peripherals.h>
+#include <utils.h>
+
+void lightTask_0(void *pvParameters)
+{
+  Serial.printf("\lightTask_0 running on core %d\n", xPortGetCoreID());
+
+  light_init();
+
+  while (true)
+  {
+    xEvent e;
+    bool event_ready = xQueueReceive(xEventQueue, &e, pdMS_TO_TICKS(0)) == pdPASS; 
+    if (event_ready)
+    {
+      switch (e)
+      {
+        case xEvent::xEV_MOVING:
+          DEBUG("xEV_MOVING");
+          light.setAll(light.COLOUR_WHITE);
+          break;
+        case xEvent::xEV_STOPPED:
+          DEBUGVAL("xEV_STOPPED", board_packet.batteryVoltage, getBatteryPercentage(board_packet.batteryVoltage));
+          light.showBatteryGraph(getBatteryPercentage(board_packet.batteryVoltage)/100.0);
+          break;
+      }
+    }
+
+    vTaskDelay(10);
+  }
+  vTaskDelete(NULL);
+}
+
 
 //-------------------------------------------------------
 void setup()
@@ -64,6 +109,10 @@ void setup()
   vesc.init(VESC_UART_BAUDRATE);
 
   button_init();
+
+  xTaskCreatePinnedToCore(lightTask_0, "lightTask_0", 10000, NULL, /*priority*/ 3, NULL, 0);
+
+  xEventQueue = xQueueCreate(1, sizeof(xEvent));
 
   DEBUG("Ready to rx from controller...");
 }
