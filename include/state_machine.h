@@ -103,7 +103,7 @@ void fsm_add_transitions()
 
 void PRINT_STATE(const char *state_name)
 {
-#ifdef DEBUG_PRINT_STATE_NAME_ENABLED
+#ifdef PRINT_STATE_NAME
   DEBUG(state_name);
 #endif
 }
@@ -112,7 +112,7 @@ void TRIGGER(EventsEnum x, char *s)
 {
   if (s != NULL)
   {
-#ifdef DEBUG_PRINT_FSM_TRIGGER
+#ifdef DEBUG_PRINT_FSM_EVENT
     Serial.printf("EVENT: %s\n", s);
 #endif
   }
@@ -121,7 +121,7 @@ void TRIGGER(EventsEnum x, char *s)
 
 void TRIGGER(EventsEnum x)
 {
-#ifdef DEBUG_PRINT_FSM_TRIGGER
+#ifdef DEBUG_PRINT_FSM_EVENT
   switch (x)
   {
   case EV_POWERING_DOWN:
@@ -156,3 +156,9 @@ uint8_t get_from_state()
 {
   return fsm.get_from_state();
 }
+
+void send_to_fsm_event_queue(EventsEnum e)
+{
+  xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+}
+
