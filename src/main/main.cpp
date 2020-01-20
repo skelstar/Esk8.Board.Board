@@ -10,6 +10,8 @@
 #include <RF24Network.h>
 #include <NRF24L01Lib.h>
 
+#include <Fsm.h>
+
 #define SPI_CE 33
 #define SPI_CS 26
 
@@ -64,36 +66,7 @@ void send_to_event_queue(xEvent e)
 #include <peripherals.h>
 #include <utils.h>
 
-void lightTask_0(void *pvParameters)
-{
-  Serial.printf("\lightTask_0 running on core %d\n", xPortGetCoreID());
-
-  light_init();
-
-  while (true)
-  {
-    xEvent e;
-    bool event_ready = xQueueReceive(xEventQueue, &e, pdMS_TO_TICKS(0)) == pdPASS; 
-    if (event_ready)
-    {
-      switch (e)
-      {
-        case xEvent::xEV_MOVING:
-          DEBUG("xEV_MOVING");
-          light.setAll(light.COLOUR_WHITE);
-          break;
-        case xEvent::xEV_STOPPED:
-          DEBUGVAL("xEV_STOPPED", board_packet.batteryVoltage, getBatteryPercentage(board_packet.batteryVoltage));
-          light.showBatteryGraph(getBatteryPercentage(board_packet.batteryVoltage)/100.0);
-          break;
-      }
-    }
-
-    vTaskDelay(10);
-  }
-  vTaskDelete(NULL);
-}
-
+#include <core0.h>
 
 //-------------------------------------------------------
 void setup()
@@ -113,8 +86,6 @@ void setup()
   xTaskCreatePinnedToCore(lightTask_0, "lightTask_0", 10000, NULL, /*priority*/ 3, NULL, 0);
 
   xEventQueue = xQueueCreate(1, sizeof(xEvent));
-
-  DEBUG("Ready to rx from controller...");
 }
 
 elapsedMillis since_sent_to_board, since_smoothed_report;
