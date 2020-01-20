@@ -1,4 +1,4 @@
-// #define DEBUG_OUT Serial
+#define DEBUG_OUT Serial
 #define PRINTSTREAM_FALLBACK
 #include "Debug.hpp"
 
@@ -9,6 +9,8 @@
 
 #include <RF24Network.h>
 #include <NRF24L01Lib.h>
+
+#include <Fsm.h>
 
 #define SPI_CE 33
 #define SPI_CS 26
@@ -45,10 +47,26 @@ public:
 LedLightsLib light;
 
 //------------------------------------------------------------------
+enum xEvent
+{
+  xEV_MOVING,
+  xEV_STOPPED,
+};
 
+xQueueHandle xEventQueue;
+
+void send_to_event_queue(xEvent e)
+{
+  xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+}
+
+//------------------------------------------------------------------
 #include <vesc_comms_2.h>
 #include <controller_comms.h>
 #include <peripherals.h>
+#include <utils.h>
+
+#include <core0.h>
 
 //-------------------------------------------------------
 void setup()
@@ -65,7 +83,9 @@ void setup()
 
   button_init();
 
-  DEBUG("Ready to rx from controller...");
+  xTaskCreatePinnedToCore(lightTask_0, "lightTask_0", 10000, NULL, /*priority*/ 3, NULL, 0);
+
+  xEventQueue = xQueueCreate(1, sizeof(xEvent));
 }
 
 elapsedMillis since_sent_to_board, since_smoothed_report;
