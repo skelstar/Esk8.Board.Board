@@ -22,37 +22,41 @@ void storageReport(float actualAmphours, float actualOdometer, VescData initialV
 #define BATTERY_VOLTAGE_CUTOFF_START 3.4 * 11 // 37.4
 #define BATTERY_VOLTAGE_CUTOFF_END 3.1 * 11   // 34.1
 
-uint8_t getBatteryPercentage(float voltage) {
+uint8_t getBatteryPercentage(float voltage)
+{
   float voltsLeft = voltage - BATTERY_VOLTAGE_CUTOFF_END;
   float voltsAvail = BATTERY_VOLTAGE_FULL - BATTERY_VOLTAGE_CUTOFF_END;
 
   uint8_t percent = 0;
-  if ( voltage > BATTERY_VOLTAGE_CUTOFF_END ) { 
-    percent = (voltsLeft /  voltsAvail) * 100;
+  if (voltage > BATTERY_VOLTAGE_CUTOFF_END)
+  {
+    percent = (voltsLeft / voltsAvail) * 100;
   }
-  if (percent > 100) {
+  if (percent > 100)
+  {
     percent = 100;
-	}
+  }
   return percent;
 }
 
-char* reason_toString(ReasonType reason)
+char *reason_toString(ReasonType reason)
 {
-  switch (reason)
-  {
-    case BOARD_STOPPED:
-      return "BOARD_STOPPED";
-    case BOARD_MOVING:
-      return "BOARD_MOVING";
-    case FIRST_PACKET:
-      return "FIRST_PACKET";
-    case LAST_WILL:
-      return "LAST_WILL";
-    case REQUESTED:
-      return "REQUESTED";
-    case VESC_OFFLINE:
-      return "VESC_OFFLINE";
-    default:
-      return "unhandle reason";
-  }
+  // switch (reason)
+  // {
+  // case BOARD_STOPPED:
+  //   return "BOARD_STOPPED";
+  // case BOARD_MOVING:
+  //   return "BOARD_MOVING";
+  // case FIRST_PACKET:
+  //   return "FIRST_PACKET";
+  // case LAST_WILL:
+  //   return "LAST_WILL";
+  // case REQUESTED:
+  //   return "REQUESTED";
+  // case VESC_OFFLINE:
+  //   return "VESC_OFFLINE";
+  // default:
+    return "unhandle reason";
+  // }
 }
+
