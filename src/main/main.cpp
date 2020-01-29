@@ -53,11 +53,11 @@ enum xEvent
   xEV_STOPPED,
 };
 
-xQueueHandle xEventQueue;
+xQueueHandle xLightsEventQueue;
 
 void send_to_event_queue(xEvent e)
 {
-  xQueueSendToFront(xEventQueue, &e, pdMS_TO_TICKS(10));
+  xQueueSendToFront(xLightsEventQueue, &e, pdMS_TO_TICKS(10));
 }
 
 //------------------------------------------------------------------
@@ -85,7 +85,7 @@ void setup()
 
   xTaskCreatePinnedToCore(lightTask_0, "lightTask_0", 10000, NULL, /*priority*/ 3, NULL, 0);
 
-  xEventQueue = xQueueCreate(1, sizeof(xEvent));
+  xLightsEventQueue = xQueueCreate(1, sizeof(xEvent));
 }
 
 elapsedMillis since_sent_to_board, since_smoothed_report;

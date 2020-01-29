@@ -2,7 +2,7 @@
 ### Core 0
 vescTask_0
 - t_GetVescValues
-    - sends to xEventQueue
+    - sends to xLightsEventQueue
 - t_SendToVesc
 
 ### Core 1
@@ -10,7 +10,7 @@ loop
 - packetReceive() ESP_NOW
 - send_packet_to_controller()
 - state_machine
-- manage_event_queue (xEventQueue)
+- manage_event_queue (xLightsEventQueue)
 
 # TTGO T-Display
 

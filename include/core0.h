@@ -89,7 +89,7 @@ void lightTask_0(void *pvParameters)
   while (true)
   {
     xEvent e;
-    bool event_ready = xQueueReceive(xEventQueue, &e, pdMS_TO_TICKS(0)) == pdPASS;
+    bool event_ready = xQueueReceive(xLightsEventQueue, &e, pdMS_TO_TICKS(0)) == pdPASS;
     if (event_ready)
     {
       switch (e)
