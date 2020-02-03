@@ -1,16 +1,21 @@
 ## Cores
+
 ### Core 0
-vescTask_0
-- t_GetVescValues
-    - sends to xEventQueue
-- t_SendToVesc
+lightTask_0
+- xLightsEventQueue
 
 ### Core 1
 loop
-- packetReceive() ESP_NOW
+- nrf24L01 loop()
+- button0.loop() // if enabled
+- vesc_update() // try_get_values_from_vesc()
+- packetReceive() // from controller
+  - manage_throttle() // smoothing?
+  - send_to_vesc()
+  - handle_request
+    - send_packet_to_controller()
+        - send_with_retries()
 - send_packet_to_controller()
-- state_machine
-- manage_event_queue (xEventQueue)
 
 # TTGO T-Display
 

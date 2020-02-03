@@ -62,7 +62,7 @@ enum EventsEnum
 
 //------------------------------------------------------------------
 
-// xQueueHandle xEventQueue;
+// xQueueHandle xLightsEventQueue;
 xQueueHandle xControllerTaskQueue;
 xQueueHandle xSendToVescQueue;
 
@@ -117,7 +117,7 @@ void setup()
   // xTaskCreatePinnedToCore(buttonTask_1, "buttonTask_1", 4096, NULL, /*priority*/ 2, NULL, 1);
   
   xVescDataSemaphore = xSemaphoreCreateMutex();
-  // xEventQueue = xQueueCreate(1, sizeof(EventsEnum));
+  // xLightsEventQueue = xQueueCreate(1, sizeof(EventsEnum));
 
   controller_packet.throttle = 127;
 

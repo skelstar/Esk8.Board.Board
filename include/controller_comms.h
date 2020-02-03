@@ -96,7 +96,6 @@ void handle_config_packet()
   uint8_t buff[sizeof(ControllerConfig)];
   nrf24.read_into(buff, sizeof(ControllerConfig));
   memcpy(&controller_config, &buff, sizeof(ControllerConfig));
-  DEBUGVAL("***controller_config***", controller_config.send_interval, controller_config.throttle_smoothing_period);
 }
 //------------------------------------------------------
 bool controller_timed_out()

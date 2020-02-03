@@ -1,4 +1,8 @@
 
+int32_t rpm_raw;
+float initial_ampHours = 0.0;
+float initial_odometer = 0.0;
+
 //-----------------------------------------------------------------------------------
 int32_t rotations_to_meters(int32_t rotations)
 {
@@ -17,10 +21,18 @@ bool get_vesc_values()
 
   if (success)
   {
+    rpm_raw = vesc.get_rpm(vesc_packet);
+    if (board_packet.id == 0)
+    {
+      initial_ampHours = vesc.get_amphours_discharged(vesc_packet);
+      initial_odometer = get_distance_in_meters(vesc.get_tachometer(vesc_packet));
+    }
+
     board_packet.batteryVoltage = vesc.get_voltage(vesc_packet);
-    board_packet.moving = vesc.get_rpm(vesc_packet) > 50;
-    //board_packet.ampHours = vesc.get_amphours_discharged(vesc_packet);
-    board_packet.odometer = get_distance_in_meters(vesc.get_tachometer(vesc_packet));
+    board_packet.moving = rpm_raw > RPM_AT_MOVING;
+
+    board_packet.ampHours = vesc.get_amphours_discharged(vesc_packet) - initial_ampHours;
+    board_packet.odometer = get_distance_in_meters(vesc.get_tachometer(vesc_packet)) - initial_odometer;
   }
   else
   {
