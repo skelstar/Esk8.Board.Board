@@ -61,8 +61,11 @@ void send_to_event_queue(xEvent e)
 }
 
 //------------------------------------------------------------------
-#include <vesc_comms_2.h>
+
+void send_to_vesc(uint8_t throttle, bool cruise_control);
+
 #include <controller_comms.h>
+#include <vesc_comms_2.h>
 #include <peripherals.h>
 #include <utils.h>
 
