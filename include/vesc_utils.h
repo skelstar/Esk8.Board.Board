@@ -19,7 +19,7 @@ bool get_vesc_values()
   {
     board_packet.batteryVoltage = vesc.get_voltage(vesc_packet);
     board_packet.moving = vesc.get_rpm(vesc_packet) > 50;
-    //board_packet.ampHours = vesc.get_amphours_discharged(vesc_packet);
+    board_packet.ampHours = vesc.get_amphours_discharged(vesc_packet);
     board_packet.odometer = get_distance_in_meters(vesc.get_tachometer(vesc_packet));
   }
   else
