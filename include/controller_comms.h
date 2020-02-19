@@ -9,6 +9,9 @@ uint8_t manage_throttle(uint8_t controller_throttle);
 #define NUM_RETRIES 5
 #define FIRST_PACKET 0
 
+/* prototypes */
+uint8_t send_packet_to_controller(ReasonType reason);
+
 //------------------------------------------------------
 void packet_available_cb(uint16_t from_id, uint8_t type)
 {
@@ -28,6 +31,12 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
     send_to_vesc(throttle, controller_packet.cruise_control);
 #endif
 
+    uint8_t retries = send_packet_to_controller(ReasonType::REQUESTED);
+    if (retries)
+    {
+      DEBUGVAL(retries);
+    }
+
 #ifdef PRINT_THROTTLE
     if (old_throttle != controller_packet.throttle)
     {
@@ -35,12 +44,15 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
     }
 #endif
 
-    // COMMAND_REQUEST_UPDATE
-    if (controller_packet.command == COMMAND_REQUEST_UPDATE)
-    {
-      handle_request_command();
-    }
-    else if (controller_packet.id == FIRST_PACKET)
+    DEBUGVAL(controller_packet.id);
+
+    // // COMMAND_REQUEST_UPDATE
+    // if (controller_packet.command == COMMAND_REQUEST_UPDATE)
+    // {
+    //   handle_request_command();
+    // }
+
+    if (controller_packet.id == FIRST_PACKET)
     {
       handle_first_packet();
     }
@@ -48,6 +60,8 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
   else if (type == PacketType::CONFIG)
   {
     handle_config_packet();
+
+    send_packet_to_controller(ReasonType::REQUESTED);
   }
 
   if (controller_config.send_interval >= 500)
@@ -68,7 +82,7 @@ uint8_t send_packet_to_controller(ReasonType reason)
   {
     DEBUGVAL(retries);
   }
-#ifdef PRINT_SENDING  
+#ifdef PRINT_SENDING
   DEBUGVAL("sending", board_packet.id);
 #endif
   board_packet.id++;
@@ -115,15 +129,15 @@ else
 */
 uint8_t manage_throttle(uint8_t controller_throttle)
 {
-  #ifdef FEATURE_THROTTLE_SMOOTHING
-    // if not accelerating then removing smoothing
-    if (controller_throttle < smoothed_throttle.getLast())
-    {
-      smoothed_throttle.clear();
-    }
-    smoothed_throttle.add(controller_throttle);
-    return smoothed_throttle.get();
+#ifdef FEATURE_THROTTLE_SMOOTHING
+  // if not accelerating then removing smoothing
+  if (controller_throttle < smoothed_throttle.getLast())
+  {
+    smoothed_throttle.clear();
+  }
+  smoothed_throttle.add(controller_throttle);
+  return smoothed_throttle.get();
 #else
-    return controller_throttle;
+  return controller_throttle;
 #endif
 }
