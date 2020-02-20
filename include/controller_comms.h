@@ -59,9 +59,11 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
   }
   else if (type == PacketType::CONFIG)
   {
-    handle_config_packet();
+    DEBUG("type == PacketType::CONFIG");
 
     send_packet_to_controller(ReasonType::REQUESTED);
+
+    handle_config_packet();
   }
 
   if (controller_config.send_interval >= 500)
@@ -116,6 +118,7 @@ bool controller_timed_out()
 {
   if (controller_config.send_interval == 0)
   {
+    DEBUG("*** controller_config.send_interval == 0");
     return false;
   }
   return since_last_controller_packet > controller_config.send_interval + 100;
