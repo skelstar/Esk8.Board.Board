@@ -40,11 +40,10 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
 #ifdef PRINT_THROTTLE
     if (old_throttle != controller_packet.throttle)
     {
-      DEBUGVAL(controller_packet.throttle);
+      DEBUGVAL(controller_packet.id, controller_packet.throttle);
     }
 #endif
-
-    DEBUGVAL(controller_packet.id);
+    // DEBUGVAL(controller_packet.id);
 
     // // COMMAND_REQUEST_UPDATE
     // if (controller_packet.command == COMMAND_REQUEST_UPDATE)
@@ -60,16 +59,19 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
   else if (type == PacketType::CONFIG)
   {
     DEBUG("type == PacketType::CONFIG");
+    DEBUGVAL(controller_config.send_interval);
 
     send_packet_to_controller(ReasonType::REQUESTED);
 
     handle_config_packet();
   }
 
+#ifdef PRINT_COMMS_FROM_CONTROLLER
   if (controller_config.send_interval >= 500)
   {
     DEBUGVAL(from_id, controller_packet.id, controller_packet.throttle);
   }
+#endif
 }
 //------------------------------------------------------
 uint8_t send_packet_to_controller(ReasonType reason)
