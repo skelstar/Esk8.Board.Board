@@ -13,10 +13,11 @@
 #define SPI_CS 26
 
 #define COMMS_BOARD 00
-#define COMMS_CONTROLLER  01
+#define COMMS_CONTROLLER 01
 
 //------------------------------------------------------------------
 
+ControllerData controller_packet;
 VescData board_packet;
 
 NRF24L01Lib nrf24;
@@ -29,19 +30,23 @@ RF24Network network(radio);
 
 void packet_available_cb(uint16_t from_id, uint8_t type)
 {
-  ControllerData board_packet;
+  ControllerData controller_packet;
 
   uint8_t buff[sizeof(ControllerData)];
   nrf24.read_into(buff, sizeof(ControllerData));
-  memcpy(&board_packet, &buff, sizeof(ControllerData));
+  memcpy(&controller_packet, &buff, sizeof(ControllerData));
 
-  uint8_t retries = nrf24.send_with_retries(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(ControllerData), 5);
+  board_packet.id = controller_packet.id;
+  uint8_t bs[sizeof(VescData)];
+  memcpy(bs, &board_packet, sizeof(VescData));
+
+  uint8_t retries = nrf24.send_with_retries(/*to*/ COMMS_CONTROLLER, 0, bs, sizeof(VescData), 5);
   if (retries > 0)
   {
     DEBUGVAL(retries);
   }
 
-  DEBUGVAL(from_id, board_packet.id);
+  DEBUGVAL(from_id, controller_packet.id);
 }
 
 void setup()
