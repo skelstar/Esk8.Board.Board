@@ -43,35 +43,20 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
       DEBUGVAL(controller_packet.id, controller_packet.throttle);
     }
 #endif
-    // DEBUGVAL(controller_packet.id);
-
-    // // COMMAND_REQUEST_UPDATE
-    // if (controller_packet.command == COMMAND_REQUEST_UPDATE)
-    // {
-    //   handle_request_command();
-    // }
 
     if (controller_packet.id == FIRST_PACKET)
     {
       handle_first_packet();
     }
+    // DEBUGVAL(from_id, controller_packet.id, controller_packet.throttle);
   }
   else if (type == PacketType::CONFIG)
   {
-    DEBUG("type == PacketType::CONFIG");
-    DEBUGVAL(controller_config.send_interval);
-
     send_packet_to_controller(ReasonType::REQUESTED);
+    // DEBUGVAL(controller_config.send_interval);
 
     handle_config_packet();
   }
-
-#ifdef PRINT_COMMS_FROM_CONTROLLER
-  if (controller_config.send_interval >= 500)
-  {
-    DEBUGVAL(from_id, controller_packet.id, controller_packet.throttle);
-  }
-#endif
 }
 //------------------------------------------------------
 uint8_t send_packet_to_controller(ReasonType reason)
@@ -126,23 +111,7 @@ bool controller_timed_out()
   return since_last_controller_packet > controller_config.send_interval + 100;
 }
 //------------------------------------------------------
-/*
-if enabled
-  get smoothed throttle. If not accelerating then don't smooth
-else
-  return bare throttle
-*/
 uint8_t manage_throttle(uint8_t controller_throttle)
 {
-#ifdef FEATURE_THROTTLE_SMOOTHING
-  // if not accelerating then removing smoothing
-  if (controller_throttle < smoothed_throttle.getLast())
-  {
-    smoothed_throttle.clear();
-  }
-  smoothed_throttle.add(controller_throttle);
-  return smoothed_throttle.get();
-#else
   return controller_throttle;
-#endif
 }
