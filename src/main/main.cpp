@@ -76,11 +76,6 @@ void setup()
 {
   Serial.begin(115200);
 
-#ifdef FEATURE_THROTTLE_SMOOTHING
-  unsigned int smooth_factor = 2000 / 200;
-  smoothed_throttle.begin(SMOOTHED_AVERAGE, smooth_factor);
-#endif
-
   nrf24.begin(&radio, &network, COMMS_BOARD, packet_available_cb);
   vesc.init(VESC_UART_BAUDRATE);
 
@@ -106,16 +101,6 @@ void loop()
     controller_connected = false;
     DEBUG("controller_timed_out!!!");
   }
-
-#ifdef PRINT_SMOOTHED_REPORT
-#ifdef FEATURE_THROTTLE_SMOOTHING
-  if (since_smoothed_report > 1000)
-  {
-    since_smoothed_report = 0;
-    DEBUGVAL(smoothed_throttle.get());
-  }
-#endif
-#endif
 
   vTaskDelay(10);
 }
