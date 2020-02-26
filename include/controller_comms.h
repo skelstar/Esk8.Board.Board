@@ -1,7 +1,6 @@
 
 elapsedMillis since_requested;
 
-void handle_request_command();
 void handle_first_packet();
 void handle_config_packet();
 uint8_t manage_throttle(uint8_t controller_throttle);
@@ -10,7 +9,7 @@ uint8_t manage_throttle(uint8_t controller_throttle);
 #define FIRST_PACKET 0
 
 /* prototypes */
-uint8_t send_packet_to_controller(ReasonType reason);
+bool send_packet_to_controller();
 
 //------------------------------------------------------
 void packet_available_cb(uint16_t from_id, uint8_t type)
@@ -31,10 +30,10 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
     send_to_vesc(throttle, controller_packet.cruise_control);
 #endif
 
-    uint8_t retries = send_packet_to_controller(ReasonType::REQUESTED);
-    if (retries)
+    bool success = send_packet_to_controller();
+    if (false == success)
     {
-      DEBUGVAL(retries);
+      DEBUGVAL(success);
     }
 
 #ifdef PRINT_THROTTLE
@@ -52,42 +51,29 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
   }
   else if (type == PacketType::CONFIG)
   {
-    send_packet_to_controller(ReasonType::REQUESTED);
-    DEBUGVAL(controller_config.send_interval);
+    bool success = send_packet_to_controller();
+    DEBUGVAL(controller_config.send_interval, success);
 
     handle_config_packet();
   }
 }
 //------------------------------------------------------
-uint8_t send_packet_to_controller(ReasonType reason)
+bool send_packet_to_controller()
 {
-  board_packet.reason = reason;
-
   uint8_t buff[sizeof(VescData)];
   memcpy(&buff, &board_packet, sizeof(VescData));
 
-  uint8_t retries = nrf24.send_with_retries(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(VescData), NUM_RETRIES);
-  if (retries > 0)
+  bool success = nrf24.send_packet(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(VescData));
+  if (false == success)
   {
-    DEBUGVAL(retries);
+    DEBUGVAL(success);
   }
 #ifdef PRINT_SENDING
   DEBUGVAL("sending", board_packet.id);
 #endif
   board_packet.id++;
 
-  return retries;
-}
-//------------------------------------------------------
-void handle_request_command()
-{
-  since_requested = 0;
-  controller_packet.command = 0;
-  uint8_t retries = send_packet_to_controller(ReasonType::REQUESTED);
-  if (retries > 0)
-  {
-    DEBUGVAL("RESPONSE", retries);
-  }
+  return success;
 }
 //------------------------------------------------------
 void handle_first_packet()

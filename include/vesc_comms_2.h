@@ -55,12 +55,10 @@ void try_get_values_from_vesc()
     else if (board_packet.moving)
     {
       send_to_event_queue(xEV_MOVING);
-      send_packet_to_controller(ReasonType::BOARD_MOVING);
     }
     else if (board_packet.moving == false)
     {
       send_to_event_queue(xEV_STOPPED);
-      send_packet_to_controller(ReasonType::BOARD_STOPPED);
     }
   }
 }
