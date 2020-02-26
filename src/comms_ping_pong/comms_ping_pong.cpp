@@ -40,13 +40,11 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
   uint8_t bs[sizeof(VescData)];
   memcpy(bs, &board_packet, sizeof(VescData));
 
-  uint8_t retries = nrf24.send_with_retries(/*to*/ COMMS_CONTROLLER, 0, bs, sizeof(VescData), 5);
-  if (retries > 0)
+  bool success = nrf24.send_packet(/*to*/ COMMS_CONTROLLER, 0, bs, sizeof(VescData));
+  if (!success)
   {
-    DEBUGVAL(retries);
+    DEBUGVAL("Couldn't reply", controller_packet.id);
   }
-
-  DEBUGVAL(from_id, controller_packet.id);
 }
 
 void setup()
