@@ -30,6 +30,7 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
     send_to_vesc(throttle, controller_packet.cruise_control);
 #endif
 
+    board_packet.id = controller_packet.id;
     bool success = send_packet_to_controller();
     if (false == success)
     {
@@ -42,19 +43,15 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
       DEBUGVAL(controller_packet.id, controller_packet.throttle);
     }
 #endif
-
-    if (controller_packet.id == FIRST_PACKET)
-    {
-      handle_first_packet();
-    }
-    // DEBUGVAL(from_id, controller_packet.id, controller_packet.throttle);
   }
   else if (type == PacketType::CONFIG)
   {
+    board_packet.id = controller_config.id;
     bool success = send_packet_to_controller();
     DEBUGVAL(controller_config.send_interval, success);
 
     handle_config_packet();
+    DEBUGVAL(since_last_controller_packet);
   }
 }
 //------------------------------------------------------
@@ -68,10 +65,9 @@ bool send_packet_to_controller()
   {
     DEBUGVAL(success);
   }
-#ifdef PRINT_SENDING
+#ifdef PRINT_SEND_TO_CONTROLLER
   DEBUGVAL("sending", board_packet.id);
 #endif
-  board_packet.id++;
 
   return success;
 }
