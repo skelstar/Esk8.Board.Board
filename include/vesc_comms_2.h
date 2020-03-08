@@ -40,7 +40,10 @@ void vesc_update()
   if (since_got_values_from_vesc > GET_FROM_VESC_INTERVAL)
   {
     since_got_values_from_vesc = 0;
+
+#ifdef SEND_TO_VESC
     try_get_values_from_vesc();
+#endif
   }
 }
 //-----------------------------------------------------------------------
