@@ -30,7 +30,7 @@ State state_light_stopped(
     NULL, NULL);
 //------------------------------------------------------------------
 
-Fsm light_fsm(&state_light_stopped);
+Fsm light_fsm(&state_light_wait_before_bargraph);
 
 void add_light_fsm_transistions()
 {
@@ -39,28 +39,24 @@ void add_light_fsm_transistions()
       &state_light_moving,
       &state_light_wait_before_bargraph,
       EV_LIGHT_STOPPED,
-      NULL
-  );
+      NULL);
   // waiting -> stopped (bargraph)
   light_fsm.add_timed_transition(
       &state_light_wait_before_bargraph,
       &state_light_stopped,
       3000,
-      NULL
-  );
+      NULL);
   // ... -> moving
   light_fsm.add_transition(
       &state_light_wait_before_bargraph,
       &state_light_moving,
       EV_LIGHT_MOVING,
-      NULL
-  );
+      NULL);
   light_fsm.add_transition(
       &state_light_stopped,
       &state_light_moving,
       EV_LIGHT_MOVING,
-      NULL
-  );
+      NULL);
 }
 //--------------------------------------------------
 void PRINT_STATE(const char *state_name)

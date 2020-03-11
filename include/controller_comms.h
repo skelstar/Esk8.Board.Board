@@ -1,13 +1,15 @@
 
 elapsedMillis since_requested;
 
-void handle_request_command();
 void handle_first_packet();
 void handle_config_packet();
 uint8_t manage_throttle(uint8_t controller_throttle);
 
 #define NUM_RETRIES 5
 #define FIRST_PACKET 0
+
+/* prototypes */
+bool send_packet_to_controller();
 
 //------------------------------------------------------
 void packet_available_cb(uint16_t from_id, uint8_t type)
@@ -28,63 +30,46 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
     send_to_vesc(throttle, controller_packet.cruise_control);
 #endif
 
+    board_packet.id = controller_packet.id;
+    bool success = send_packet_to_controller();
+    if (false == success)
+    {
+      DEBUGVAL(success);
+    }
+
 #ifdef PRINT_THROTTLE
     if (old_throttle != controller_packet.throttle)
     {
-      DEBUGVAL(controller_packet.throttle);
+      DEBUGVAL(controller_packet.id, controller_packet.throttle);
     }
 #endif
-
-    // COMMAND_REQUEST_UPDATE
-    if (controller_packet.command == COMMAND_REQUEST_UPDATE)
-    {
-      handle_request_command();
-    }
-    else if (controller_packet.id == FIRST_PACKET)
-    {
-      handle_first_packet();
-    }
   }
   else if (type == PacketType::CONFIG)
   {
-    handle_config_packet();
-  }
+    board_packet.id = controller_config.id;
+    bool success = send_packet_to_controller();
+    DEBUGVAL(controller_config.send_interval, success);
 
-  if (controller_config.send_interval >= 500)
-  {
-    DEBUGVAL(from_id, controller_packet.id, controller_packet.throttle);
+    handle_config_packet();
+    DEBUGVAL(since_last_controller_packet);
   }
 }
 //------------------------------------------------------
-uint8_t send_packet_to_controller(ReasonType reason)
+bool send_packet_to_controller()
 {
-  board_packet.reason = reason;
-
   uint8_t buff[sizeof(VescData)];
   memcpy(&buff, &board_packet, sizeof(VescData));
 
-  uint8_t retries = nrf24.send_with_retries(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(VescData), NUM_RETRIES);
-  if (retries > 0)
+  bool success = nrf24.send_packet(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(VescData));
+  if (false == success)
   {
-    DEBUGVAL(retries);
+    DEBUGVAL(success);
   }
-#ifdef PRINT_SENDING  
+#ifdef PRINT_SEND_TO_CONTROLLER
   DEBUGVAL("sending", board_packet.id);
 #endif
-  board_packet.id++;
 
-  return retries;
-}
-//------------------------------------------------------
-void handle_request_command()
-{
-  since_requested = 0;
-  controller_packet.command = 0;
-  uint8_t retries = send_packet_to_controller(ReasonType::REQUESTED);
-  if (retries > 0)
-  {
-    DEBUGVAL("RESPONSE", retries);
-  }
+  return success;
 }
 //------------------------------------------------------
 void handle_first_packet()
@@ -96,6 +81,7 @@ void handle_config_packet()
   uint8_t buff[sizeof(ControllerConfig)];
   nrf24.read_into(buff, sizeof(ControllerConfig));
   memcpy(&controller_config, &buff, sizeof(ControllerConfig));
+  DEBUGVAL("***config***", controller_config.send_interval);
 }
 //------------------------------------------------------
 bool controller_timed_out()
@@ -107,23 +93,7 @@ bool controller_timed_out()
   return since_last_controller_packet > controller_config.send_interval + 100;
 }
 //------------------------------------------------------
-/*
-if enabled
-  get smoothed throttle. If not accelerating then don't smooth
-else
-  return bare throttle
-*/
 uint8_t manage_throttle(uint8_t controller_throttle)
 {
-  #ifdef FEATURE_THROTTLE_SMOOTHING
-    // if not accelerating then removing smoothing
-    if (controller_throttle < smoothed_throttle.getLast())
-    {
-      smoothed_throttle.clear();
-    }
-    smoothed_throttle.add(controller_throttle);
-    return smoothed_throttle.get();
-#else
-    return controller_throttle;
-#endif
+  return controller_throttle;
 }
