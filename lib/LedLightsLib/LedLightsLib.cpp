@@ -1,12 +1,20 @@
 #include "Arduino.h"
 #include "LedLightsLib.h"
 
-void LedLightsLib::initialise(uint8_t pin, uint8_t numPixels)
+void LedLightsLib::initialise(uint8_t pin, uint8_t numPixels, uint8_t brightness)
 {
   _strip = new Adafruit_NeoPixel(numPixels, pin, NEO_GRBW + NEO_KHZ800);
   _strip->begin();
+  _brightness = brightness;
+  _strip->setBrightness(_brightness);
   _strip->clear();
   _strip->show();
+}
+
+void LedLightsLib::setBrightness(uint8_t brightness)
+{
+  _brightness = brightness;
+  _strip->setBrightness(_brightness);
 }
 
 void LedLightsLib::setAll(uint32_t colour)
@@ -26,7 +34,7 @@ void LedLightsLib::setAll(uint32_t colour)
 void LedLightsLib::setStatusIndicators(uint32_t vesc, uint32_t board, uint32_t controller)
 {
   _strip->clear();
-  
+
   int i = 3;
   setPixel(i++, controller, false);
   setPixel(i++, controller, false);
@@ -71,8 +79,8 @@ void LedLightsLib::showBatteryGraph(float percentage)
   for (uint8_t i = 0; i < _strip->numPixels(); i++)
   {
     uint32_t c = (i <= p)
-      ? COLOUR_GREEN
-      : COLOUR_OFF;
+                     ? COLOUR_GREEN
+                     : COLOUR_OFF;
     _strip->setPixelColor(i, c);
   }
   _strip->show();
