@@ -26,6 +26,6 @@ void button_init()
 //------------------------------------------------------------------
 void light_init()
 {
-  light.initialise(PIXEL_PIN, NUM_PIXELS * 2, 100);
-  light.setAll(light.COLOUR_BLUE);
+  light.initialise(PIXEL_PIN, NUM_PIXELS * 2, /*brightness*/ 100);
+  light.setAll(light.COLOUR_OFF);
 }
