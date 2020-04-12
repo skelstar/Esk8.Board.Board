@@ -19,12 +19,24 @@ void LedLightsLib::setBrightness(uint8_t brightness)
 
 void LedLightsLib::setAll(uint32_t colour)
 {
+  setAll(colour, 0, _strip->numPixels() - 1);
+}
+
+void LedLightsLib::setAll(uint32_t colour, uint8_t start, uint8_t end)
+{
   if (_strip == NULL)
   {
     Serial.printf("ERROR: light not initialised");
+    return;
   }
 
-  for (int i = 0; i < _strip->numPixels(); i++)
+  if (start > end || end > _strip->numPixels() - 1)
+  {
+    Serial.printf("ERROR: start and/or end pixels are out of range!\n");
+    return;
+  }
+
+  for (int i = start; i <= end; i++)
   {
     setPixel(i, colour, false);
   }
@@ -73,16 +85,23 @@ void LedLightsLib::showBatteryGraph(float percentage)
   {
     return;
   }
+  uint8_t oldBrightness = _strip->getBrightness();
+  _strip->setBrightness(100);
 
-  uint8_t p = percentage * _strip->numPixels();
+  // show bargraph in one ring
+  uint8_t numRingPixels = _strip->numPixels() / 2;
 
-  for (uint8_t i = 0; i < _strip->numPixels(); i++)
+  uint8_t p = percentage * numRingPixels; // because two rings
+
+  for (uint8_t i = 0; i < numRingPixels; i++)
   {
     uint32_t c = (i <= p)
                      ? COLOUR_GREEN
-                     : COLOUR_OFF;
+                     : COLOUR_DARK_RED;
     _strip->setPixelColor(i, c);
   }
   _strip->show();
+  // restore brightness
+  _strip->setBrightness(oldBrightness);
   return;
 }

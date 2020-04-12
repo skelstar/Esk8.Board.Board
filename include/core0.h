@@ -12,6 +12,7 @@ void PRINT_STATE(const char *state_name);
 State state_light_moving(
     [] {
       PRINT_STATE("state_light_moving ---------------------- \n");
+      light.setBrightness(HEADLIGHT_BRIGHTNESS);
       light.setAll(light.COLOUR_WHITE);
     },
     NULL, NULL);
@@ -25,6 +26,7 @@ State state_light_wait_before_bargraph(
 State state_light_stopped(
     [] {
       PRINT_STATE("state_light_stopped ---------------------- \n");
+      light.setAll(light.COLOUR_OFF);
       light.showBatteryGraph(getBatteryPercentage(board_packet.batteryVoltage) / 100.0);
     },
     NULL, NULL);

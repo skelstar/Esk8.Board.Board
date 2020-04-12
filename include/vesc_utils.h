@@ -32,7 +32,9 @@ bool get_vesc_values()
     board_packet.moving = rpm_raw > RPM_AT_MOVING;
 
     board_packet.ampHours = vesc.get_amphours_discharged(vesc_packet) - initial_ampHours;
+    board_packet.motorCurrent = vesc.get_motor_current(vesc_packet);
     board_packet.odometer = get_distance_in_meters(vesc.get_tachometer(vesc_packet)) - initial_odometer;
+    board_packet.motorCurrent = vesc.get_motor_current(vesc_packet);
   }
   else
   {
