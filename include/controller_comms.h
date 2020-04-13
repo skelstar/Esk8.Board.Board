@@ -5,11 +5,18 @@ void handle_first_packet();
 void handle_config_packet();
 uint8_t manage_throttle(uint8_t controller_throttle);
 
-#define NUM_RETRIES 5
-#define FIRST_PACKET 0
+enum CommsStateEvent
+{
+  EV_VESC_SUCCESS,
+  EV_VESC_FAILED,
+  EV_CTRLR_PKT,
+  EV_CTRLR_TIMEOUT,
+};
 
 /* prototypes */
 bool send_packet_to_controller();
+void sendCommsStateEvent(CommsStateEvent ev);
+void printState(char *stateName);
 
 //------------------------------------------------------
 void packet_available_cb(uint16_t from_id, uint8_t type)
@@ -31,6 +38,7 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
 #endif
 
     board_packet.id = controller_packet.id;
+    board_packet.reason = ReasonType::RESPONSE;
     bool success = send_packet_to_controller();
     if (false == success)
     {
@@ -47,12 +55,15 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
   else if (type == PacketType::CONFIG)
   {
     board_packet.id = controller_config.id;
+    board_packet.reason = ReasonType::RESPONSE;
     bool success = send_packet_to_controller();
     DEBUGVAL(controller_config.send_interval, success);
 
     handle_config_packet();
     DEBUGVAL(since_last_controller_packet);
   }
+
+  sendCommsStateEvent(EV_CTRLR_PKT);
 }
 //------------------------------------------------------
 bool send_packet_to_controller()
@@ -96,4 +107,103 @@ bool controller_timed_out()
 uint8_t manage_throttle(uint8_t controller_throttle)
 {
   return controller_throttle;
+}
+
+//------------------------------------------------------
+
+#ifndef FSM_H
+#include <Fsm.h>
+#endif
+
+State state_comms_offline([] {
+  printState("state_comms_offline");
+},
+                          NULL, NULL);
+
+State state_ctrlr_online([] {
+  printState("state_ctrlr_online");
+},
+                         NULL, NULL);
+
+State state_vesc_online([] {
+  printState("state_vesc_online");
+},
+                        NULL, NULL);
+
+State state_ctrlr_vesc_online([] {
+  printState("state_ctrlr_vesc_online");
+},
+                              NULL, NULL);
+
+void reportOffline()
+{
+  printState("timed transition going offline");
+}
+
+Fsm commsFsm(&state_comms_offline);
+
+void addCommsFsmTransitions()
+{
+  // EV_CTRLR_PKT
+  commsFsm.add_transition(&state_comms_offline, &state_ctrlr_online, 2, NULL);
+  commsFsm.add_transition(&state_vesc_online, &state_ctrlr_vesc_online, 2, NULL);
+  // EV_VESC_SUCCESS
+  commsFsm.add_transition(&state_comms_offline, &state_vesc_online, EV_VESC_SUCCESS, NULL);
+  commsFsm.add_transition(&state_ctrlr_online, &state_ctrlr_vesc_online, EV_VESC_SUCCESS, NULL);
+  // EV_CTRLR_TIMEOUT
+  commsFsm.add_transition(&state_ctrlr_vesc_online, &state_vesc_online, EV_CTRLR_TIMEOUT, NULL);
+  commsFsm.add_transition(&state_ctrlr_online, &state_comms_offline, EV_CTRLR_TIMEOUT, NULL);
+  // EV_VESC_FAILED
+  commsFsm.add_transition(&state_ctrlr_vesc_online, &state_ctrlr_online, EV_VESC_FAILED, NULL);
+  commsFsm.add_transition(&state_vesc_online, &state_comms_offline, EV_VESC_FAILED, NULL);
+}
+
+char *commsEventToString(CommsStateEvent ev)
+{
+  switch (ev)
+  {
+  case EV_VESC_SUCCESS:
+    return "EV_VESC_SUCCESS";
+  case EV_VESC_FAILED:
+    return "EV_VESC_TIMEOUT";
+  case EV_CTRLR_PKT:
+    return "EV_CTRLR_PKT";
+  case EV_CTRLR_TIMEOUT:
+    return "EV_CTRLR_TIMEOUT";
+  default:
+    return "Unhandled ev!";
+  }
+}
+
+void printState(char *stateName)
+{
+#ifdef PRINT_COMMS_STATE
+  Serial.printf("COMMS_STATE: %s\n", stateName);
+#endif
+}
+
+void sendCommsStateEvent(CommsStateEvent ev)
+{
+  commsFsm.trigger(ev);
+#ifdef PRINT_COMMS_STATE_EVENT
+  switch (ev)
+  {
+  case EV_CTRLR_PKT:
+#ifdef SUPPRESS_EV_CTRLR_PKT
+    return;
+#endif
+  case EV_VESC_SUCCESS:
+#ifdef SUPPRESS_EV_VESC_SUCCESS
+    return;
+#endif
+  case EV_VESC_FAILED:
+  case EV_CTRLR_TIMEOUT:
+    break;
+  default:
+    DEBUG("Unhandled ev");
+    break;
+  }
+
+  Serial.printf("-> COMMS_STATE EVENT -> %s\n", commsEventToString(ev));
+#endif
 }

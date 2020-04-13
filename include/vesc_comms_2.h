@@ -63,6 +63,15 @@ void try_get_values_from_vesc()
     {
       send_to_event_queue(xEV_STOPPED);
     }
+    sendCommsStateEvent(EV_VESC_SUCCESS);
+
+#ifdef PRINT_VESC_REPORT
+    DEBUGVAL(board_packet.id, board_packet.batteryVoltage);
+#endif
+  }
+  else
+  {
+    sendCommsStateEvent(EV_VESC_FAILED);
   }
 }
 //-----------------------------------------------------------------------------------

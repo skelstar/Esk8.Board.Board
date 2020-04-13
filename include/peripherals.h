@@ -4,7 +4,7 @@
 #include <Button2.h>
 
 #define BUTTON_0 0
-#define PIXEL_PIN 13  //4
+#define PIXEL_PIN 27  //4
 #define NUM_PIXELS 13 // per ring
 
 Button2 button0(BUTTON_0);

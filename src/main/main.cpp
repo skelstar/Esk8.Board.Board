@@ -1,4 +1,6 @@
+#ifdef DEBUG_SERIAL
 #define DEBUG_OUT Serial
+#endif
 #define PRINTSTREAM_FALLBACK
 #include "Debug.hpp"
 
@@ -12,7 +14,7 @@
 #define SOFT_SPI_MOSI_PIN 13 // Blue
 #define SOFT_SPI_MISO_PIN 12 // Orange
 #define SOFT_SPI_SCK_PIN 15  // Yellow
-#define SPI_CE 17
+#define SPI_CE 5             // 17
 #define SPI_CS 2
 #else
 #define SPI_CE 33
@@ -78,7 +80,7 @@ void send_to_vesc(uint8_t throttle, bool cruise_control);
 #include <peripherals.h>
 #include <utils.h>
 
-#include <core0.h>
+#include <lightsTask0.h>
 
 //-------------------------------------------------------
 void setup()
@@ -93,9 +95,15 @@ void setup()
   xTaskCreatePinnedToCore(lightTask_0, "lightTask_0", 10000, NULL, /*priority*/ 3, NULL, 0);
 
   xLightsEventQueue = xQueueCreate(1, sizeof(xEvent));
+
+  addCommsFsmTransitions();
+
+  board_packet.id = 0;
+  board_packet.reason = ReasonType::FIRST_PACKET;
+  send_packet_to_controller();
 }
 
-elapsedMillis since_sent_to_board, since_smoothed_report;
+elapsedMillis since_smoothed_report, since;
 
 void loop()
 {
@@ -105,10 +113,12 @@ void loop()
 
   vesc_update();
 
+  commsFsm.run_machine();
+
   if (controller_timed_out() && controller_connected)
   {
     controller_connected = false;
-    DEBUG("controller_timed_out!!!");
+    sendCommsStateEvent(EV_CTRLR_TIMEOUT);
   }
 
   vTaskDelay(10);

@@ -6,11 +6,21 @@
 #include <VescData.h>
 #include <elapsedMillis.h>
 
-#include <RF24Network.h>
-#include <NRF24L01Lib.h>
+#ifdef USE_SPI2
+#define SOFTSPI 1
+#define SOFT_SPI_MOSI_PIN 13 // Blue
+#define SOFT_SPI_MISO_PIN 12 // Orange
+#define SOFT_SPI_SCK_PIN 15  // Yellow
 
+#define SPI_CE 5 // 17
+#define SPI_CS 2
+#else
 #define SPI_CE 33
 #define SPI_CS 26
+#endif
+
+#include <RF24Network.h>
+#include <NRF24L01Lib.h>
 
 #define COMMS_BOARD 00
 #define COMMS_CONTROLLER 01
@@ -35,6 +45,8 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
   uint8_t buff[sizeof(ControllerData)];
   nrf24.read_into(buff, sizeof(ControllerData));
   memcpy(&controller_packet, &buff, sizeof(ControllerData));
+
+  DEBUGVAL(from_id, controller_packet.id);
 
   board_packet.id = controller_packet.id;
   uint8_t bs[sizeof(VescData)];
