@@ -33,7 +33,7 @@
 
 VescData board_packet;
 
-ControllerData controller_packet;
+ControllerData controller_packet, prevControllerPacket;
 ControllerConfig controller_config;
 
 NRF24L01Lib nrf24;
@@ -44,29 +44,25 @@ RF24Network network(radio);
 #define NUM_RETRIES 5
 
 elapsedMillis since_last_controller_packet;
-bool controller_connected = true;
+bool controller_connected = false;
 
 Smoothed<int> smoothed_throttle;
 
-class BoardState
-{
-public:
-  bool vesc_data_ready;
-} state;
+//------------------------------------------------------------------
 
 #include <LedLightsLib.h>
 LedLightsLib light;
 
 //------------------------------------------------------------------
-enum xEvent
+enum LightsEvent
 {
-  xEV_MOVING,
-  xEV_STOPPED,
+  EV_MOVING,
+  EV_STOPPED,
 };
 
 xQueueHandle xLightsEventQueue;
 
-void send_to_event_queue(xEvent e)
+void sendToLightsEventQueue(LightsEvent e)
 {
   xQueueSendToFront(xLightsEventQueue, &e, pdMS_TO_TICKS(10));
 }
@@ -94,20 +90,24 @@ void setup()
 
   xTaskCreatePinnedToCore(lightTask_0, "lightTask_0", 10000, NULL, /*priority*/ 3, NULL, 0);
 
-  xLightsEventQueue = xQueueCreate(1, sizeof(xEvent));
+  xLightsEventQueue = xQueueCreate(1, sizeof(LightsEvent));
 
   addCommsFsmTransitions();
 
+  // send startup packet
   board_packet.id = 0;
   board_packet.reason = ReasonType::FIRST_PACKET;
-  send_packet_to_controller();
+  sendPacketToController();
 }
 
 elapsedMillis since_smoothed_report, since;
 
 void loop()
 {
-  nrf24.update();
+  if (false == button0.isPressed())
+  {
+    nrf24.update();
+  }
 
   button0.loop();
 
@@ -115,9 +115,8 @@ void loop()
 
   commsFsm.run_machine();
 
-  if (controller_timed_out() && controller_connected)
+  if (controller_timed_out())
   {
-    controller_connected = false;
     sendCommsStateEvent(EV_CTRLR_TIMEOUT);
   }
 

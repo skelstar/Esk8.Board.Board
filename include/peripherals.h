@@ -9,15 +9,17 @@
 
 Button2 button0(BUTTON_0);
 
+bool button0held = false;
+
 void button_init()
 {
   button0.setPressedHandler([](Button2 &btn) {
-    board_packet.moving = true;
-    board_packet.motorCurrent += 0.1;
+    // board_packet.moving = true;
+    // board_packet.motorCurrent += 0.1;
   });
   button0.setReleasedHandler([](Button2 &btn) {
-    board_packet.odometer = board_packet.odometer + 0.1;
-    board_packet.moving = false;
+    // board_packet.odometer = board_packet.odometer + 0.1;
+    // board_packet.moving = false;
   });
   button0.setLongClickHandler([](Button2 &btn) {
   });

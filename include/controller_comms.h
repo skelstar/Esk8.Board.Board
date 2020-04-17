@@ -14,59 +14,69 @@ enum CommsStateEvent
 };
 
 /* prototypes */
-bool send_packet_to_controller();
+bool sendPacketToController();
 void sendCommsStateEvent(CommsStateEvent ev);
 void printState(char *stateName);
+void processControlPacket();
+void processConfigPacket();
 
 //------------------------------------------------------
 void packet_available_cb(uint16_t from_id, uint8_t type)
 {
   since_last_controller_packet = 0;
-  controller_connected = true;
-  uint8_t old_throttle = controller_packet.throttle;
 
   if (type == PacketType::CONTROL)
   {
-    uint8_t buff[sizeof(ControllerData)];
-    nrf24.read_into(buff, sizeof(ControllerData));
-    memcpy(&controller_packet, &buff, sizeof(ControllerData));
-
-    uint8_t throttle = manage_throttle(controller_packet.throttle);
-
-#ifdef SEND_TO_VESC
-    send_to_vesc(throttle, controller_packet.cruise_control);
-#endif
-
-    board_packet.id = controller_packet.id;
-    board_packet.reason = ReasonType::RESPONSE;
-    bool success = send_packet_to_controller();
-    if (false == success)
-    {
-      DEBUGVAL(success);
-    }
-
-#ifdef PRINT_THROTTLE
-    if (old_throttle != controller_packet.throttle)
-    {
-      DEBUGVAL(controller_packet.id, controller_packet.throttle);
-    }
-#endif
+    processControlPacket();
   }
   else if (type == PacketType::CONFIG)
   {
-    board_packet.id = controller_config.id;
-    board_packet.reason = ReasonType::RESPONSE;
-    bool success = send_packet_to_controller();
-    DEBUGVAL(controller_config.send_interval, success);
-
-    handle_config_packet();
-    DEBUGVAL(since_last_controller_packet);
+    processConfigPacket();
   }
 
   sendCommsStateEvent(EV_CTRLR_PKT);
 }
+
 //------------------------------------------------------
-bool send_packet_to_controller()
+void processControlPacket()
+{
+  prevControllerPacket = controller_packet;
+
+  uint8_t buff[sizeof(ControllerData)];
+  nrf24.read_into(buff, sizeof(ControllerData));
+  memcpy(&controller_packet, &buff, sizeof(ControllerData));
+
+#ifdef SEND_TO_VESC
+  send_to_vesc(controller_packet.throttle, /*cruise*/ false);
+#endif
+
+  board_packet.id = controller_packet.id;
+  board_packet.reason = ReasonType::RESPONSE;
+
+  if (false == sendPacketToController())
+  {
+  }
+
+#ifdef PRINT_THROTTLE
+  if (prevControllerPacket.throttle != controller_packet.throttle)
+  {
+    DEBUGVAL(controller_packet.id, controller_packet.throttle);
+  }
+#endif
+}
+
+//------------------------------------------------------
+void processConfigPacket()
+{
+  board_packet.id = controller_config.id;
+  board_packet.reason = ReasonType::RESPONSE;
+  bool success = sendPacketToController();
+
+  handle_config_packet();
+}
+
+//------------------------------------------------------
+bool sendPacketToController()
 {
   uint8_t buff[sizeof(VescData)];
   memcpy(&buff, &board_packet, sizeof(VescData));
@@ -104,12 +114,6 @@ bool controller_timed_out()
   return since_last_controller_packet > controller_config.send_interval + 100;
 }
 //------------------------------------------------------
-uint8_t manage_throttle(uint8_t controller_throttle)
-{
-  return controller_throttle;
-}
-
-//------------------------------------------------------
 
 #ifndef FSM_H
 #include <Fsm.h>
@@ -117,11 +121,13 @@ uint8_t manage_throttle(uint8_t controller_throttle)
 
 State state_comms_offline([] {
   printState("state_comms_offline");
+  controller_connected = false;
 },
                           NULL, NULL);
 
 State state_ctrlr_online([] {
   printState("state_ctrlr_online");
+  controller_connected = true;
 },
                          NULL, NULL);
 
@@ -198,6 +204,9 @@ void sendCommsStateEvent(CommsStateEvent ev)
 #endif
   case EV_VESC_FAILED:
   case EV_CTRLR_TIMEOUT:
+#ifdef SUPPRESS_EV_CTRLR_TIMEOUT
+    return;
+#endif
     break;
   default:
     DEBUG("Unhandled ev");

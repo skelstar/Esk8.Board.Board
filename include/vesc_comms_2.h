@@ -57,11 +57,11 @@ void try_get_values_from_vesc()
     }
     else if (board_packet.moving)
     {
-      send_to_event_queue(xEV_MOVING);
+      sendToLightsEventQueue(EV_MOVING);
     }
     else if (board_packet.moving == false)
     {
-      send_to_event_queue(xEV_STOPPED);
+      sendToLightsEventQueue(EV_STOPPED);
     }
     sendCommsStateEvent(EV_VESC_SUCCESS);
 
