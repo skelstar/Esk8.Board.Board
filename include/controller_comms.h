@@ -158,13 +158,10 @@ State state_ctrlr_vesc_online([] {
   printCommsState("state_ctrlr_vesc_online", commsEventToString(lastCommsEvent));
 });
 
-void reportOffline()
-{
-  printCommsState("timed transition going offline");
-}
-
+//------------------------------------------------------
 Fsm commsFsm(&state_comms_offline);
 
+//------------------------------------------------------
 void addCommsFsmTransitions()
 {
   // state_offline
@@ -182,6 +179,7 @@ void addCommsFsmTransitions()
   commsFsm.add_transition(&state_ctrlr_vesc_online, &state_ctrlr_online, EV_VESC_FAILED, NULL);
 }
 
+//------------------------------------------------------
 char *commsEventToString(CommsStateEvent ev)
 {
   switch (ev)
@@ -200,6 +198,7 @@ char *commsEventToString(CommsStateEvent ev)
     return "Unhandled ev!";
   }
 }
+//------------------------------------------------------
 
 void printCommsState(const char *stateName, const char *event)
 {
@@ -207,6 +206,7 @@ void printCommsState(const char *stateName, const char *event)
   Serial.printf("COMMS_STATE: %s --> %s\n", stateName, event);
 #endif
 }
+//------------------------------------------------------
 
 void printCommsState(const char *stateName)
 {
@@ -214,6 +214,7 @@ void printCommsState(const char *stateName)
   Serial.printf("COMMS_STATE: %s\n", stateName);
 #endif
 }
+//------------------------------------------------------
 
 void sendCommsStateEvent(CommsStateEvent ev)
 {
@@ -245,3 +246,4 @@ void sendCommsStateEvent(CommsStateEvent ev)
   Serial.printf("-> COMMS_STATE EVENT -> %s\n", commsEventToString(ev));
 #endif
 }
+//------------------------------------------------------
