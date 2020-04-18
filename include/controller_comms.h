@@ -7,6 +7,7 @@ uint8_t manage_throttle(uint8_t controller_throttle);
 
 enum CommsStateEvent
 {
+  EV_NONE,
   EV_VESC_SUCCESS,
   EV_VESC_FAILED,
   EV_CTRLR_PKT,
@@ -16,7 +17,9 @@ enum CommsStateEvent
 /* prototypes */
 bool sendPacketToController();
 void sendCommsStateEvent(CommsStateEvent ev);
-void printState(char *stateName);
+char *commsEventToString(CommsStateEvent ev);
+void printCommsState(const char *stateName, const char *event);
+void printCommsState(char *stateName);
 void processControlPacket();
 void processConfigPacket();
 
@@ -119,49 +122,48 @@ bool controller_timed_out()
 #include <Fsm.h>
 #endif
 
+CommsStateEvent lastCommsEvent = EV_NONE;
+
 State state_comms_offline([] {
-  printState("state_comms_offline");
+  printCommsState("state_comms_offline", commsEventToString(lastCommsEvent));
   controller_connected = false;
-},
-                          NULL, NULL);
+});
 
 State state_ctrlr_online([] {
-  printState("state_ctrlr_online");
+  printCommsState("state_ctrlr_online", commsEventToString(lastCommsEvent));
   controller_connected = true;
-},
-                         NULL, NULL);
+});
 
 State state_vesc_online([] {
-  printState("state_vesc_online");
-},
-                        NULL, NULL);
+  printCommsState("state_vesc_online", commsEventToString(lastCommsEvent));
+});
 
 State state_ctrlr_vesc_online([] {
-  printState("state_ctrlr_vesc_online");
-},
-                              NULL, NULL);
+  printCommsState("state_ctrlr_vesc_online", commsEventToString(lastCommsEvent));
+});
 
 void reportOffline()
 {
-  printState("timed transition going offline");
+  printCommsState("timed transition going offline");
 }
 
 Fsm commsFsm(&state_comms_offline);
 
 void addCommsFsmTransitions()
 {
-  // EV_CTRLR_PKT
-  commsFsm.add_transition(&state_comms_offline, &state_ctrlr_online, 2, NULL);
-  commsFsm.add_transition(&state_vesc_online, &state_ctrlr_vesc_online, 2, NULL);
-  // EV_VESC_SUCCESS
+  // state_offline
+  commsFsm.add_transition(&state_comms_offline, &state_ctrlr_online, EV_CTRLR_PKT, NULL);
   commsFsm.add_transition(&state_comms_offline, &state_vesc_online, EV_VESC_SUCCESS, NULL);
-  commsFsm.add_transition(&state_ctrlr_online, &state_ctrlr_vesc_online, EV_VESC_SUCCESS, NULL);
-  // EV_CTRLR_TIMEOUT
-  commsFsm.add_transition(&state_ctrlr_vesc_online, &state_vesc_online, EV_CTRLR_TIMEOUT, NULL);
+
+  // state_ctrlr_online
   commsFsm.add_transition(&state_ctrlr_online, &state_comms_offline, EV_CTRLR_TIMEOUT, NULL);
-  // EV_VESC_FAILED
-  commsFsm.add_transition(&state_ctrlr_vesc_online, &state_ctrlr_online, EV_VESC_FAILED, NULL);
+  commsFsm.add_transition(&state_ctrlr_online, &state_ctrlr_vesc_online, EV_VESC_SUCCESS, NULL);
+  // state_vesc_online
+  commsFsm.add_transition(&state_vesc_online, &state_ctrlr_vesc_online, EV_CTRLR_PKT, NULL);
   commsFsm.add_transition(&state_vesc_online, &state_comms_offline, EV_VESC_FAILED, NULL);
+  // state_ctrlr_vesc_online
+  commsFsm.add_transition(&state_ctrlr_vesc_online, &state_vesc_online, EV_CTRLR_TIMEOUT, NULL);
+  commsFsm.add_transition(&state_ctrlr_vesc_online, &state_ctrlr_online, EV_VESC_FAILED, NULL);
 }
 
 char *commsEventToString(CommsStateEvent ev)
@@ -171,17 +173,26 @@ char *commsEventToString(CommsStateEvent ev)
   case EV_VESC_SUCCESS:
     return "EV_VESC_SUCCESS";
   case EV_VESC_FAILED:
-    return "EV_VESC_TIMEOUT";
+    return "EV_VESC_FAILED";
   case EV_CTRLR_PKT:
     return "EV_CTRLR_PKT";
   case EV_CTRLR_TIMEOUT:
     return "EV_CTRLR_TIMEOUT";
+  case EV_NONE:
+    return "EV_NONE";
   default:
     return "Unhandled ev!";
   }
 }
 
-void printState(char *stateName)
+void printCommsState(const char *stateName, const char *event)
+{
+#ifdef PRINT_COMMS_STATE
+  Serial.printf("COMMS_STATE: %s --> %s\n", stateName, event);
+#endif
+}
+
+void printCommsState(const char *stateName)
 {
 #ifdef PRINT_COMMS_STATE
   Serial.printf("COMMS_STATE: %s\n", stateName);
@@ -190,7 +201,9 @@ void printState(char *stateName)
 
 void sendCommsStateEvent(CommsStateEvent ev)
 {
+  lastCommsEvent = ev;
   commsFsm.trigger(ev);
+
 #ifdef PRINT_COMMS_STATE_EVENT
   switch (ev)
   {
