@@ -71,9 +71,9 @@ void sendToLightsEventQueue(LightsEvent e)
 
 void send_to_vesc(uint8_t throttle, bool cruise_control);
 
+#include <peripherals.h>
 #include <controller_comms.h>
 #include <vesc_comms_2.h>
-#include <peripherals.h>
 #include <utils.h>
 
 #include <lightsTask0.h>
@@ -104,10 +104,7 @@ elapsedMillis since_smoothed_report, since;
 
 void loop()
 {
-  if (false == button0.isPressed())
-  {
-    nrf24.update();
-  }
+  nrf24.update();
 
   button0.loop();
 

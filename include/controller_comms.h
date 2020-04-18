@@ -22,6 +22,7 @@ void printCommsState(const char *stateName, const char *event);
 void printCommsState(char *stateName);
 void processControlPacket();
 void processConfigPacket();
+uint16_t getMissedPacketCount();
 
 //------------------------------------------------------
 void packet_available_cb(uint16_t from_id, uint8_t type)
@@ -43,6 +44,7 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
 //------------------------------------------------------
 void processControlPacket()
 {
+  // backup old controller_packet
   prevControllerPacket = controller_packet;
 
   uint8_t buff[sizeof(ControllerData)];
@@ -56,8 +58,17 @@ void processControlPacket()
   board_packet.id = controller_packet.id;
   board_packet.reason = ReasonType::RESPONSE;
 
-  if (false == sendPacketToController())
+  uint16_t missedPackets = getMissedPacketCount();
+  if (missedPackets > 0)
   {
+    DEBUGVAL(missedPackets);
+  }
+  board_packet.missedPackets += missedPackets;
+
+  if (false == sendPacketToController() || button0.isPressed())
+  {
+    board_packet.unsuccessfulSends++;
+    DEBUGVAL(board_packet.unsuccessfulSends);
   }
 
 #ifdef PRINT_THROTTLE
@@ -75,6 +86,9 @@ void processConfigPacket()
   board_packet.reason = ReasonType::RESPONSE;
   bool success = sendPacketToController();
 
+  board_packet.missedPackets = 0;
+  board_packet.unsuccessfulSends = 0;
+
   handle_config_packet();
 }
 
@@ -84,16 +98,18 @@ bool sendPacketToController()
   uint8_t buff[sizeof(VescData)];
   memcpy(&buff, &board_packet, sizeof(VescData));
 
-  bool success = nrf24.send_packet(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(VescData));
-  if (false == success)
-  {
-    DEBUGVAL(success);
-  }
 #ifdef PRINT_SEND_TO_CONTROLLER
   DEBUGVAL("sending", board_packet.id);
 #endif
+  return nrf24.send_packet(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(VescData));
+}
 
-  return success;
+//------------------------------------------------------
+uint16_t getMissedPacketCount()
+{
+  return controller_packet.id > 0
+             ? (controller_packet.id - prevControllerPacket.id) - 1
+             : 0;
 }
 //------------------------------------------------------
 void handle_first_packet()
