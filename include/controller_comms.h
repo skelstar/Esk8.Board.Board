@@ -65,7 +65,11 @@ void processControlPacket()
   }
   board_packet.missedPackets += missedPackets;
 
+#ifdef BUTTON_MISS_PACKETS
   if (false == sendPacketToController() || button0.isPressed())
+#else
+  if (false == sendPacketToController())
+#endif
   {
     board_packet.unsuccessfulSends++;
     DEBUGVAL(board_packet.unsuccessfulSends);
