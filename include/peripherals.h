@@ -4,8 +4,8 @@
 #include <Button2.h>
 
 #define BUTTON_0 0
-#define PIXEL_PIN 27  //4
-#define NUM_PIXELS 13 // per ring
+#define PIXEL_PIN 27            //4
+#define NUM_PIXELS 12 + 10 + 12 // 12 per ring, 10 in the centre
 
 Button2 button0(BUTTON_0);
 
