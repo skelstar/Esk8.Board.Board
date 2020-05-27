@@ -2,5 +2,15 @@
   "workbench.colorCustomizations": {
     "tab.activeBackground": "#1f0452",
     "editor.lineHighlightBackground": "#333232"
+  },
+  "files.associations": {
+    "*.tcc": "cpp",
+    "functional": "cpp",
+    "random": "cpp",
+    "fstream": "cpp",
+    "istream": "cpp",
+    "ostream": "cpp",
+    "sstream": "cpp",
+    "streambuf": "cpp"
   }
 }

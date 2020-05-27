@@ -1,5 +1,4 @@
 
-
 enum LightFsmEvent
 {
   EV_LIGHT_MOVING,
@@ -13,7 +12,10 @@ State state_light_moving(
     [] {
       PRINT_STATE("state_light_moving ---------------------- \n");
       light.setBrightness(HEADLIGHT_BRIGHTNESS);
-      light.setAll(light.COLOUR_WHITE);
+
+      light.setAll(light.COLOUR_HEADLIGHT_WHITE, 0, 12 - 1);
+      light.setAll(light.COLOUR_OFF, 12, 12 + 10 - 1);
+      light.setAll(light.COLOUR_HEADLIGHT_WHITE, 12 + 10, 12 + 10 + 12);
     },
     NULL, NULL);
 //------------------------------------------------------------------
@@ -26,8 +28,14 @@ State state_light_wait_before_bargraph(
 State state_light_stopped(
     [] {
       PRINT_STATE("state_light_stopped ---------------------- \n");
+#ifdef LIGHTS_BAR_GRAPH_MODE
+      light.setBrightness(10);
       light.setAll(light.COLOUR_OFF);
-      light.showBatteryGraph(getBatteryPercentage(board_packet.batteryVoltage) / 100.0);
+      light.showBatteryGraph(getBatteryPercentage(board_packet.batteryVoltage) / 100.0, 12, 12 + 10);
+#else
+      light.setBrightness(HEADLIGHT_BRIGHTNESS);
+      light.setAll(light.COLOUR_WHITE);
+#endif
     },
     NULL, NULL);
 //------------------------------------------------------------------
@@ -86,16 +94,16 @@ void lightTask_0(void *pvParameters)
 
   while (true)
   {
-    xEvent e;
+    LightsEvent e;
     bool event_ready = xQueueReceive(xLightsEventQueue, &e, pdMS_TO_TICKS(0)) == pdPASS;
     if (event_ready)
     {
       switch (e)
       {
-      case xEvent::xEV_MOVING:
+      case LightsEvent::EV_MOVING:
         light_fsm_event(EV_LIGHT_MOVING);
         break;
-      case xEvent::xEV_STOPPED:
+      case LightsEvent::EV_STOPPED:
         light_fsm_event(EV_LIGHT_STOPPED);
         break;
       }

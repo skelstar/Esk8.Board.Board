@@ -1,4 +1,6 @@
+#ifdef DEBUG_SERIAL
 #define DEBUG_OUT Serial
+#endif
 #define PRINTSTREAM_FALLBACK
 #include "Debug.hpp"
 
@@ -7,13 +9,22 @@
 #include <elapsedMillis.h>
 #include <Smoothed.h>
 
+#ifdef USE_SPI2
+#define SOFTSPI 1
+#define SOFT_SPI_MOSI_PIN 13 // Blue
+#define SOFT_SPI_MISO_PIN 12 // Orange
+#define SOFT_SPI_SCK_PIN 15  // Yellow
+#define SPI_CE 5             // 17
+#define SPI_CS 2
+#else
+#define SPI_CE 33
+#define SPI_CS 26
+#endif
+
 #include <RF24Network.h>
 #include <NRF24L01Lib.h>
 
 #include <Fsm.h>
-
-#define SPI_CE 33
-#define SPI_CS 26
 
 #define COMMS_BOARD 00
 #define COMMS_CONTROLLER 01
@@ -22,7 +33,7 @@
 
 VescData board_packet;
 
-ControllerData controller_packet;
+ControllerData controller_packet, prevControllerPacket;
 ControllerConfig controller_config;
 
 NRF24L01Lib nrf24;
@@ -33,29 +44,25 @@ RF24Network network(radio);
 #define NUM_RETRIES 5
 
 elapsedMillis since_last_controller_packet;
-bool controller_connected = true;
+bool controller_connected = false;
 
 Smoothed<int> smoothed_throttle;
 
-class BoardState
-{
-public:
-  bool vesc_data_ready;
-} state;
+//------------------------------------------------------------------
 
 #include <LedLightsLib.h>
 LedLightsLib light;
 
 //------------------------------------------------------------------
-enum xEvent
+enum LightsEvent
 {
-  xEV_MOVING,
-  xEV_STOPPED,
+  EV_MOVING,
+  EV_STOPPED,
 };
 
 xQueueHandle xLightsEventQueue;
 
-void send_to_event_queue(xEvent e)
+void sendToLightsEventQueue(LightsEvent e)
 {
   xQueueSendToFront(xLightsEventQueue, &e, pdMS_TO_TICKS(10));
 }
@@ -64,12 +71,12 @@ void send_to_event_queue(xEvent e)
 
 void send_to_vesc(uint8_t throttle, bool cruise_control);
 
+#include <peripherals.h>
 #include <controller_comms.h>
 #include <vesc_comms_2.h>
-#include <peripherals.h>
 #include <utils.h>
 
-#include <core0.h>
+#include <lightsTask0.h>
 
 //-------------------------------------------------------
 void setup()
@@ -83,10 +90,17 @@ void setup()
 
   xTaskCreatePinnedToCore(lightTask_0, "lightTask_0", 10000, NULL, /*priority*/ 3, NULL, 0);
 
-  xLightsEventQueue = xQueueCreate(1, sizeof(xEvent));
+  xLightsEventQueue = xQueueCreate(1, sizeof(LightsEvent));
+
+  addCommsFsmTransitions();
+
+  // send startup packet
+  board_packet.id = 0;
+  board_packet.reason = ReasonType::FIRST_PACKET;
+  sendPacketToController();
 }
 
-elapsedMillis since_sent_to_board, since_smoothed_report;
+elapsedMillis since_smoothed_report, since;
 
 void loop()
 {
@@ -96,10 +110,11 @@ void loop()
 
   vesc_update();
 
-  if (controller_timed_out() && controller_connected)
+  commsFsm.run_machine();
+
+  if (controller_timed_out())
   {
-    controller_connected = false;
-    DEBUG("controller_timed_out!!!");
+    sendCommsStateEvent(EV_CTRLR_TIMEOUT);
   }
 
   vTaskDelay(10);

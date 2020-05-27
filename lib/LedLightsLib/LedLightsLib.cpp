@@ -79,7 +79,7 @@ uint32_t LedLightsLib::getColour(uint8_t r, uint8_t g, uint8_t b, uint8_t w)
   return _strip->Color(r, g, b, w);
 }
 
-void LedLightsLib::showBatteryGraph(float percentage)
+void LedLightsLib::showBatteryGraph(float percentage, uint8_t start, uint8_t end)
 {
   if (percentage < 0 || percentage > 1.0)
   {
@@ -89,16 +89,16 @@ void LedLightsLib::showBatteryGraph(float percentage)
   _strip->setBrightness(100);
 
   // show bargraph in one ring
-  uint8_t numRingPixels = _strip->numPixels() / 2;
+  uint8_t numRingPixels = end - start;
 
   uint8_t p = percentage * numRingPixels; // because two rings
 
-  for (uint8_t i = 0; i < numRingPixels; i++)
+  for (uint8_t i = 0; i < end - start; i++)
   {
     uint32_t c = (i <= p)
                      ? COLOUR_GREEN
                      : COLOUR_DARK_RED;
-    _strip->setPixelColor(i, c);
+    _strip->setPixelColor(i + start, c);
   }
   _strip->show();
   // restore brightness
