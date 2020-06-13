@@ -114,7 +114,7 @@ void footLightFsmEvent(FootLightFsmEvent ev)
 
 void footLightInit()
 {
-  footLight.initialise(FOOT_LIGHT_PIXEL_PIN, NUM_PIXELS, /*brightness*/ 100);
+  footLight.initialise(FOOT_LIGHT_PIXEL_PIN, NUM_PIXELS, FOOT_LIGHT_BRIGHTNESS_STOPPED);
   footLight.setAll(footLight.COLOUR_DARK_RED);
 }
 //--------------------------------------------------
@@ -122,7 +122,7 @@ void footLightInit()
 void footLightMoving_OnEnter()
 {
   PRINT_FOOT_LIGHT_STATE("state_light_moving ---------------------- \n");
-  footLight.setBrightness(FOOT_LIGHT_BRIGHTNESS);
+  footLight.setBrightness(FOOT_LIGHT_BRIGHTNESS_MOVING);
   footLight.setAll(footLight.COLOUR_HEADLIGHT_WHITE);
 }
 //--------------------------------------------------
@@ -130,7 +130,7 @@ void footLightMoving_OnEnter()
 void footLightStopped_OnEnter()
 {
   PRINT_FOOT_LIGHT_STATE("state_light_stopped ---------------------- \n");
-  footLight.setBrightness(FOOT_LIGHT_BRIGHTNESS);
-  footLight.setAll(footLight.COLOUR_BLUE);
+  footLight.setBrightness(FOOT_LIGHT_BRIGHTNESS_STOPPED);
+  footLight.setAll(footLight.COLOUR_HEADLIGHT_WHITE);
 }
 //--------------------------------------------------
