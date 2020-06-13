@@ -51,21 +51,21 @@ Smoothed<int> smoothed_throttle;
 //------------------------------------------------------------------
 
 #include <LedLightsLib.h>
-LedLightsLib light;
+// LedLightsLib light;
 
 //------------------------------------------------------------------
-enum LightsEvent
-{
-  EV_MOVING,
-  EV_STOPPED,
-};
+// enum LightsEvent
+// {
+//   EV_MOVING,
+//   EV_STOPPED,
+// };
 
-xQueueHandle xLightsEventQueue;
+// xQueueHandle xLightsEventQueue;
 
-void sendToLightsEventQueue(LightsEvent e)
-{
-  xQueueSendToFront(xLightsEventQueue, &e, pdMS_TO_TICKS(10));
-}
+// void sendToLightsEventQueue(LightsEvent e)
+// {
+//   xQueueSendToFront(xLightsEventQueue, &e, pdMS_TO_TICKS(10));
+// }
 
 //------------------------------------------------------------------
 
@@ -88,9 +88,9 @@ void setup()
 
   button_init();
 
-  xTaskCreatePinnedToCore(lightTask_0, "lightTask_0", 10000, NULL, /*priority*/ 3, NULL, 0);
+  // xTaskCreatePinnedToCore(lightTask_0, "lightTask_0", 10000, NULL, /*priority*/ 3, NULL, 0);
 
-  xLightsEventQueue = xQueueCreate(1, sizeof(LightsEvent));
+  // xLightsEventQueue = xQueueCreate(1, sizeof(LightsEvent));
 
   addCommsFsmTransitions();
 

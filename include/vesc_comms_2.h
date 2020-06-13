@@ -57,17 +57,13 @@ void try_get_values_from_vesc()
     }
     else if (board_packet.moving)
     {
-      sendToLightsEventQueue(EV_MOVING);
+      // sendToLightsEventQueue(EV_MOVING);
     }
     else if (board_packet.moving == false)
     {
-      sendToLightsEventQueue(EV_STOPPED);
+      // sendToLightsEventQueue(EV_STOPPED);
     }
     sendCommsStateEvent(EV_VESC_SUCCESS);
-
-#ifdef PRINT_VESC_REPORT
-    DEBUGVAL(board_packet.id, board_packet.batteryVoltage);
-#endif
   }
   else
   {

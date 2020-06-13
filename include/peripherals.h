@@ -17,12 +17,14 @@ void button_init()
 #ifdef BUTTON_MOVING
     board_packet.moving = true;
     board_packet.motorCurrent += 0.1;
+    DEBUGVAL(board_packet.moving, board_packet.motorCurrent);
 #endif
   });
   button0.setReleasedHandler([](Button2 &btn) {
 #ifdef BUTTON_MOVING
     board_packet.odometer = board_packet.odometer + 0.1;
     board_packet.moving = false;
+    DEBUGVAL(board_packet.moving, board_packet.motorCurrent);
 #endif
   });
   button0.setLongClickHandler([](Button2 &btn) {
@@ -30,8 +32,8 @@ void button_init()
 }
 
 //------------------------------------------------------------------
-void light_init()
-{
-  light.initialise(PIXEL_PIN, NUM_PIXELS * 2, /*brightness*/ 100);
-  light.setAll(light.COLOUR_OFF);
-}
+// void light_init()
+// {
+//   light.initialise(PIXEL_PIN, NUM_PIXELS * 2, /*brightness*/ 100);
+//   light.setAll(light.COLOUR_OFF);
+// }
