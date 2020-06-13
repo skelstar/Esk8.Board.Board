@@ -5,12 +5,12 @@ enum LightFsmEvent
   EV_LIGHT_STOPPED,
 };
 
-void PRINT_STATE(const char *state_name);
+void PRINT_FOOT_LIGHT_STATE(const char *state_name);
 
 //------------------------------------------------------------------
 State state_light_moving(
     [] {
-      PRINT_STATE("state_light_moving ---------------------- \n");
+      PRINT_FOOT_LIGHT_STATE("state_light_moving ---------------------- \n");
       // light.setBrightness(HEADLIGHT_BRIGHTNESS);
 
       // light.setAll(light.COLOUR_HEADLIGHT_WHITE, 0, 12 - 1);
@@ -21,13 +21,13 @@ State state_light_moving(
 //------------------------------------------------------------------
 State state_light_wait_before_bargraph(
     [] {
-      PRINT_STATE("state_light_wait_before_bargraph ---------------------- \n");
+      PRINT_FOOT_LIGHT_STATE("state_light_wait_before_bargraph ---------------------- \n");
     },
     NULL, NULL);
 //------------------------------------------------------------------
 State state_light_stopped(
     [] {
-      PRINT_STATE("state_light_stopped ---------------------- \n");
+      PRINT_FOOT_LIGHT_STATE("state_light_stopped ---------------------- \n");
 #ifdef LIGHTS_BAR_GRAPH_MODE
   // light.setBrightness(10);
   // light.setAll(light.COLOUR_OFF);
@@ -69,7 +69,7 @@ void add_light_fsm_transistions()
       NULL);
 }
 //--------------------------------------------------
-void PRINT_STATE(const char *state_name)
+void PRINT_FOOT_LIGHT_STATE(const char *state_name)
 {
 #ifdef PRINT_LIGHT_FSM_STATE_NAME
   Serial.printf("light-fsm: state ---> %s\n", state_name);
