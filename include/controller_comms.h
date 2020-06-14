@@ -52,7 +52,7 @@ void processControlPacket()
   memcpy(&controller_packet, &buff, sizeof(ControllerData));
 
 #ifdef SEND_TO_VESC
-  send_to_vesc(controller_packet.throttle, /*cruise*/ false);
+  send_to_vesc(controller_packet.throttle, /*cruise*/ controller_packet.cruise_control);
 #endif
 
   board_packet.id = controller_packet.id;

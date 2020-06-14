@@ -24,14 +24,7 @@ elapsedMillis since_got_values_from_vesc = 0;
 //-----------------------------------------------------------------------------------
 void send_to_vesc(uint8_t throttle, bool cruise_control)
 {
-  if (cruise_control)
-  {
-    vesc.setNunchuckValues(127, throttle, cruise_control, 0);
-  }
-  else
-  {
-    vesc.setNunchuckValues(127, throttle, 0, 0);
-  }
+  vesc.setNunchuckValues(127, throttle, cruise_control, 0);
 }
 //-----------------------------------------------------------------------------------
 void vesc_update()
