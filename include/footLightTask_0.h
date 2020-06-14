@@ -28,14 +28,17 @@ void footLightInit();
 void addFootLightFsmTransitions();
 void footLightMoving_OnEnter();
 void footLightStopped_OnEnter();
+void footLightStopped_OnLoop();
 void footLightFsmEvent(FootLightFsmEvent ev);
 void PRINT_FOOT_LIGHT_STATE(const char *state_name);
 void sendToFootLightEventQueue(FootLightEvent e);
 
 State state_light_moving(footLightMoving_OnEnter, NULL, NULL);
-State state_light_stopped(footLightStopped_OnEnter, NULL, NULL);
+State state_light_stopped(footLightStopped_OnEnter, footLightStopped_OnLoop, NULL);
 
 Fsm light_fsm(&state_light_stopped);
+
+elapsedMillis sinceUpdatedBatteryGraph;
 
 //--------------------------------------------------
 void footLightTask_0(void *pvParameters)
@@ -121,7 +124,7 @@ void footLightInit()
 
 void footLightMoving_OnEnter()
 {
-  PRINT_FOOT_LIGHT_STATE("state_light_moving ---------------------- \n");
+  PRINT_FOOT_LIGHT_STATE("state_light_moving ----------------------");
   footLight.setBrightness(FOOT_LIGHT_BRIGHTNESS_MOVING);
   footLight.setAll(footLight.COLOUR_HEADLIGHT_WHITE);
 }
@@ -129,8 +132,21 @@ void footLightMoving_OnEnter()
 
 void footLightStopped_OnEnter()
 {
-  PRINT_FOOT_LIGHT_STATE("state_light_stopped ---------------------- \n");
+  PRINT_FOOT_LIGHT_STATE("state_light_stopped onEnter ----------------------");
   footLight.setBrightness(FOOT_LIGHT_BRIGHTNESS_STOPPED);
-  footLight.setAll(footLight.COLOUR_HEADLIGHT_WHITE);
+  float battPc = getBatteryPercentage(board_packet.batteryVoltage) / 100.0;
+  footLight.showBatteryGraph(battPc);
+}
+
+void footLightStopped_OnLoop()
+{
+  if (sinceUpdatedBatteryGraph > 1000)
+  {
+    sinceUpdatedBatteryGraph = 0;
+    PRINT_FOOT_LIGHT_STATE("state_light_stopped onLoop ----------------------");
+    footLight.setBrightness(FOOT_LIGHT_BRIGHTNESS_STOPPED);
+    uint8_t battPc = getBatteryPercentage(board_packet.batteryVoltage);
+    footLight.showBatteryGraph(battPc);
+  }
 }
 //--------------------------------------------------

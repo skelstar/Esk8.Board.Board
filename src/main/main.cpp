@@ -69,8 +69,14 @@ void setup()
 
   button_init();
 
-  xTaskCreatePinnedToCore(footLightTask_0, "footLightTask_0", 10000, NULL, /*priority*/ 3, NULL, 0);
-
+  xTaskCreatePinnedToCore(
+      footLightTask_0,
+      "footLightTask_0",
+      /*stack size*/ 10000,
+      /*params*/ NULL,
+      /*priority*/ 3,
+      /*handle*/ NULL,
+      /*core*/ 0);
   xFootLightEventQueue = xQueueCreate(1, sizeof(FootLightEvent));
 
   addCommsFsmTransitions();
