@@ -5,36 +5,36 @@ enum LightFsmEvent
   EV_LIGHT_STOPPED,
 };
 
-void PRINT_STATE(const char *state_name);
+void PRINT_FOOT_LIGHT_STATE(const char *state_name);
 
 //------------------------------------------------------------------
 State state_light_moving(
     [] {
-      PRINT_STATE("state_light_moving ---------------------- \n");
-      light.setBrightness(HEADLIGHT_BRIGHTNESS);
+      PRINT_FOOT_LIGHT_STATE("state_light_moving ---------------------- \n");
+      // light.setBrightness(HEADLIGHT_BRIGHTNESS);
 
-      light.setAll(light.COLOUR_HEADLIGHT_WHITE, 0, 12 - 1);
-      light.setAll(light.COLOUR_OFF, 12, 12 + 10 - 1);
-      light.setAll(light.COLOUR_HEADLIGHT_WHITE, 12 + 10, 12 + 10 + 12);
+      // light.setAll(light.COLOUR_HEADLIGHT_WHITE, 0, 12 - 1);
+      // light.setAll(light.COLOUR_OFF, 12, 12 + 10 - 1);
+      // light.setAll(light.COLOUR_HEADLIGHT_WHITE, 12 + 10, 12 + 10 + 12);
     },
     NULL, NULL);
 //------------------------------------------------------------------
 State state_light_wait_before_bargraph(
     [] {
-      PRINT_STATE("state_light_wait_before_bargraph ---------------------- \n");
+      PRINT_FOOT_LIGHT_STATE("state_light_wait_before_bargraph ---------------------- \n");
     },
     NULL, NULL);
 //------------------------------------------------------------------
 State state_light_stopped(
     [] {
-      PRINT_STATE("state_light_stopped ---------------------- \n");
+      PRINT_FOOT_LIGHT_STATE("state_light_stopped ---------------------- \n");
 #ifdef LIGHTS_BAR_GRAPH_MODE
-      light.setBrightness(10);
-      light.setAll(light.COLOUR_OFF);
-      light.showBatteryGraph(getBatteryPercentage(board_packet.batteryVoltage) / 100.0, 12, 12 + 10);
+  // light.setBrightness(10);
+  // light.setAll(light.COLOUR_OFF);
+  // light.showBatteryGraph(getBatteryPercentage(board_packet.batteryVoltage) / 100.0, 12, 12 + 10);
 #else
-      light.setBrightness(HEADLIGHT_BRIGHTNESS);
-      light.setAll(light.COLOUR_WHITE);
+  // light.setBrightness(HEADLIGHT_BRIGHTNESS);
+  // light.setAll(light.COLOUR_WHITE);
 #endif
     },
     NULL, NULL);
@@ -69,7 +69,7 @@ void add_light_fsm_transistions()
       NULL);
 }
 //--------------------------------------------------
-void PRINT_STATE(const char *state_name)
+void PRINT_FOOT_LIGHT_STATE(const char *state_name)
 {
 #ifdef PRINT_LIGHT_FSM_STATE_NAME
   Serial.printf("light-fsm: state ---> %s\n", state_name);
@@ -88,26 +88,26 @@ void lightTask_0(void *pvParameters)
 {
   Serial.printf("lightTask_0 running on core %d\n", xPortGetCoreID());
 
-  light_init();
+  // light_init();
 
   add_light_fsm_transistions();
 
   while (true)
   {
-    LightsEvent e;
-    bool event_ready = xQueueReceive(xLightsEventQueue, &e, pdMS_TO_TICKS(0)) == pdPASS;
-    if (event_ready)
-    {
-      switch (e)
-      {
-      case LightsEvent::EV_MOVING:
-        light_fsm_event(EV_LIGHT_MOVING);
-        break;
-      case LightsEvent::EV_STOPPED:
-        light_fsm_event(EV_LIGHT_STOPPED);
-        break;
-      }
-    }
+    // LightsEvent e;
+    // bool event_ready = xQueueReceive(xLightsEventQueue, &e, pdMS_TO_TICKS(0)) == pdPASS;
+    // if (event_ready)
+    // {
+    //   switch (e)
+    //   {
+    //   case LightsEvent::EV_MOVING:
+    //     light_fsm_event(EV_LIGHT_MOVING);
+    //     break;
+    //   case LightsEvent::EV_STOPPED:
+    //     light_fsm_event(EV_LIGHT_STOPPED);
+    //     break;
+    //   }
+    // }
 
     light_fsm.run_machine();
 

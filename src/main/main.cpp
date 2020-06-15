@@ -50,33 +50,14 @@ Smoothed<int> smoothed_throttle;
 
 //------------------------------------------------------------------
 
-#include <LedLightsLib.h>
-LedLightsLib light;
-
-//------------------------------------------------------------------
-enum LightsEvent
-{
-  EV_MOVING,
-  EV_STOPPED,
-};
-
-xQueueHandle xLightsEventQueue;
-
-void sendToLightsEventQueue(LightsEvent e)
-{
-  xQueueSendToFront(xLightsEventQueue, &e, pdMS_TO_TICKS(10));
-}
-
-//------------------------------------------------------------------
-
 void send_to_vesc(uint8_t throttle, bool cruise_control);
 
-#include <peripherals.h>
 #include <controller_comms.h>
-#include <vesc_comms_2.h>
 #include <utils.h>
 
-#include <lightsTask0.h>
+#include <footLightTask_0.h>
+#include <vesc_comms_2.h>
+#include <peripherals.h>
 
 //-------------------------------------------------------
 void setup()
@@ -88,9 +69,15 @@ void setup()
 
   button_init();
 
-  xTaskCreatePinnedToCore(lightTask_0, "lightTask_0", 10000, NULL, /*priority*/ 3, NULL, 0);
-
-  xLightsEventQueue = xQueueCreate(1, sizeof(LightsEvent));
+  xTaskCreatePinnedToCore(
+      footLightTask_0,
+      "footLightTask_0",
+      /*stack size*/ 10000,
+      /*params*/ NULL,
+      /*priority*/ 3,
+      /*handle*/ NULL,
+      /*core*/ 0);
+  xFootLightEventQueue = xQueueCreate(1, sizeof(FootLightEvent));
 
   addCommsFsmTransitions();
 
