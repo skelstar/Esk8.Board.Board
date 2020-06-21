@@ -143,7 +143,10 @@ void footLightStopped_OnLoop()
   if (sinceUpdatedBatteryGraph > 1000)
   {
     sinceUpdatedBatteryGraph = 0;
-    PRINT_FOOT_LIGHT_STATE("state_light_stopped onLoop ----------------------");
+    // if (!light_fsm.revisit())
+    // {
+    //   PRINT_FOOT_LIGHT_STATE("state_light_stopped onLoop ----------------------");
+    // }
     footLight.setBrightness(FOOT_LIGHT_BRIGHTNESS_STOPPED);
     uint8_t battPc = getBatteryPercentage(board_packet.batteryVoltage);
     footLight.showBatteryGraph(battPc);

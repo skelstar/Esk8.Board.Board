@@ -7,7 +7,8 @@
 #include <Arduino.h>
 #include <VescData.h>
 #include <elapsedMillis.h>
-#include <Smoothed.h>
+
+#include <utils.h>
 
 #ifdef USE_SPI2
 #define SOFTSPI 1
@@ -33,8 +34,7 @@
 
 VescData board_packet;
 
-ControllerData controller_packet, prevControllerPacket;
-ControllerConfig controller_config;
+ControllerClass controller;
 
 NRF24L01Lib nrf24;
 
@@ -43,17 +43,14 @@ RF24Network network(radio);
 
 #define NUM_RETRIES 5
 
-elapsedMillis since_last_controller_packet;
+elapsedMillis sinceLastControllerPacket;
 bool controller_connected = false;
-
-Smoothed<int> smoothed_throttle;
 
 //------------------------------------------------------------------
 
 void send_to_vesc(uint8_t throttle, bool cruise_control);
 
 #include <controller_comms.h>
-#include <utils.h>
 
 #include <footLightTask_0.h>
 #include <vesc_comms_2.h>
@@ -79,15 +76,14 @@ void setup()
       /*core*/ 0);
   xFootLightEventQueue = xQueueCreate(1, sizeof(FootLightEvent));
 
-  addCommsFsmTransitions();
+  commsFsm = new Fsm(&state_comms_offline);
+  commsFsm->setGetEventName(commsEventToString);
+  addfsmCommsTransitions();
 
   // send startup packet
   board_packet.id = 0;
-  board_packet.reason = ReasonType::FIRST_PACKET;
-  sendPacketToController();
+  sendPacketToController(FIRST_PACKET);
 }
-
-elapsedMillis since_smoothed_report, since;
 
 void loop()
 {
@@ -97,10 +93,11 @@ void loop()
 
   vesc_update();
 
-  commsFsm.run_machine();
+  commsFsm->run_machine();
 
-  if (controller_timed_out())
+  if (controller.hasTimedout(sinceLastControllerPacket))
   {
+    DEBUGMVAL("timeout", sinceLastControllerPacket);
     sendCommsStateEvent(EV_CTRLR_TIMEOUT);
   }
 

@@ -1,6 +1,9 @@
 #ifndef VescData_h
 #define VescData_h
 
+#pragma once
+#include <elapsedMillis.h>
+
 #include "Arduino.h"
 
 enum ReasonType
@@ -20,71 +23,75 @@ enum PacketType
   CONFIG,
 };
 
-enum CommandFlag
-{
-  MISSED_PACKET,
-  UNSUCCESSFUL_REPLY
-};
-
 class VescData
 {
 public:
+  unsigned long id;
   float batteryVoltage;
   bool moving;
   float ampHours;
   float motorCurrent;
   float odometer; // in kilometers
   bool vescOnline;
-  unsigned long id;
   ReasonType reason;
-  // debugging
-  uint16_t missedPackets;
-  uint16_t unsuccessfulReplies;
-
-  uint32_t flags;
-  uint16_t flagValue;
 };
 
 class ControllerData
 {
 public:
-  uint8_t throttle;
   unsigned long id;
-  uint8_t command;
+  uint8_t throttle;
   bool cruise_control;
-  uint32_t ackFlags;
+  uint8_t command;
 };
-
-void clearFlags(uint16_t flags)
-{
-  flags = 0;
-}
-
-void clearFlag(uint16_t flags, CommandFlag flag)
-{
-  flags &= ~(1 << (int)flag);
-}
-
-uint16_t setFlag(uint16_t flags, CommandFlag flag)
-{
-  flags |= 1 << (int)flag;
-  return flags;
-}
 
 class ControllerConfig
 {
 public:
-  uint16_t send_interval;
-  bool cruise_control_enabled;
   unsigned long id;
+  uint16_t send_interval;
 };
 
-class BoardConfig
+class ControllerClass
 {
 public:
-  unsigned long id;
-};
+  ControllerData data;
+  ControllerConfig config;
+  elapsedMillis sinceLastPacket;
 
-#define COMMAND_REQUEST_UPDATE 1
+  void save(ControllerData latest)
+  {
+    _prev = data;
+    data = latest;
+    sinceLastPacket = 0;
+  }
+
+  void save(ControllerConfig latestConfig)
+  {
+    config = latestConfig;
+    sinceLastPacket = 0;
+  }
+
+  uint16_t missedPackets()
+  {
+    return data.id > 0
+               ? (data.id - _prev.id) - 1
+               : 0;
+  }
+
+  bool throttleChanged()
+  {
+    return data.throttle != _prev.throttle;
+  }
+
+  bool hasTimedout(elapsedMillis lastPacketTime)
+  {
+    return config.send_interval > 0 &&
+           lastPacketTime > config.send_interval + 100;
+  }
+
+private:
+  ControllerData _prev;
+};
 
 #endif
