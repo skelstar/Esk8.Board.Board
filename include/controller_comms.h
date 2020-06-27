@@ -57,14 +57,9 @@ void processControlPacket()
 
   sendPacketToController();
 
-#ifdef BUTTON_MISS_PACKETS
-#else
-#endif
-
 #ifdef PRINT_THROTTLE
   if (controller.throttleChanged())
     DEBUGVAL(controller.data.id, controller.data.throttle);
-}
 #endif
 }
 //------------------------------------------------------
