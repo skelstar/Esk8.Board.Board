@@ -103,7 +103,7 @@ void lightTask_0(void *pvParameters)
     //   case LightsEvent::EV_MOVING:
     //     light_fsm_event(EV_LIGHT_MOVING);
     //     break;
-    //   case LightsEvent::EV_STOPPED:
+    //   case LightsEvent::QUEUE_EV_STOPPED:
     //     light_fsm_event(EV_LIGHT_STOPPED);
     //     break;
     //   }

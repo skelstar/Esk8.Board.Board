@@ -54,6 +54,7 @@ void send_to_vesc(uint8_t throttle, bool cruise_control);
 
 #include <footLightTask_0.h>
 #include <vesc_comms_2.h>
+#include <feature_ota.h>
 #include <peripherals.h>
 
 //-------------------------------------------------------
@@ -65,6 +66,7 @@ void setup()
   vesc.init(VESC_UART_BAUDRATE);
 
   button_init();
+  primaryButtonInit();
 
   xTaskCreatePinnedToCore(
       footLightTask_0,
@@ -90,6 +92,7 @@ void loop()
   nrf24.update();
 
   button0.loop();
+  primaryButton.loop();
 
   vesc_update();
 
@@ -97,9 +100,11 @@ void loop()
 
   if (controller.hasTimedout(sinceLastControllerPacket))
   {
-    DEBUGMVAL("timeout", sinceLastControllerPacket);
+    // DEBUGMVAL("timeout", sinceLastControllerPacket);
     sendCommsStateEvent(EV_CTRLR_TIMEOUT);
   }
+
+  otaLoop();
 
   vTaskDelay(10);
 }

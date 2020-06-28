@@ -34,6 +34,7 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
     processConfigPacket();
   }
 
+  DEBUG("packet_available_cb");
   sendCommsStateEvent(EV_CTRLR_PKT);
 }
 
@@ -77,7 +78,7 @@ void processConfigPacket()
 
   controller.save(_controller_config);
 
-  DEBUGMVAL("***config***", _controller_config.id, _controller_config.send_interval);
+  DEBUGVAL("***config***", _controller_config.id, _controller_config.send_interval);
 }
 //------------------------------------------------------
 
@@ -179,26 +180,16 @@ void sendCommsStateEvent(CommsStateEvent ev)
   commsFsm->trigger(ev);
 
 #ifdef PRINT_COMMS_STATE_EVENT
-  switch (ev)
-  {
-  case EV_CTRLR_PKT:
+
 #ifdef SUPPRESS_EV_CTRLR_PKT
-    return;
+  return;
 #endif
-  case EV_VESC_SUCCESS:
 #ifdef SUPPRESS_EV_VESC_SUCCESS
-    return;
+  return;
 #endif
-  case EV_VESC_FAILED:
-  case EV_CTRLR_TIMEOUT:
 #ifdef SUPPRESS_EV_CTRLR_TIMEOUT
-    return;
+  return;
 #endif
-    break;
-  default:
-    DEBUG("Unhandled ev");
-    break;
-  }
 
   Serial.printf("-> COMMS_STATE EVENT -> %s\n", commsEventToString(ev));
 #endif
