@@ -17,6 +17,9 @@
 #define SOFT_SPI_SCK_PIN 15  // Yellow
 #define SPI_CE 5             // 17
 #define SPI_CS 2
+#elif USING_M5STACK
+#define SPI_CE 5
+#define SPI_CS 13
 #else
 #define SPI_CE 33
 #define SPI_CS 26

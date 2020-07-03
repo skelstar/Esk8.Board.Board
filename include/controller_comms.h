@@ -34,7 +34,6 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
     processConfigPacket();
   }
 
-  DEBUG("packet_available_cb");
   sendCommsStateEvent(EV_CTRLR_PKT);
 }
 
@@ -89,7 +88,7 @@ bool sendPacketToController(ReasonType reason)
   memcpy(&buff, &board_packet, sizeof(VescData));
 
 #ifdef PRINT_SEND_TO_CONTROLLER
-  DEBUGMVAL("sending", board_packet.id);
+  DEBUGMVAL(getCDebugTime("[%6.1fs] sending:"), board_packet.id);
 #endif
 
   uint8_t retryCount = 0;

@@ -22,7 +22,13 @@ enum FootLightFsmEvent
   EV_FOOT_LIGHT_ENTERED_OTA,
 };
 
-#define FOOT_LIGHT_PIXEL_PIN 5
+#define PIN_05 5
+
+#ifdef USING_M5STACK
+#define FOOT_LIGHT_PIXEL_PIN 1
+#else
+#define FOOT_LIGHT_PIXEL_PIN PIN_05
+#endif
 #define NUM_PIXELS 8
 
 xQueueHandle xFootLightEventQueue;

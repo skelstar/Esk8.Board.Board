@@ -51,9 +51,9 @@ double getDebugTime()
 }
 //------------------------------------------------------
 
-char *getCDebugTime()
+char *getCDebugTime(const char *format = "%6.1fs")
 {
-  sprintf(debugTime, "%6.1fs", getDebugTime());
+  sprintf(debugTime, format, getDebugTime());
   return debugTime;
 }
 //------------------------------------------------------
