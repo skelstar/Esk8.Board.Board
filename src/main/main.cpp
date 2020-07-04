@@ -25,6 +25,10 @@
 #define SPI_CS 26
 #endif
 
+#ifndef PRINT_THROTTLE
+#define PRINT_THROTTLE 0
+#endif
+
 #include <RF24Network.h>
 #include <NRF24L01Lib.h>
 
@@ -70,6 +74,9 @@ void setup()
 
   button_init();
   primaryButtonInit();
+#ifdef USING_M5STACK
+  m5StackButtons_init();
+#endif
 
   xTaskCreatePinnedToCore(
       footLightTask_0,
@@ -96,6 +103,11 @@ void loop()
 
   button0.loop();
   primaryButton.loop();
+#ifdef USING_M5STACK
+  buttonA.loop();
+  buttonB.loop();
+  buttonC.loop();
+#endif
 
   vesc_update();
 

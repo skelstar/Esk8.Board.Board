@@ -57,10 +57,10 @@ void processControlPacket()
 
   sendPacketToController();
 
-#ifdef PRINT_THROTTLE
-  if (controller.throttleChanged())
+  if (PRINT_THROTTLE && controller.throttleChanged())
+  {
     DEBUGVAL(controller.data.id, controller.data.throttle);
-#endif
+  }
 }
 //------------------------------------------------------
 
