@@ -50,7 +50,9 @@ RF24Network network(radio);
 
 #define NUM_RETRIES 5
 
-elapsedMillis sinceLastControllerPacket;
+elapsedMillis
+    sinceLastControllerPacket,
+    sinceBoardBooted;
 bool controller_connected = false;
 
 //------------------------------------------------------------------
@@ -74,7 +76,11 @@ void setup()
 
   button_init();
   primaryButtonInit();
+
 #ifdef USING_M5STACK
+  DEBUG("-------------------------------------");
+  DEBUG("          USING_M5STACK              ");
+  DEBUG("-------------------------------------\n\n");
   m5StackButtons_init();
 #endif
 
@@ -97,6 +103,8 @@ void setup()
   sendPacketToController(FIRST_PACKET);
 }
 
+elapsedMillis sinceUpdatedButtonAValues;
+
 void loop()
 {
   nrf24.update();
@@ -105,6 +113,16 @@ void loop()
   primaryButton.loop();
 #ifdef USING_M5STACK
   buttonA.loop();
+  if (sinceUpdatedButtonAValues > 500 && buttonA.isPressed())
+  {
+    sinceUpdatedButtonAValues = 0;
+    long r = random(300);
+    board_packet.ampHours += r / 10.0;
+    board_packet.batteryVoltage -= r / 1000.0;
+    if (MOCK_MOVING_WITH_BUTTON == 1)
+      mockMoving(buttonA.isPressed());
+  }
+
   buttonB.loop();
   buttonC.loop();
 #endif

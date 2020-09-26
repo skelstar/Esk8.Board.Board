@@ -17,6 +17,7 @@ enum FootLightEvent
 
 enum FootLightFsmEvent
 {
+  EV_FOOT_LIGHT_BOOTED,
   EV_FOOT_LIGHT_MOVING,
   EV_FOOT_LIGHT_STOPPED,
   EV_FOOT_LIGHT_ENTERED_OTA,
@@ -43,6 +44,23 @@ void footLightFsmEvent(FootLightFsmEvent ev);
 void PRINT_FOOT_LIGHT_STATE(const char *state_name);
 void sendToFootLightEventQueue(FootLightEvent e);
 
+//--------------------------------------------------
+State state_light_booted(
+    [] {
+      PRINT_FOOT_LIGHT_STATE("state_light_booted");
+      footLight.setBrightness(FOOT_LIGHT_BRIGHTNESS_STOPPED);
+      footLight.setAll(footLight.COLOUR_BLUE);
+    },
+    [] {
+      if (sinceBoardBooted > 3000)
+      {
+        footLightFsmEvent(FootLightFsmEvent::EV_FOOT_LIGHT_STOPPED);
+      }
+    },
+    [] {
+
+    });
+//--------------------------------------------------
 State state_light_moving(
     [] {
       PRINT_FOOT_LIGHT_STATE("state_light_moving");
@@ -50,6 +68,7 @@ State state_light_moving(
       footLight.setAll(footLight.COLOUR_HEADLIGHT_WHITE);
     });
 
+//--------------------------------------------------
 State state_light_stopped(
     [] {
       PRINT_FOOT_LIGHT_STATE("state_light_stopped onEnter");
@@ -71,6 +90,7 @@ State state_light_stopped(
     },
     NULL);
 
+//--------------------------------------------------
 elapsedMillis sinceFlashedLightsForOta;
 bool otaLightState = false;
 
@@ -102,7 +122,7 @@ void footLightTask_0(void *pvParameters)
 
   footLightInit();
 
-  light_fsm = new Fsm(&state_light_stopped);
+  light_fsm = new Fsm(&state_light_booted);
 
   addFootLightFsmTransitions();
 
@@ -142,9 +162,10 @@ void sendToFootLightEventQueue(FootLightEvent e)
 
 void addFootLightFsmTransitions()
 {
+  light_fsm->add_transition(&state_light_booted, &state_light_stopped, EV_FOOT_LIGHT_STOPPED, NULL);
   light_fsm->add_transition(&state_light_moving, &state_light_stopped, EV_FOOT_LIGHT_STOPPED, NULL);
   light_fsm->add_transition(&state_light_stopped, &state_light_moving, EV_FOOT_LIGHT_MOVING, NULL);
-  light_fsm->add_transition(&state_light_stopped, &state_light_entered_ota, EV_FOOT_LIGHT_ENTERED_OTA, NULL);
+  // light_fsm->add_transition(&state_light_stopped, &state_light_entered_ota, EV_FOOT_LIGHT_ENTERED_OTA, NULL);
 }
 //--------------------------------------------------
 
@@ -161,6 +182,9 @@ void footLightFsmEvent(FootLightFsmEvent ev)
 #ifdef PRINT_LIGHT_FSM_EVENT_TRIGGER
   switch (e)
   {
+  case FootLightFsmEvent::EV_FOOT_LIGHT_BOOTED:
+    Serial.printf("footLightFsmEvent ---> EV_FOOT_LIGHT_MOVING\n");
+    break;
   case FootLightFsmEvent::EV_FOOT_LIGHT_MOVING:
     Serial.printf("footLightFsmEvent ---> EV_FOOT_LIGHT_MOVING\n");
     break;

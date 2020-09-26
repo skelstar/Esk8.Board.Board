@@ -39,6 +39,33 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
 
 //------------------------------------------------------
 
+bool sendPacketToController(ReasonType reason)
+{
+  board_packet.reason = reason;
+  uint8_t buff[sizeof(VescData)];
+  memcpy(&buff, &board_packet, sizeof(VescData));
+
+#ifdef PRINT_SEND_TO_CONTROLLER
+  DEBUGMVAL(getCDebugTime("[%6.1fs] sending:"), board_packet.id);
+#endif
+
+  uint8_t retryCount = 0;
+  bool sent = false;
+  while (!sent && retryCount < RETRY_COUNT_MAX)
+  {
+    sent = nrf24.send_packet(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(VescData));
+    vTaskDelay(10);
+    retryCount++;
+  }
+
+  if (!sent)
+    Serial.printf("[%s] failed to send, retried %d times (max)\n", getCDebugTime(), retryCount);
+
+  return sent;
+}
+
+//------------------------------------------------------
+
 void processControlPacket()
 {
   ControllerData controller_packet;
@@ -79,33 +106,6 @@ void processConfigPacket()
 
   DEBUGVAL("***config***", _controller_config.id, _controller_config.send_interval);
 }
-//------------------------------------------------------
-
-bool sendPacketToController(ReasonType reason)
-{
-  board_packet.reason = reason;
-  uint8_t buff[sizeof(VescData)];
-  memcpy(&buff, &board_packet, sizeof(VescData));
-
-#ifdef PRINT_SEND_TO_CONTROLLER
-  DEBUGMVAL(getCDebugTime("[%6.1fs] sending:"), board_packet.id);
-#endif
-
-  uint8_t retryCount = 0;
-  bool sent = false;
-  while (!sent && retryCount < RETRY_COUNT_MAX)
-  {
-    sent = nrf24.send_packet(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(VescData));
-    vTaskDelay(10);
-    retryCount++;
-  }
-
-  if (!sent)
-    Serial.printf("[%s] failed to send, retried %d times (max)\n", getCDebugTime(), retryCount);
-
-  return sent;
-}
-
 //------------------------------------------------------
 
 #ifndef FSM_H
