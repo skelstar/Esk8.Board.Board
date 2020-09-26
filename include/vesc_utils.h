@@ -24,6 +24,7 @@ bool get_vesc_values()
     rpm_raw = vesc.get_rpm(vesc_packet);
     if (board_packet.id == 0)
     {
+      // allow for any residual measurements/data
       initial_ampHours = vesc.get_amphours_discharged(vesc_packet);
       initial_odometer = get_distance_in_meters(vesc.get_tachometer(vesc_packet));
     }

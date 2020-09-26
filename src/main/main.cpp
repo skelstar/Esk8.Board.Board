@@ -7,7 +7,8 @@
 #include <Arduino.h>
 #include <VescData.h>
 #include <elapsedMillis.h>
-#include <Smoothed.h>
+
+#include <utils.h>
 
 #ifdef USE_SPI2
 #define SOFTSPI 1
@@ -16,9 +17,16 @@
 #define SOFT_SPI_SCK_PIN 15  // Yellow
 #define SPI_CE 5             // 17
 #define SPI_CS 2
+#elif USING_M5STACK
+#define SPI_CE 5
+#define SPI_CS 13
 #else
 #define SPI_CE 33
 #define SPI_CS 26
+#endif
+
+#ifndef PRINT_THROTTLE
+#define PRINT_THROTTLE 0
 #endif
 
 #include <RF24Network.h>
@@ -33,8 +41,7 @@
 
 VescData board_packet;
 
-ControllerData controller_packet, prevControllerPacket;
-ControllerConfig controller_config;
+ControllerClass controller;
 
 NRF24L01Lib nrf24;
 
@@ -43,20 +50,20 @@ RF24Network network(radio);
 
 #define NUM_RETRIES 5
 
-elapsedMillis since_last_controller_packet;
+elapsedMillis
+    sinceLastControllerPacket,
+    sinceBoardBooted;
 bool controller_connected = false;
-
-Smoothed<int> smoothed_throttle;
 
 //------------------------------------------------------------------
 
 void send_to_vesc(uint8_t throttle, bool cruise_control);
 
 #include <controller_comms.h>
-#include <utils.h>
 
 #include <footLightTask_0.h>
 #include <vesc_comms_2.h>
+#include <feature_ota.h>
 #include <peripherals.h>
 
 //-------------------------------------------------------
@@ -68,6 +75,14 @@ void setup()
   vesc.init(VESC_UART_BAUDRATE);
 
   button_init();
+  primaryButtonInit();
+
+#ifdef USING_M5STACK
+  DEBUG("-------------------------------------");
+  DEBUG("          USING_M5STACK              ");
+  DEBUG("-------------------------------------\n\n");
+  m5StackButtons_init();
+#endif
 
   xTaskCreatePinnedToCore(
       footLightTask_0,
@@ -79,30 +94,50 @@ void setup()
       /*core*/ 0);
   xFootLightEventQueue = xQueueCreate(1, sizeof(FootLightEvent));
 
-  addCommsFsmTransitions();
+  commsFsm = new Fsm(&state_comms_offline);
+  commsFsm->setGetEventName(commsEventToString);
+  addfsmCommsTransitions();
 
   // send startup packet
   board_packet.id = 0;
-  board_packet.reason = ReasonType::FIRST_PACKET;
-  sendPacketToController();
+  sendPacketToController(FIRST_PACKET);
 }
 
-elapsedMillis since_smoothed_report, since;
+elapsedMillis sinceUpdatedButtonAValues;
 
 void loop()
 {
   nrf24.update();
 
   button0.loop();
+  primaryButton.loop();
+#ifdef USING_M5STACK
+  buttonA.loop();
+  if (sinceUpdatedButtonAValues > 500 && buttonA.isPressed())
+  {
+    sinceUpdatedButtonAValues = 0;
+    long r = random(300);
+    board_packet.ampHours += r / 10.0;
+    board_packet.batteryVoltage -= r / 1000.0;
+    if (MOCK_MOVING_WITH_BUTTON == 1)
+      mockMoving(buttonA.isPressed());
+  }
+
+  buttonB.loop();
+  buttonC.loop();
+#endif
 
   vesc_update();
 
-  commsFsm.run_machine();
+  commsFsm->run_machine();
 
-  if (controller_timed_out())
+  if (controller.hasTimedout(sinceLastControllerPacket))
   {
+    // DEBUGMVAL("timeout", sinceLastControllerPacket);
     sendCommsStateEvent(EV_CTRLR_TIMEOUT);
   }
+
+  otaLoop();
 
   vTaskDelay(10);
 }

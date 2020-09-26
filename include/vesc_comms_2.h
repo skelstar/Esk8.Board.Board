@@ -50,11 +50,11 @@ void try_get_values_from_vesc()
     }
     else if (board_packet.moving)
     {
-      sendToFootLightEventQueue(FootLightEvent::EV_MOVING);
+      sendToFootLightEventQueue(FootLightEvent::QUEUE_EV_MOVING);
     }
     else if (board_packet.moving == false)
     {
-      sendToFootLightEventQueue(FootLightEvent::EV_STOPPED);
+      sendToFootLightEventQueue(FootLightEvent::QUEUE_EV_STOPPED);
     }
     sendCommsStateEvent(EV_VESC_SUCCESS);
   }

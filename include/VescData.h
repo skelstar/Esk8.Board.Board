@@ -1,6 +1,9 @@
 #ifndef VescData_h
 #define VescData_h
 
+#pragma once
+#include <elapsedMillis.h>
+
 #include "Arduino.h"
 
 enum ReasonType
@@ -23,42 +26,72 @@ enum PacketType
 class VescData
 {
 public:
+  unsigned long id;
   float batteryVoltage;
   bool moving;
   float ampHours;
   float motorCurrent;
   float odometer; // in kilometers
   bool vescOnline;
-  unsigned long id;
   ReasonType reason;
-  // debugging
-  uint16_t missedPackets;
-  uint16_t unsuccessfulSends;
 };
 
 class ControllerData
 {
 public:
-  uint8_t throttle;
   unsigned long id;
-  uint8_t command;
+  uint8_t throttle;
   bool cruise_control;
+  uint8_t command;
 };
 
 class ControllerConfig
 {
 public:
-  uint16_t send_interval;
-  bool cruise_control_enabled;
   unsigned long id;
+  uint16_t send_interval;
 };
 
-class BoardConfig
+class ControllerClass
 {
 public:
-  unsigned long id;
-};
+  ControllerData data;
+  ControllerConfig config;
+  elapsedMillis sinceLastPacket;
 
-#define COMMAND_REQUEST_UPDATE 1
+  void save(ControllerData latest)
+  {
+    _prev = data;
+    data = latest;
+    sinceLastPacket = 0;
+  }
+
+  void save(ControllerConfig latestConfig)
+  {
+    config = latestConfig;
+    sinceLastPacket = 0;
+  }
+
+  uint16_t missedPackets()
+  {
+    return data.id > 0
+               ? (data.id - _prev.id) - 1
+               : 0;
+  }
+
+  bool throttleChanged()
+  {
+    return data.throttle != _prev.throttle;
+  }
+
+  bool hasTimedout(elapsedMillis lastPacketTime)
+  {
+    return config.send_interval > 0 &&
+           lastPacketTime > config.send_interval + 100;
+  }
+
+private:
+  ControllerData _prev;
+};
 
 #endif

@@ -1,8 +1,5 @@
 
-elapsedMillis since_requested;
 
-void handle_first_packet();
-void handle_config_packet();
 uint8_t manage_throttle(uint8_t controller_throttle);
 
 enum CommsStateEvent
@@ -14,20 +11,19 @@ enum CommsStateEvent
   EV_CTRLR_TIMEOUT,
 };
 
+elapsedMillis since_requested;
+
 /* prototypes */
-bool sendPacketToController();
+bool sendPacketToController(ReasonType reason = RESPONSE);
 void sendCommsStateEvent(CommsStateEvent ev);
-char *commsEventToString(CommsStateEvent ev);
-void printCommsState(const char *stateName, const char *event);
-void printCommsState(char *stateName);
+const char *commsEventToString(int ev);
 void processControlPacket();
 void processConfigPacket();
-uint16_t getMissedPacketCount();
 
 //------------------------------------------------------
 void packet_available_cb(uint16_t from_id, uint8_t type)
 {
-  since_last_controller_packet = 0;
+  sinceLastControllerPacket = 0;
 
   if (type == PacketType::CONTROL)
   {
@@ -42,99 +38,73 @@ void packet_available_cb(uint16_t from_id, uint8_t type)
 }
 
 //------------------------------------------------------
-void processControlPacket()
+
+bool sendPacketToController(ReasonType reason)
 {
-  // backup old controller_packet
-  prevControllerPacket = controller_packet;
-
-  uint8_t buff[sizeof(ControllerData)];
-  nrf24.read_into(buff, sizeof(ControllerData));
-  memcpy(&controller_packet, &buff, sizeof(ControllerData));
-
-#ifdef SEND_TO_VESC
-  send_to_vesc(controller_packet.throttle, /*cruise*/ controller_packet.cruise_control);
-#endif
-
-  board_packet.id = controller_packet.id;
-  board_packet.reason = ReasonType::RESPONSE;
-
-  uint16_t missedPackets = getMissedPacketCount();
-  if (missedPackets > 0)
-  {
-    DEBUGVAL(missedPackets);
-  }
-  board_packet.missedPackets += missedPackets;
-
-#ifdef BUTTON_MISS_PACKETS
-  if (false == sendPacketToController() || button0.isPressed())
-#else
-  if (false == sendPacketToController())
-#endif
-  {
-    board_packet.unsuccessfulSends++;
-    DEBUGVAL(board_packet.unsuccessfulSends);
-  }
-
-#ifdef PRINT_THROTTLE
-  if (prevControllerPacket.throttle != controller_packet.throttle)
-  {
-    DEBUGVAL(controller_packet.id, controller_packet.throttle);
-  }
-#endif
-}
-
-//------------------------------------------------------
-void processConfigPacket()
-{
-  board_packet.id = controller_config.id;
-  board_packet.reason = ReasonType::RESPONSE;
-  bool success = sendPacketToController();
-
-  board_packet.missedPackets = 0;
-  board_packet.unsuccessfulSends = 0;
-
-  handle_config_packet();
-}
-
-//------------------------------------------------------
-bool sendPacketToController()
-{
+  board_packet.reason = reason;
   uint8_t buff[sizeof(VescData)];
   memcpy(&buff, &board_packet, sizeof(VescData));
 
 #ifdef PRINT_SEND_TO_CONTROLLER
-  DEBUGVAL("sending", board_packet.id);
+  DEBUGMVAL(getCDebugTime("[%6.1fs] sending:"), board_packet.id);
 #endif
-  return nrf24.send_packet(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(VescData));
+
+  uint8_t retryCount = 0;
+  bool sent = false;
+  while (!sent && retryCount < RETRY_COUNT_MAX)
+  {
+    sent = nrf24.send_packet(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(VescData));
+    vTaskDelay(10);
+    retryCount++;
+  }
+
+  if (!sent)
+    Serial.printf("[%s] failed to send, retried %d times (max)\n", getCDebugTime(), retryCount);
+
+  return sent;
 }
 
 //------------------------------------------------------
-uint16_t getMissedPacketCount()
+
+void processControlPacket()
 {
-  return controller_packet.id > 0
-             ? (controller_packet.id - prevControllerPacket.id) - 1
-             : 0;
+  ControllerData controller_packet;
+
+  uint8_t buff[sizeof(ControllerData)];
+  nrf24.read_into(buff, sizeof(ControllerData));
+  memcpy(&controller_packet, &buff, sizeof(ControllerData));
+  controller.save(controller_packet);
+
+#ifdef SEND_TO_VESC
+  send_to_vesc(controller.data.throttle, /*cruise*/ controller.data.cruise_control);
+#endif
+
+  board_packet.id = controller.data.id;
+  board_packet.reason = ReasonType::RESPONSE;
+
+  sendPacketToController();
+
+  if (PRINT_THROTTLE && controller.throttleChanged())
+  {
+    DEBUGVAL(controller.data.id, controller.data.throttle);
+  }
 }
 //------------------------------------------------------
-void handle_first_packet()
+
+void processConfigPacket()
 {
-}
-//------------------------------------------------------
-void handle_config_packet()
-{
+  ControllerConfig _controller_config;
+
   uint8_t buff[sizeof(ControllerConfig)];
   nrf24.read_into(buff, sizeof(ControllerConfig));
-  memcpy(&controller_config, &buff, sizeof(ControllerConfig));
-  DEBUGVAL("***config***", controller_config.send_interval);
-}
-//------------------------------------------------------
-bool controller_timed_out()
-{
-  if (controller_config.send_interval == 0)
-  {
-    return false;
-  }
-  return since_last_controller_packet > controller_config.send_interval + 100;
+  memcpy(&_controller_config, &buff, sizeof(ControllerConfig));
+
+  board_packet.id = _controller_config.id;
+  sendPacketToController();
+
+  controller.save(_controller_config);
+
+  DEBUGVAL("***config***", _controller_config.id, _controller_config.send_interval);
 }
 //------------------------------------------------------
 
@@ -142,51 +112,50 @@ bool controller_timed_out()
 #include <Fsm.h>
 #endif
 
+Fsm *commsFsm;
+
 CommsStateEvent lastCommsEvent = EV_NONE;
 
 State state_comms_offline([] {
-  printCommsState("state_comms_offline", commsEventToString(lastCommsEvent));
+  commsFsm->print("state_comms_offline", false);
   controller_connected = false;
 });
 
 State state_ctrlr_online([] {
-  printCommsState("state_ctrlr_online", commsEventToString(lastCommsEvent));
+  commsFsm->print("state_ctrlr_online");
   controller_connected = true;
 });
 
 State state_vesc_online([] {
-  printCommsState("state_vesc_online", commsEventToString(lastCommsEvent));
+  commsFsm->print("state_vesc_online");
 });
 
 State state_ctrlr_vesc_online([] {
-  printCommsState("state_ctrlr_vesc_online", commsEventToString(lastCommsEvent));
+  commsFsm->print("state_ctrlr_vesc_online");
 });
 
 //------------------------------------------------------
-Fsm commsFsm(&state_comms_offline);
-
-//------------------------------------------------------
-void addCommsFsmTransitions()
+void addfsmCommsTransitions()
 {
   // state_offline
-  commsFsm.add_transition(&state_comms_offline, &state_ctrlr_online, EV_CTRLR_PKT, NULL);
-  commsFsm.add_transition(&state_comms_offline, &state_vesc_online, EV_VESC_SUCCESS, NULL);
+  commsFsm->add_transition(&state_comms_offline, &state_ctrlr_online, EV_CTRLR_PKT, NULL);
+  commsFsm->add_transition(&state_comms_offline, &state_vesc_online, EV_VESC_SUCCESS, NULL);
 
   // state_ctrlr_online
-  commsFsm.add_transition(&state_ctrlr_online, &state_comms_offline, EV_CTRLR_TIMEOUT, NULL);
-  commsFsm.add_transition(&state_ctrlr_online, &state_ctrlr_vesc_online, EV_VESC_SUCCESS, NULL);
+  commsFsm->add_transition(&state_ctrlr_online, &state_comms_offline, EV_CTRLR_TIMEOUT, NULL);
+  commsFsm->add_transition(&state_ctrlr_online, &state_ctrlr_vesc_online, EV_VESC_SUCCESS, NULL);
   // state_vesc_online
-  commsFsm.add_transition(&state_vesc_online, &state_ctrlr_vesc_online, EV_CTRLR_PKT, NULL);
-  commsFsm.add_transition(&state_vesc_online, &state_comms_offline, EV_VESC_FAILED, NULL);
+  commsFsm->add_transition(&state_vesc_online, &state_ctrlr_vesc_online, EV_CTRLR_PKT, NULL);
+  commsFsm->add_transition(&state_vesc_online, &state_comms_offline, EV_VESC_FAILED, NULL);
   // state_ctrlr_vesc_online
-  commsFsm.add_transition(&state_ctrlr_vesc_online, &state_vesc_online, EV_CTRLR_TIMEOUT, NULL);
-  commsFsm.add_transition(&state_ctrlr_vesc_online, &state_ctrlr_online, EV_VESC_FAILED, NULL);
+  commsFsm->add_transition(&state_ctrlr_vesc_online, &state_vesc_online, EV_CTRLR_TIMEOUT, NULL);
+  commsFsm->add_transition(&state_ctrlr_vesc_online, &state_ctrlr_online, EV_VESC_FAILED, NULL);
 }
 
 //------------------------------------------------------
-char *commsEventToString(CommsStateEvent ev)
+const char *commsEventToString(int ev)
 {
-  switch (ev)
+  switch ((CommsStateEvent)ev)
   {
   case EV_VESC_SUCCESS:
     return "EV_VESC_SUCCESS";
@@ -204,48 +173,22 @@ char *commsEventToString(CommsStateEvent ev)
 }
 //------------------------------------------------------
 
-void printCommsState(const char *stateName, const char *event)
-{
-#ifdef PRINT_COMMS_STATE
-  Serial.printf("COMMS_STATE: %s --> %s\n", stateName, event);
-#endif
-}
-//------------------------------------------------------
-
-void printCommsState(const char *stateName)
-{
-#ifdef PRINT_COMMS_STATE
-  Serial.printf("COMMS_STATE: %s\n", stateName);
-#endif
-}
-//------------------------------------------------------
-
 void sendCommsStateEvent(CommsStateEvent ev)
 {
   lastCommsEvent = ev;
-  commsFsm.trigger(ev);
+  commsFsm->trigger(ev);
 
 #ifdef PRINT_COMMS_STATE_EVENT
-  switch (ev)
-  {
-  case EV_CTRLR_PKT:
+
 #ifdef SUPPRESS_EV_CTRLR_PKT
-    return;
+  return;
 #endif
-  case EV_VESC_SUCCESS:
 #ifdef SUPPRESS_EV_VESC_SUCCESS
-    return;
+  return;
 #endif
-  case EV_VESC_FAILED:
-  case EV_CTRLR_TIMEOUT:
 #ifdef SUPPRESS_EV_CTRLR_TIMEOUT
-    return;
+  return;
 #endif
-    break;
-  default:
-    DEBUG("Unhandled ev");
-    break;
-  }
 
   Serial.printf("-> COMMS_STATE EVENT -> %s\n", commsEventToString(ev));
 #endif
