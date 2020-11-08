@@ -88,9 +88,6 @@ void primaryButtonInit()
   });
 
   primaryButton.setLongClickHandler([](Button2 &btn) {
-#ifdef FEATURE_OPTIONAL_OTA
-    otaInit();
-#endif
   });
 }
 //------------------------------------------------------------------
