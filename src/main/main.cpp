@@ -77,12 +77,19 @@ void setup()
   button_init();
   primaryButtonInit();
 
-#ifdef USING_M5STACK
-  DEBUG("-------------------------------------");
-  DEBUG("          USING_M5STACK              ");
-  DEBUG("-------------------------------------\n\n");
-  m5StackButtons_init();
-#endif
+  //get chip id
+  String chipId = String((uint32_t)ESP.getEfuseMac(), HEX);
+  chipId.toUpperCase();
+
+  print_build_status(chipId);
+
+  if (boardIs(chipId, M5STACKFIREID))
+  {
+    DEBUG("-----------------------------------------------");
+    DEBUG("               USING_M5STACK              ");
+    DEBUG("-----------------------------------------------\n\n");
+    m5StackButtons_init();
+  }
 
   xTaskCreatePinnedToCore(
       footLightTask_0,
@@ -113,11 +120,10 @@ void loop()
   primaryButton.loop();
 #ifdef USING_M5STACK
   buttonA.loop();
-  if (sinceUpdatedButtonAValues > 500 && buttonA.isPressed())
+  if (sinceUpdatedButtonAValues > 1000 && buttonA.isPressed())
   {
     sinceUpdatedButtonAValues = 0;
     long r = random(300);
-    board_packet.ampHours += r / 10.0;
     board_packet.batteryVoltage -= r / 1000.0;
     if (MOCK_MOVING_WITH_BUTTON == 1)
       mockMoving(buttonA.isPressed());

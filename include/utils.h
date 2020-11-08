@@ -4,6 +4,45 @@
 
 //------------------------------------------------------
 
+bool boardIs(String chipId, String compareId)
+{
+  return chipId == compareId;
+}
+//------------------------------------------------------
+
+void print_build_status(String chipId)
+{
+  Serial.printf("\n");
+  Serial.printf("-----------------------------------------------\n");
+  Serial.printf("               Esk8.Board.Controller \n");
+  Serial.printf("               Chip id: %s\n", chipId.c_str());
+
+  if (chipId == M5STACKFIREID)
+  {
+    Serial.printf("               M5STACK-FIRE\n");
+  }
+
+#ifdef RELEASE_BUILD
+  Serial.printf("-----------------------------------------------\n");
+  Serial.printf("               RELEASE BUILD!! \n");
+  Serial.printf("-----------------------------------------------\n");
+  Serial.printf("               %s \n", __TIME__);
+  Serial.printf("               %s \n", __DATE__);
+  Serial.printf("-----------------------------------------------\n");
+#endif
+
+#ifdef DEBUG_BUILD
+  Serial.printf("-----------------------------------------------\n");
+  Serial.printf("               DEBUG BUILD!! \n");
+  Serial.printf("-----------------------------------------------\n");
+  Serial.printf("               %s \n", __TIME__);
+  Serial.printf("               %s \n", __DATE__);
+  Serial.printf("-----------------------------------------------\n");
+#endif
+  Serial.printf("\n");
+}
+//------------------------------------------------------
+
 void storageReport(float actualAmphours, float actualOdometer, VescData initialVescData, float amphoursTotal, float odometerTotal)
 {
   Serial.printf("Powering down. Storing:\n- ampHours = %.1fmAh (%.1fmAh)\n- odometer = %.1fkm (%.1fkm)\n",
