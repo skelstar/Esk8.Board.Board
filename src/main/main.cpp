@@ -65,9 +65,12 @@ void send_to_vesc(uint8_t throttle, bool cruise_control);
 #include <peripherals.h>
 
 //-------------------------------------------------------
+
 void setup()
 {
   Serial.begin(115200);
+
+  board_packet.version = VERSION;
 
   nrf24.begin(&radio, &network, COMMS_BOARD, packet_available_cb);
   vesc.init(VESC_UART_BAUDRATE);

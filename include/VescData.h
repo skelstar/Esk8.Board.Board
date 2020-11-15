@@ -41,6 +41,7 @@ public:
   bool vescOnline;
   ReasonType reason;
   CommandType command;
+  float version;
 };
 
 class ControllerData
