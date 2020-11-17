@@ -14,7 +14,7 @@ void print_build_status(String chipId)
 {
   Serial.printf("\n");
   Serial.printf("-----------------------------------------------\n");
-  Serial.printf("               Esk8.Board.Controller \n");
+  Serial.printf("               Esk8.Board.Board \n");
   Serial.printf("               Chip id: %s\n", chipId.c_str());
 
   if (chipId == M5STACKFIREID)
