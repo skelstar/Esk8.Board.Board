@@ -23,6 +23,12 @@ enum PacketType
   CONFIG,
 };
 
+enum CommandType
+{
+  NONE,
+  RESET,
+};
+
 class VescData
 {
 public:
@@ -34,6 +40,8 @@ public:
   float odometer; // in kilometers
   bool vescOnline;
   ReasonType reason;
+  CommandType command;
+  float version;
 };
 
 class ControllerData

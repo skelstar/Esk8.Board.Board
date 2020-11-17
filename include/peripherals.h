@@ -62,6 +62,8 @@ void m5StackButtons_init()
   buttonB.setPressedHandler([](Button2 &btn) {
   });
   buttonB.setReleasedHandler([](Button2 &btn) {
+    board_packet.command = CommandType::RESET;
+    Serial.printf("sending command=RESET\n");
   });
   buttonB.setLongClickHandler([](Button2 &btn) {
   });
@@ -86,9 +88,6 @@ void primaryButtonInit()
   });
 
   primaryButton.setLongClickHandler([](Button2 &btn) {
-#ifdef FEATURE_OPTIONAL_OTA
-    otaInit();
-#endif
   });
 }
 //------------------------------------------------------------------
@@ -100,7 +99,8 @@ void mockMoving(bool buttonHeld)
   {
     if (board_packet.batteryVoltage <= 10.0)
       board_packet.batteryVoltage = 43.3;
-    board_packet.motorCurrent += 0.1;
+    board_packet.motorCurrent = 3;
+    board_packet.ampHours += board_packet.motorCurrent;
     DEBUGVAL(
         board_packet.moving,
         board_packet.motorCurrent,

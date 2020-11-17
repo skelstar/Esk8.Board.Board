@@ -58,6 +58,12 @@ bool sendPacketToController(ReasonType reason)
     retryCount++;
   }
 
+  if (board_packet.command == CommandType::RESET)
+  {
+    Serial.printf("sent command=RESET\n");
+  }
+  board_packet.command = NONE;
+
   if (!sent)
     Serial.printf("[%s] failed to send, retried %d times (max)\n", getCDebugTime(), retryCount);
 

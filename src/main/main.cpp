@@ -12,8 +12,8 @@
 
 #ifdef USE_SPI2
 #define SOFTSPI 1
-#define SOFT_SPI_MOSI_PIN 13 // Blue
 #define SOFT_SPI_MISO_PIN 12 // Orange
+#define SOFT_SPI_MOSI_PIN 13 // Blue
 #define SOFT_SPI_SCK_PIN 15  // Yellow
 #define SPI_CE 5             // 17
 #define SPI_CS 2
@@ -42,7 +42,6 @@
 VescData board_packet;
 
 ControllerClass controller;
-
 NRF24L01Lib nrf24;
 
 RF24 radio(SPI_CE, SPI_CS);
@@ -63,13 +62,15 @@ void send_to_vesc(uint8_t throttle, bool cruise_control);
 
 #include <footLightTask_0.h>
 #include <vesc_comms_2.h>
-#include <feature_ota.h>
 #include <peripherals.h>
 
 //-------------------------------------------------------
+
 void setup()
 {
   Serial.begin(115200);
+
+  board_packet.version = VERSION;
 
   nrf24.begin(&radio, &network, COMMS_BOARD, packet_available_cb);
   vesc.init(VESC_UART_BAUDRATE);
@@ -77,12 +78,21 @@ void setup()
   button_init();
   primaryButtonInit();
 
+  //get chip id
+  String chipId = String((uint32_t)ESP.getEfuseMac(), HEX);
+  chipId.toUpperCase();
+
+  print_build_status(chipId);
+
+  if (boardIs(chipId, M5STACKFIREID))
+  {
+    DEBUG("-----------------------------------------------");
+    DEBUG("               USING_M5STACK              ");
+    DEBUG("-----------------------------------------------\n\n");
 #ifdef USING_M5STACK
-  DEBUG("-------------------------------------");
-  DEBUG("          USING_M5STACK              ");
-  DEBUG("-------------------------------------\n\n");
-  m5StackButtons_init();
+    m5StackButtons_init();
 #endif
+  }
 
   xTaskCreatePinnedToCore(
       footLightTask_0,
@@ -113,11 +123,10 @@ void loop()
   primaryButton.loop();
 #ifdef USING_M5STACK
   buttonA.loop();
-  if (sinceUpdatedButtonAValues > 500 && buttonA.isPressed())
+  if (sinceUpdatedButtonAValues > 1000 && buttonA.isPressed())
   {
     sinceUpdatedButtonAValues = 0;
     long r = random(300);
-    board_packet.ampHours += r / 10.0;
     board_packet.batteryVoltage -= r / 1000.0;
     if (MOCK_MOVING_WITH_BUTTON == 1)
       mockMoving(buttonA.isPressed());
@@ -136,8 +145,6 @@ void loop()
     // DEBUGMVAL("timeout", sinceLastControllerPacket);
     sendCommsStateEvent(EV_CTRLR_TIMEOUT);
   }
-
-  otaLoop();
 
   vTaskDelay(10);
 }
