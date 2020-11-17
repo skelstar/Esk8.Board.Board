@@ -89,7 +89,9 @@ void setup()
     DEBUG("-----------------------------------------------");
     DEBUG("               USING_M5STACK              ");
     DEBUG("-----------------------------------------------\n\n");
+#ifdef USING_M5STACK
     m5StackButtons_init();
+#endif
   }
 
   xTaskCreatePinnedToCore(
