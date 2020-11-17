@@ -99,7 +99,7 @@ void mockMoving(bool buttonHeld)
   {
     if (board_packet.batteryVoltage <= 10.0)
       board_packet.batteryVoltage = 43.3;
-    board_packet.motorCurrent += 0.1;
+    board_packet.motorCurrent = 3;
     board_packet.ampHours += board_packet.motorCurrent;
     DEBUGVAL(
         board_packet.moving,
