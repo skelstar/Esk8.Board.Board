@@ -34,8 +34,9 @@
 
 #include <Fsm.h>
 
-#define COMMS_BOARD 00
-#define COMMS_CONTROLLER 01
+#define COMMS_CONTROLLER 00 // so controller can send to HUD (02)
+#define COMMS_BOARD 01
+#define COMMS_HUD 02
 
 //------------------------------------------------------------------
 

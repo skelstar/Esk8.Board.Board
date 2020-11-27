@@ -53,7 +53,7 @@ bool sendPacketToController(ReasonType reason)
   bool sent = false;
   while (!sent && retryCount < RETRY_COUNT_MAX)
   {
-    sent = nrf24.send_packet(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(VescData));
+    sent = nrf24.send(/*to*/ COMMS_CONTROLLER, 0, buff, sizeof(VescData));
     vTaskDelay(10);
     retryCount++;
   }
