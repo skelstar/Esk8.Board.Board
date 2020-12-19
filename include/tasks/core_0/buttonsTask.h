@@ -2,12 +2,16 @@
 
 namespace Buttons
 {
+  bool taskReady = false;
+
   void task(void *pvParameters)
   {
     Serial.printf("Buttons Task running on CORE_%d\n", xPortGetCoreID());
 
     button_init();
     primaryButtonInit();
+
+    taskReady = true;
 
     while (true)
     {

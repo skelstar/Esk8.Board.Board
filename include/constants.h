@@ -14,9 +14,23 @@ namespace FootLight
     MOVING,
     STOPPED,
   };
+
+  const char *getEvent(uint16_t ev)
+  {
+    switch (ev)
+    {
+    case NO_EVENT:
+      return "NO_EVENT";
+    case MOVING:
+      return "MOVING";
+    case STOPPED:
+      return "STOPPED";
+    }
+    return outOfRange("FootLight::getEvent()");
+  }
 } // namespace FootLight
 
-namespace COMMS
+namespace Comms
 {
   enum Event
   {
@@ -42,10 +56,10 @@ namespace COMMS
     case EV_CTRLR_TIMEOUT:
       return "EV_CTRLR_TIMEOUT";
     }
-    return outOfRange("COMMS::getEvent()");
+    return outOfRange("Comms::getEvent()");
   }
 
-  FsmManager<COMMS::Event> commsFsm;
+  FsmManager<Comms::Event> commsFsm;
 
   enum StateID
   {
@@ -70,7 +84,7 @@ namespace COMMS
     }
     return outOfRange("getStateName");
   }
-} // namespace COMMS
+} // namespace Comms
 
 #ifndef SEND_TO_VESC
 #define SEND_TO_VESC 0
@@ -78,11 +92,11 @@ namespace COMMS
 #ifndef PRINT_THROTTLE
 #define PRINT_THROTTLE 0
 #endif
-#ifndef PRINT_COMMS_STATE
-#define PRINT_COMMS_STATE 0
+#ifndef PRINT_COMMS_FSM_STATE
+#define PRINT_COMMS_FSM_STATE 0
 #endif
-#ifndef PRINT_COMMS_STATE_EVENT
-#define PRINT_COMMS_STATE_EVENT 0
+#ifndef PRINT_COMMS_FSM_TRIGGER
+#define PRINT_COMMS_FSM_TRIGGER 0
 #endif
 #ifndef PRINT_TX_TO_CONTROLLER
 #define PRINT_TX_TO_CONTROLLER 0
@@ -96,6 +110,13 @@ namespace COMMS
 #ifndef PRINT_LIGHT_FSM_EVENT_TRIGGER
 #define PRINT_LIGHT_FSM_EVENT_TRIGGER 0
 #endif
+#ifndef PRINT_SEND_TO_FOOTLIGHT_QUEUE
+#define PRINT_SEND_TO_FOOTLIGHT_QUEUE 0
+#endif
+#ifndef PRINT_READ_FROM_FOOTLIGHT_QUEUE
+#define PRINT_READ_FROM_FOOTLIGHT_QUEUE 0
+#endif
+
 #ifndef USE_SPI2
 #define USE_SPI2 0
 #endif

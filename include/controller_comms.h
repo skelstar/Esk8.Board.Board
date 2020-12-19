@@ -12,7 +12,7 @@ void controllerPacketAvailable_cb(uint16_t from_id, uint8_t type)
 {
   sinceLastControllerPacket = 0;
 
-  COMMS::commsFsm.trigger(COMMS::EV_CTRLR_PKT);
+  Comms::commsFsm.trigger(Comms::EV_CTRLR_PKT);
 
   if (type == Packet::CONTROL)
   {
@@ -74,7 +74,7 @@ bool sendPacketToController(ReasonType reason)
 #include <Fsm.h>
 #endif
 
-namespace COMMS
+namespace Comms
 {
   Event lastCommsEvent = EV_NONE;
 
@@ -115,4 +115,4 @@ namespace COMMS
     fsm.add_transition(&stateCtrlrVescOnline, &stateVescOnline, EV_CTRLR_TIMEOUT, NULL);
     fsm.add_transition(&stateCtrlrVescOnline, &stateCtrlrOnline, EV_VESC_FAILED, NULL);
   }
-} // namespace COMMS
+} // namespace Comms

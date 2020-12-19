@@ -51,13 +51,23 @@ Queue::Manager *footlightQueue;
 
 namespace FootLightQueue
 {
+  void sendToQueue_cb(uint16_t ev)
+  {
+    if (PRINT_SEND_TO_FOOTLIGHT_QUEUE)
+      Serial.printf(PRINT_QUEUE_SEND_FORMAT, "FootLight", FootLight::getEvent(ev));
+  }
+  void readFromQueue_cb(uint16_t ev)
+  {
+    if (PRINT_READ_FROM_FOOTLIGHT_QUEUE)
+      Serial.printf(PRINT_QUEUE_READ_FORMAT, "FootLight", FootLight::getEvent(ev));
+  }
+
   void init()
   {
     footlightQueue = new Queue::Manager(/*len*/ 3, sizeof(FootLight::Event), /*ticks*/ 5);
     footlightQueue->setName("footLightQueue");
-    footlightQueue->setSentEventCallback([](uint16_t ev) {
-
-    });
+    footlightQueue->setSentToQueueCallback(sendToQueue_cb);
+    footlightQueue->setReadFromQueueCallback(readFromQueue_cb);
   }
 } // namespace FootLightQueue
 
@@ -80,17 +90,17 @@ void send_to_vesc(uint8_t throttle, bool cruise_control);
 void controllerClientInit()
 {
   // TODO: PRINT_FLAGS
-  controllerClient.begin(&network, controllerPacketAvailable_cb, /*tx*/ true, /*rx*/ true);
-  // controllerClient.setConnectedStateChangeCallback([] {
-
-  // });
+  controllerClient.begin(&network, controllerPacketAvailable_cb);
+  controllerClient.setConnectedStateChangeCallback([] {
+    Serial.printf("setConnectedStateChangeCallback");
+  });
   controllerClient.setSentPacketCallback([](VescData data) {
     if (PRINT_TX_TO_CONTROLLER)
-      Serial.printf(PRINT_TX_PACKET_TO_FORMAT, "CTRLR", "TX"); // data.getSummary());
+      Serial.printf(PRINT_TX_PACKET_TO_FORMAT, "CTRLR", data.getSummary());
   });
   controllerClient.setReadPacketCallback([](ControllerData data) {
     if (PRINT_RX_FROM_CONTROLLER)
-      Serial.printf(PRINT_RX_PACKET_FROM_FORMAT, "CTRLR", "RX"); // data.getSummary());
+      Serial.printf(PRINT_RX_PACKET_FROM_FORMAT, "CTRLR", data.getSummary());
   });
 }
 
@@ -101,6 +111,7 @@ void controllerClientInit()
 #include <peripherals.h>
 #include <tasks/core_0/footLightTask_0.h>
 #include <tasks/core_0/buttonsTask.h>
+#include <tasks/core_0/commsFsmTask.h>
 #include <vesc_comms_2.h>
 
 //-------------------------------------------------------
@@ -134,26 +145,20 @@ void setup()
 #endif
   }
 
-  using namespace COMMS;
-  commsFsm.begin(&COMMS::fsm);
-  commsFsm.setPrintStateCallback([](uint16_t id) {
-    if (PRINT_COMMS_STATE)
-      Serial.printf(PRINT_STATE_FORMAT, "COMMS", getStateName(StateID(id)));
-  });
-  commsFsm.setPrintStateEventCallback([](uint16_t ev) {
-    if (PRINT_COMMS_STATE_EVENT)
-      Serial.printf(PRINT_STATE_FORMAT, "COMMS", getEvent(Event(ev)));
-  });
-  COMMS::addTransitions();
-
   if (USING_M5STACK)
   {
     Buttons::createTask(CORE_0, TASK_PRIORITY_2);
   }
+  Comms::createTask(CORE_0, TASK_PRIORITY_1);
 
-  // FootLight::createTask(CORE_0, TASK_PRIORITY_3);
+  FootLight::createTask(CORE_0, TASK_PRIORITY_3);
+  FootLightQueue::init();
 
-  // FootLightQueue::init();
+  while (false == Comms::taskReady &&
+         false == Buttons::taskReady)
+  {
+    vTaskDelay(5);
+  }
 
   // send startup packet
   sendPacketToController(FIRST_PACKET);
@@ -171,17 +176,12 @@ void loop()
 
   vesc_update();
 
-  if (sinceCheckedCtrlOnline > 500)
+  if (sinceCheckedCtrlOnline > 500 && controller.hasTimedout(sinceLastControllerPacket))
   {
     sinceCheckedCtrlOnline = 0;
-    if (controller.hasTimedout(sinceLastControllerPacket))
-    {
-      DEBUGMVAL("timeout", sinceLastControllerPacket);
-      COMMS::commsFsm.trigger(COMMS::EV_CTRLR_TIMEOUT);
-    }
+    // DEBUGMVAL("timeout", sinceLastControllerPacket);
+    Comms::commsFsm.trigger(Comms::EV_CTRLR_TIMEOUT);
   }
-
-  COMMS::commsFsm.runMachine();
 
   vTaskDelay(10);
 }

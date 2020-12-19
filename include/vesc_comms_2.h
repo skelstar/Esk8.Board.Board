@@ -39,7 +39,7 @@ void vesc_update()
 //-----------------------------------------------------------------------
 void try_get_values_from_vesc()
 {
-  using namespace COMMS;
+  using namespace Comms;
   bool success = get_vesc_values();
   if (success)
   {
