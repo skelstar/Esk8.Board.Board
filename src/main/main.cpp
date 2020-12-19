@@ -39,7 +39,10 @@
 
 elapsedMillis
     sinceLastControllerPacket,
-    sinceBoardBooted;
+    sinceBoardBooted,
+    sinceUpdatedButtonAValues,
+    sinceNRFUpdate;
+
 bool controller_connected = false;
 
 xQueueHandle xFootLightEventQueue;
@@ -95,9 +98,10 @@ void controllerClientInit()
 
 //------------------------------------------------------------------
 
-#include <tasks/core_0/footLightTask_0.h>
-#include <vesc_comms_2.h>
 #include <peripherals.h>
+#include <tasks/core_0/footLightTask_0.h>
+#include <tasks/core_0/buttonsTask.h>
+#include <vesc_comms_2.h>
 
 //-------------------------------------------------------
 
@@ -110,14 +114,13 @@ void setup()
   nrf24.begin(&radio, &network, COMMS_BOARD, controllerPacketAvailable_cb);
   vesc.init(VESC_UART_BAUDRATE);
 
-  button_init();
-  primaryButtonInit();
-
   //get chip id
   String chipId = String((uint32_t)ESP.getEfuseMac(), HEX);
   chipId.toUpperCase();
 
   controllerClientInit();
+
+  controller.config.send_interval = 200;
 
   print_build_status(chipId);
 
@@ -143,6 +146,11 @@ void setup()
   });
   COMMS::addTransitions();
 
+  if (USING_M5STACK)
+  {
+    Buttons::createTask(CORE_0, TASK_PRIORITY_2);
+  }
+
   // FootLight::createTask(CORE_0, TASK_PRIORITY_3);
 
   // FootLightQueue::init();
@@ -151,7 +159,7 @@ void setup()
   sendPacketToController(FIRST_PACKET);
 }
 
-elapsedMillis sinceUpdatedButtonAValues, sinceNRFUpdate;
+elapsedMillis sinceCheckedCtrlOnline;
 
 void loop()
 {
@@ -163,30 +171,17 @@ void loop()
 
   vesc_update();
 
-  if (controller.hasTimedout(sinceLastControllerPacket))
+  if (sinceCheckedCtrlOnline > 500)
   {
-    // DEBUGMVAL("timeout", sinceLastControllerPacket);
-    COMMS::commsFsm.trigger(COMMS::EV_CTRLR_TIMEOUT);
+    sinceCheckedCtrlOnline = 0;
+    if (controller.hasTimedout(sinceLastControllerPacket))
+    {
+      DEBUGMVAL("timeout", sinceLastControllerPacket);
+      COMMS::commsFsm.trigger(COMMS::EV_CTRLR_TIMEOUT);
+    }
   }
 
   COMMS::commsFsm.runMachine();
-
-  //   button0.loop();
-  //   primaryButton.loop();
-  // #ifdef USING_M5STACK
-  //   buttonA.loop();
-  //   if (sinceUpdatedButtonAValues > 1000 && buttonA.isPressed())
-  //   {
-  //     sinceUpdatedButtonAValues = 0;
-  //     long r = random(300);
-  //     board_packet.batteryVoltage -= r / 1000.0;
-  //     if (MOCK_MOVING_WITH_BUTTON == 1)
-  //       mockMoving(buttonA.isPressed());
-  //   }
-
-  //   buttonB.loop();
-  //   buttonC.loop();
-  // #endif
 
   vTaskDelay(10);
 }

@@ -45,6 +45,8 @@ namespace COMMS
     return outOfRange("COMMS::getEvent()");
   }
 
+  FsmManager<COMMS::Event> commsFsm;
+
   enum StateID
   {
     OFFLINE = 0,

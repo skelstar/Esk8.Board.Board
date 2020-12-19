@@ -108,6 +108,7 @@ public:
 
   bool hasTimedout(elapsedMillis lastPacketTime)
   {
+    DEBUGVAL(config.send_interval, lastPacketTime);
     return config.send_interval > 0 &&
            lastPacketTime > config.send_interval + 100;
   }

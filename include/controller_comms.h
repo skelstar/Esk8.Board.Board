@@ -12,6 +12,8 @@ void controllerPacketAvailable_cb(uint16_t from_id, uint8_t type)
 {
   sinceLastControllerPacket = 0;
 
+  COMMS::commsFsm.trigger(COMMS::EV_CTRLR_PKT);
+
   if (type == Packet::CONTROL)
   {
     ControllerData data = controllerClient.read();
@@ -75,8 +77,6 @@ bool sendPacketToController(ReasonType reason)
 namespace COMMS
 {
   Event lastCommsEvent = EV_NONE;
-
-  FsmManager<COMMS::Event> commsFsm;
 
   State stateOffline([] {
     commsFsm.printState(OFFLINE);
