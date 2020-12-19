@@ -106,11 +106,11 @@ void mockMoving(bool buttonHeld)
         board_packet.motorCurrent,
         board_packet.batteryVoltage,
         board_packet.ampHours);
-    sendToFootLightEventQueue(FootLightEvent::QUEUE_EV_MOVING);
+    footlightQueue->send(FootLight::MOVING);
   }
   else
   {
-    sendToFootLightEventQueue(FootLightEvent::QUEUE_EV_STOPPED);
+    footlightQueue->send(FootLight::STOPPED);
   }
 }
 //------------------------------------------------------

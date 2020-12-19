@@ -6,8 +6,6 @@
 #define WHEEL_PULLEY_TEETH 36 // https://hobbyking.com/en_us/gear-set-with-belt.html
 #define NUM_BATT_CELLS 11
 
-#define VESC_UART_BAUDRATE 115200
-
 #define POWERING_DOWN_BATT_VOLTS_START NUM_BATT_CELLS * 3.0
 
 vesc_comms vesc;
@@ -34,14 +32,14 @@ void vesc_update()
   {
     since_got_values_from_vesc = 0;
 
-#ifdef SEND_TO_VESC
-    try_get_values_from_vesc();
-#endif
+    if (SEND_TO_VESC)
+      try_get_values_from_vesc();
   }
 }
 //-----------------------------------------------------------------------
 void try_get_values_from_vesc()
 {
+  using namespace COMMS;
   bool success = get_vesc_values();
   if (success)
   {
@@ -50,17 +48,17 @@ void try_get_values_from_vesc()
     }
     else if (board_packet.moving)
     {
-      sendToFootLightEventQueue(FootLightEvent::QUEUE_EV_MOVING);
+      footlightQueue->send(FootLight::MOVING);
     }
     else if (board_packet.moving == false)
     {
-      sendToFootLightEventQueue(FootLightEvent::QUEUE_EV_STOPPED);
+      footlightQueue->send(FootLight::STOPPED);
     }
-    sendCommsStateEvent(EV_VESC_SUCCESS);
+    commsFsm.trigger(EV_VESC_SUCCESS);
   }
   else
   {
-    sendCommsStateEvent(EV_VESC_FAILED);
+    commsFsm.trigger(EV_VESC_FAILED);
   }
 }
 //-----------------------------------------------------------------------------------

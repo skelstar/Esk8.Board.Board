@@ -8,7 +8,11 @@
 #include <VescData.h>
 #include <elapsedMillis.h>
 
+#include <shared-utils.h>
+#include <types.h>
+#include <printFormatStrings.h>
 #include <utils.h>
+#include <FsmManager.h>
 
 #ifdef USE_SPI2
 #define SOFTSPI 1
@@ -25,18 +29,34 @@
 #define SPI_CS 26
 #endif
 
-#ifndef PRINT_THROTTLE
-#define PRINT_THROTTLE 0
-#endif
-
 #include <RF24Network.h>
 #include <NRF24L01Lib.h>
+#include <GenericClient.h>
+#include <QueueManager.h>
+#include <constants.h>
 
 #include <Fsm.h>
 
-#define COMMS_CONTROLLER 00 // so controller can send to HUD (02)
-#define COMMS_BOARD 01
-#define COMMS_HUD 02
+elapsedMillis
+    sinceLastControllerPacket,
+    sinceBoardBooted;
+bool controller_connected = false;
+
+xQueueHandle xFootLightEventQueue;
+
+Queue::Manager *footlightQueue;
+
+namespace FootLightQueue
+{
+  void init()
+  {
+    footlightQueue = new Queue::Manager(/*len*/ 3, sizeof(FootLight::Event), /*ticks*/ 5);
+    footlightQueue->setName("footLightQueue");
+    footlightQueue->setSentEventCallback([](uint16_t ev) {
+
+    });
+  }
+} // namespace FootLightQueue
 
 //------------------------------------------------------------------
 
@@ -48,20 +68,34 @@ NRF24L01Lib nrf24;
 RF24 radio(SPI_CE, SPI_CS);
 RF24Network network(radio);
 
-#define NUM_RETRIES 5
-
-elapsedMillis
-    sinceLastControllerPacket,
-    sinceBoardBooted;
-bool controller_connected = false;
-
-//------------------------------------------------------------------
+GenericClient<VescData, ControllerData> controllerClient(COMMS_CONTROLLER);
 
 void send_to_vesc(uint8_t throttle, bool cruise_control);
 
 #include <controller_comms.h>
 
-#include <footLightTask_0.h>
+void controllerClientInit()
+{
+  // TODO: PRINT_FLAGS
+  controllerClient.begin(&network, controllerPacketAvailable_cb, /*tx*/ true, /*rx*/ true);
+  // controllerClient.setConnectedStateChangeCallback([] {
+
+  // });
+  controllerClient.setSentPacketCallback([](VescData data) {
+    if (PRINT_TX_TO_CONTROLLER)
+      Serial.printf(PRINT_TX_PACKET_TO_FORMAT, "CTRLR", "TX"); // data.getSummary());
+  });
+  controllerClient.setReadPacketCallback([](ControllerData data) {
+    if (PRINT_RX_FROM_CONTROLLER)
+      Serial.printf(PRINT_RX_PACKET_FROM_FORMAT, "CTRLR", "RX"); // data.getSummary());
+  });
+}
+
+#define NUM_RETRIES 5
+
+//------------------------------------------------------------------
+
+#include <tasks/core_0/footLightTask_0.h>
 #include <vesc_comms_2.h>
 #include <peripherals.h>
 
@@ -73,7 +107,7 @@ void setup()
 
   board_packet.version = VERSION;
 
-  nrf24.begin(&radio, &network, COMMS_BOARD, packet_available_cb);
+  nrf24.begin(&radio, &network, COMMS_BOARD, controllerPacketAvailable_cb);
   vesc.init(VESC_UART_BAUDRATE);
 
   button_init();
@@ -82,6 +116,8 @@ void setup()
   //get chip id
   String chipId = String((uint32_t)ESP.getEfuseMac(), HEX);
   chipId.toUpperCase();
+
+  controllerClientInit();
 
   print_build_status(chipId);
 
@@ -95,57 +131,62 @@ void setup()
 #endif
   }
 
-  xTaskCreatePinnedToCore(
-      footLightTask_0,
-      "footLightTask_0",
-      /*stack size*/ 10000,
-      /*params*/ NULL,
-      /*priority*/ 3,
-      /*handle*/ NULL,
-      /*core*/ 0);
-  xFootLightEventQueue = xQueueCreate(1, sizeof(FootLightEvent));
+  using namespace COMMS;
+  commsFsm.begin(&COMMS::fsm);
+  commsFsm.setPrintStateCallback([](uint16_t id) {
+    if (PRINT_COMMS_STATE)
+      Serial.printf(PRINT_STATE_FORMAT, "COMMS", getStateName(StateID(id)));
+  });
+  commsFsm.setPrintStateEventCallback([](uint16_t ev) {
+    if (PRINT_COMMS_STATE_EVENT)
+      Serial.printf(PRINT_STATE_FORMAT, "COMMS", getEvent(Event(ev)));
+  });
+  COMMS::addTransitions();
 
-  commsFsm = new Fsm(&state_comms_offline);
-  commsFsm->setGetEventName(commsEventToString);
-  addfsmCommsTransitions();
+  // FootLight::createTask(CORE_0, TASK_PRIORITY_3);
+
+  // FootLightQueue::init();
 
   // send startup packet
-  board_packet.id = 0;
   sendPacketToController(FIRST_PACKET);
 }
 
-elapsedMillis sinceUpdatedButtonAValues;
+elapsedMillis sinceUpdatedButtonAValues, sinceNRFUpdate;
 
 void loop()
 {
-  nrf24.update();
-
-  button0.loop();
-  primaryButton.loop();
-#ifdef USING_M5STACK
-  buttonA.loop();
-  if (sinceUpdatedButtonAValues > 1000 && buttonA.isPressed())
+  if (sinceNRFUpdate > 20)
   {
-    sinceUpdatedButtonAValues = 0;
-    long r = random(300);
-    board_packet.batteryVoltage -= r / 1000.0;
-    if (MOCK_MOVING_WITH_BUTTON == 1)
-      mockMoving(buttonA.isPressed());
+    sinceNRFUpdate = 0;
+    controllerClient.update();
   }
 
-  buttonB.loop();
-  buttonC.loop();
-#endif
-
   vesc_update();
-
-  commsFsm->run_machine();
 
   if (controller.hasTimedout(sinceLastControllerPacket))
   {
     // DEBUGMVAL("timeout", sinceLastControllerPacket);
-    sendCommsStateEvent(EV_CTRLR_TIMEOUT);
+    COMMS::commsFsm.trigger(COMMS::EV_CTRLR_TIMEOUT);
   }
+
+  COMMS::commsFsm.runMachine();
+
+  //   button0.loop();
+  //   primaryButton.loop();
+  // #ifdef USING_M5STACK
+  //   buttonA.loop();
+  //   if (sinceUpdatedButtonAValues > 1000 && buttonA.isPressed())
+  //   {
+  //     sinceUpdatedButtonAValues = 0;
+  //     long r = random(300);
+  //     board_packet.batteryVoltage -= r / 1000.0;
+  //     if (MOCK_MOVING_WITH_BUTTON == 1)
+  //       mockMoving(buttonA.isPressed());
+  //   }
+
+  //   buttonB.loop();
+  //   buttonC.loop();
+  // #endif
 
   vTaskDelay(10);
 }

@@ -4,6 +4,7 @@
     "statusBar.background": "#1f0452",
     "statusBar.foreground": "#e7e7e7",
     "statusBarItem.hoverBackground": "#310683",
+    "tab.activeBorder": "#310683",
     "titleBar.activeBackground": "#1f0452",
     "titleBar.activeForeground": "#e7e7e7",
     "titleBar.inactiveBackground": "#1f045299",
@@ -28,5 +29,10 @@
     "cstddef": "cpp",
     "limits": "cpp"
   },
-  "peacock.color": "#1f0452"
+  "peacock.color": "#1f0452",
+  "python.autoComplete.extraPaths": [
+    null,
+    "c:\\Users\\skels\\.vscode-insiders\\extensions\\joedevivo.vscode-circuitpython-0.1.3\\stubs",
+    "c:\\Users\\skels\\AppData\\Roaming\\Code - Insiders\\User\\globalStorage\\joedevivo.vscode-circuitpython\\bundle\\20201113\\adafruit-circuitpython-bundle-py-20201205\\lib"
+  ]
 }

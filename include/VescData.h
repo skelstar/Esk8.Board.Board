@@ -42,6 +42,13 @@ public:
   ReasonType reason;
   CommandType command;
   float version;
+
+  const char *getSummary()
+  {
+    char buff[50];
+    sprintf(buff, "id: %lu moving: %d", id, moving);
+    return buff;
+  }
 };
 
 class ControllerData
@@ -51,6 +58,13 @@ public:
   uint8_t throttle;
   bool cruise_control;
   uint8_t command;
+
+  const char *getSummary()
+  {
+    char buff[50];
+    sprintf(buff, "id: %lu throttle: %d", id, throttle);
+    return buff;
+  }
 };
 
 class ControllerConfig
