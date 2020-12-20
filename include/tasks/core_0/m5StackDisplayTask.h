@@ -29,16 +29,17 @@ namespace M5StackDisplay
   {
     void drawCard(const char *text, uint32_t foreColour = TFT_WHITE, uint32_t bgColour = TFT_BLUE)
     {
-      int cardWidth = 200,
+      int cardYOffset = 20,
+          cardWidth = 200,
           cardHeight = 80,
           startx = LCD_WIDTH / 2 - cardWidth / 2,
-          starty = LCD_HEIGHT / 2 - cardHeight / 2 - 30;
+          starty = LCD_HEIGHT / 2 - cardHeight / 2 - cardYOffset;
       tft.fillRect(startx + 5, starty + 5, cardWidth, cardHeight, TFT_BLACK); // shadow
       tft.fillRect(startx, starty, cardWidth, cardHeight, bgColour);          // foreground
       tft.setTextColor(foreColour, bgColour);
       tft.setTextSize(3);
       tft.setTextDatum(MC_DATUM);
-      tft.drawString(text, LCD_WIDTH / 2, LCD_HEIGHT / 2 - 30);
+      tft.drawString(text, LCD_WIDTH / 2, LCD_HEIGHT / 2 - cardYOffset);
     }
 
     void init()
@@ -47,10 +48,10 @@ namespace M5StackDisplay
       tft.setRotation(1);
       tft.fillScreen(TFT_BLUE);
       // buttons
-#define BTN_A_POS 65
-#define BTN_B_POS LCD_WIDTH / 2
-#define BTN_C_POS LCD_WIDTH - BTN_A_POS
-      int POSs[] = {BTN_A_POS, BTN_B_POS, BTN_C_POS};
+#define BTN_A_XPOS 65
+#define BTN_B_XPOS LCD_WIDTH / 2
+#define BTN_C_XPOS LCD_WIDTH - BTN_A_XPOS
+      int POSs[] = {BTN_A_XPOS, BTN_B_XPOS, BTN_C_XPOS};
       const char *names[] = {"MOVE", "RESET", "-"};
       int size = 10,
           offset = 10,
