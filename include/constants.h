@@ -119,6 +119,12 @@ namespace Comms
 #ifndef PRINT_READ_FROM_FOOTLIGHT_QUEUE
 #define PRINT_READ_FROM_FOOTLIGHT_QUEUE 0
 #endif
+#ifndef PRINT_DISP_QUEUE_SEND
+#define PRINT_DISP_QUEUE_SEND 0
+#endif
+#ifndef PRINT_DISP_QUEUE_READ
+#define PRINT_DISP_QUEUE_READ 0
+#endif
 
 // #ifndef USE_SPI2
 // #define USE_SPI2 0

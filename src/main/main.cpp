@@ -40,7 +40,8 @@ namespace M5StackDisplay
     displayQueue = new Queue::Manager(/*len*/ 3, sizeof(uint16_t), /*ticks*/ 3);
     displayQueue->setName("m5StackDispQueue");
     displayQueue->setSentToQueueCallback([](uint16_t ev) {
-      Serial.printf("sent to displayQueue");
+      if (PRINT_DISP_QUEUE_SEND)
+        Serial.printf("sent to displayQueue");
     });
   }
 } // namespace M5StackDisplay
