@@ -4,6 +4,9 @@
 #define PRINT_THROTTLE 0
 #endif
 
+#define LCD_WIDTH 320
+#define LCD_HEIGHT 240
+
 #define VESC_UART_BAUDRATE 115200
 
 namespace FootLight
@@ -117,6 +120,6 @@ namespace Comms
 #define PRINT_READ_FROM_FOOTLIGHT_QUEUE 0
 #endif
 
-#ifndef USE_SPI2
-#define USE_SPI2 0
-#endif
+// #ifndef USE_SPI2
+// #define USE_SPI2 0
+// #endif

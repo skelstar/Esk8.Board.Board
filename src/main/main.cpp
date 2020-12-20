@@ -13,6 +13,8 @@
 #include <printFormatStrings.h>
 #include <utils.h>
 #include <FsmManager.h>
+#include <QueueManager.h>
+#include <constants.h>
 
 #ifdef USE_SPI2
 #define SOFTSPI 1
@@ -21,9 +23,28 @@
 #define SOFT_SPI_SCK_PIN 15  // Yellow
 #define SPI_CE 5             // 17
 #define SPI_CS 2
+
 #elif USING_M5STACK
 #define SPI_CE 5
 #define SPI_CS 13
+#include <TFT_eSPI.h>
+
+TFT_eSPI tft = TFT_eSPI(LCD_HEIGHT, LCD_WIDTH);
+
+xQueueHandle xM5StackDisplayQueue;
+Queue::Manager *displayQueue;
+namespace M5StackDisplay
+{
+  void initQueue()
+  {
+    displayQueue = new Queue::Manager(/*len*/ 3, sizeof(uint16_t), /*ticks*/ 3);
+    displayQueue->setName("m5StackDispQueue");
+    displayQueue->setSentToQueueCallback([](uint16_t ev) {
+      Serial.printf("sent to displayQueue");
+    });
+  }
+} // namespace M5StackDisplay
+#include <tasks/core_0/m5StackDisplayTask.h>
 #else
 #define SPI_CE 33
 #define SPI_CS 26
@@ -33,7 +54,6 @@
 #include <NRF24L01Lib.h>
 #include <GenericClient.h>
 #include <QueueManager.h>
-#include <constants.h>
 
 #include <Fsm.h>
 
@@ -140,9 +160,11 @@ void setup()
     DEBUG("-----------------------------------------------");
     DEBUG("               USING_M5STACK              ");
     DEBUG("-----------------------------------------------\n\n");
-#ifdef USING_M5STACK
+
     m5StackButtons_init();
-#endif
+
+    M5StackDisplay::createTask(CORE_0, TASK_PRIORITY_2);
+    M5StackDisplay::initQueue();
   }
 
   if (USING_M5STACK)
