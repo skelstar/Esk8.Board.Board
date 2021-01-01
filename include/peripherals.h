@@ -101,19 +101,19 @@ void mockMoving(bool buttonHeld)
       board_packet.batteryVoltage = 43.3;
     board_packet.motorCurrent = 3;
     board_packet.ampHours += board_packet.motorCurrent;
-    DEBUGVAL(
-        board_packet.moving,
-        board_packet.motorCurrent,
-        board_packet.batteryVoltage,
-        board_packet.ampHours);
+    // DEBUGVAL(
+    //     board_packet.moving,
+    //     board_packet.motorCurrent,
+    //     board_packet.batteryVoltage,
+    //     board_packet.ampHours);
     footlightQueue->send(FootLight::MOVING);
 
-    displayQueue->send(M5StackDisplay::MOVING);
+    displayQueue->send(M5StackDisplay::Q_MOVING);
   }
   else
   {
     footlightQueue->send(FootLight::STOPPED);
-    displayQueue->send(M5StackDisplay::STOPPED);
+    displayQueue->send(M5StackDisplay::Q_STOPPED);
   }
 }
 //------------------------------------------------------

@@ -4,27 +4,6 @@ namespace M5StackDisplay
 {
   bool taskReady = false;
 
-  enum Event
-  {
-    NO_EVENT = 0,
-    MOVING,
-    STOPPED,
-  };
-
-  const char *name(uint16_t ev)
-  {
-    switch (ev)
-    {
-    case NO_EVENT:
-      return "NO_EVENT";
-    case MOVING:
-      return " MOVING ";
-    case STOPPED:
-      return "STOPPED";
-    }
-    return outOfRange("M5StackDisplay name()");
-  }
-
   namespace TFT
   {
     void drawCard(const char *text, uint32_t foreColour = TFT_WHITE, uint32_t bgColour = TFT_BLUE)
@@ -47,11 +26,9 @@ namespace M5StackDisplay
       tft.init();
       tft.setRotation(1);
       tft.fillScreen(TFT_BLUE);
+      tft.setTextDatum(MC_DATUM);
       // buttons
-#define BTN_A_XPOS 65
-#define BTN_B_XPOS LCD_WIDTH / 2
-#define BTN_C_XPOS LCD_WIDTH - BTN_A_XPOS
-      int POSs[] = {BTN_A_XPOS, BTN_B_XPOS, BTN_C_XPOS};
+      int position[] = {BTN_A_XPOS, BTN_B_XPOS, BTN_C_XPOS};
       const char *names[] = {"MOVE", "RESET", "-"};
       int size = 10,
           offset = 10,
@@ -62,19 +39,63 @@ namespace M5StackDisplay
 
       for (int p = 0; p < 3; p++)
       {
-        tft.fillTriangle(POSs[p] - size, startY, POSs[p], endY, POSs[p] + size, startY, TFT_WHITE);
-        tft.drawString(names[p], POSs[p], startY - 15);
+        tft.fillTriangle(position[p] - size, startY, position[p], endY, position[p] + size, startY, TFT_WHITE);
+        tft.drawString(names[p], position[p], startY - 15);
       }
       // ready card
       drawCard("READY", TFT_BLACK, TFT_LIGHTGREY);
     }
   } // namespace TFT
 
+  namespace FSM
+  {
+    FsmManager<M5StackDisplay::Trigger> m5StackFsm;
+
+    State stateReady(
+        [] {
+          m5StackFsm.printState(StateID::ST_READY);
+        },
+        NULL, NULL);
+    State stateMoving(
+        [] {
+          m5StackFsm.printState(StateID::ST_MOVING);
+          TFT::drawCard("MOVING", TFT_WHITE, TFT_DARKGREEN);
+        },
+        NULL, NULL);
+    State stateStopped(
+        [] {
+          m5StackFsm.printState(StateID::ST_STOPPED);
+          TFT::drawCard("STOPPED", TFT_WHITE, TFT_RED);
+        },
+        NULL, NULL);
+
+    Fsm fsm(&stateReady);
+
+    void addTransitions()
+    {
+      fsm.add_transition(&stateReady, &stateMoving, M5StackDisplay::TR_MOVING, NULL);
+      fsm.add_transition(&stateMoving, &stateStopped, M5StackDisplay::TR_STOPPED, NULL);
+    }
+  } // namespace FSM
+  //-----------------------------------------------------------
   void task(void *pvParameters)
   {
+    using namespace FSM;
     Serial.printf("M5StackDisplay Task running on CORE_%d\n", xPortGetCoreID());
 
     TFT::init();
+
+    m5StackFsm.begin(&fsm);
+    m5StackFsm.setPrintStateCallback([](uint16_t id) {
+      if (PRINT_M5STACK_DISP_FSM_STATE)
+        Serial.printf(PRINT_STATE_FORMAT, "m5Stack", M5StackDisplay::stateID(id));
+    });
+    m5StackFsm.setPrintTriggerCallback([](uint16_t ev) {
+      if (PRINT_M5STACK_DISP_FSM_TRIGGER)
+        Serial.printf(PRINT_sFSM_sTRIGGER_FORMAT, "m5Stack", trigger(ev));
+    });
+
+    FSM::addTransitions();
 
     taskReady = true;
 
@@ -89,16 +110,15 @@ namespace M5StackDisplay
         uint16_t ev = displayQueue->read<uint16_t>();
         switch (ev)
         {
-        case NO_EVENT:
+        case M5StackDisplay::Q_MOVING:
+          FSM::m5StackFsm.trigger(M5StackDisplay::TR_MOVING);
           break;
-        case MOVING:
-          TFT::drawCard("MOVING", TFT_WHITE, TFT_DARKGREEN);
-          break;
-        case STOPPED:
-          TFT::drawCard("STOPPED", TFT_WHITE, TFT_RED);
+        case M5StackDisplay::Q_STOPPED:
+          FSM::m5StackFsm.trigger(M5StackDisplay::TR_STOPPED);
           break;
         }
       }
+      m5StackFsm.runMachine();
 
       vTaskDelay(10);
     }

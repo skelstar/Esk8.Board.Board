@@ -7,6 +7,10 @@
 #define LCD_WIDTH 320
 #define LCD_HEIGHT 240
 
+#define BTN_A_XPOS 65
+#define BTN_B_XPOS LCD_WIDTH / 2
+#define BTN_C_XPOS LCD_WIDTH - BTN_A_XPOS
+
 #define VESC_UART_BAUDRATE 115200
 
 namespace FootLight
@@ -32,6 +36,8 @@ namespace FootLight
     return outOfRange("FootLight::getEvent()");
   }
 } // namespace FootLight
+
+//---------------------------------------------
 
 namespace Comms
 {
@@ -89,6 +95,74 @@ namespace Comms
   }
 } // namespace Comms
 
+//---------------------------------------------
+
+namespace M5StackDisplay
+{
+  enum StateID
+  {
+    ST_READY = 0,
+    ST_MOVING,
+    ST_STOPPED,
+  };
+  const char *stateID(uint16_t id)
+  {
+    switch (id)
+    {
+    case ST_READY:
+      return "READY";
+    case ST_MOVING:
+      return "MOVING";
+    case ST_STOPPED:
+      return "STOPPED";
+    }
+    return outOfRange("FSM::stateID()");
+  }
+
+  enum Trigger
+  {
+    TR_NO_EVENT = 0,
+    TR_MOVING,
+    TR_STOPPED,
+  };
+
+  const char *trigger(uint16_t ev)
+  {
+    switch (ev)
+    {
+    case TR_MOVING:
+      return "MOVING";
+    case TR_STOPPED:
+      return "STOPPED";
+    }
+    return outOfRange("FSM::event()");
+  }
+
+  enum QueueEvent
+  {
+    Q_NO_EVENT = 0,
+    Q_MOVING,
+    Q_STOPPED,
+  };
+
+  const char *queueEvent(uint16_t ev)
+  {
+    switch (ev)
+    {
+    case Q_NO_EVENT:
+      return "NO_EVENT";
+    case Q_MOVING:
+      return " MOVING ";
+    case Q_STOPPED:
+      return "STOPPED";
+    }
+    return outOfRange("M5StackDisplay name()");
+  }
+
+} // namespace M5StackDisplay
+
+//---------------------------------------------
+
 #ifndef SEND_TO_VESC
 #define SEND_TO_VESC 0
 #endif
@@ -124,6 +198,12 @@ namespace Comms
 #endif
 #ifndef PRINT_DISP_QUEUE_READ
 #define PRINT_DISP_QUEUE_READ 0
+#endif
+#ifndef PRINT_M5STACK_DISP_FSM_STATE
+#define PRINT_M5STACK_DISP_FSM_STATE 0
+#endif
+#ifndef PRINT_M5STACK_DISP_FSM_TRIGGER
+#define PRINT_M5STACK_DISP_FSM_TRIGGER 0
 #endif
 
 // #ifndef USE_SPI2

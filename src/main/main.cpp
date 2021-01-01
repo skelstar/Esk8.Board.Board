@@ -41,7 +41,11 @@ namespace M5StackDisplay
     displayQueue->setName("m5StackDispQueue");
     displayQueue->setSentToQueueCallback([](uint16_t ev) {
       if (PRINT_DISP_QUEUE_SEND)
-        Serial.printf("sent to displayQueue");
+        Serial.printf("sent to displayQueue %s\n", queueEvent(ev));
+    });
+    displayQueue->setReadFromQueueCallback([](uint16_t ev) {
+      if (PRINT_DISP_QUEUE_READ)
+        Serial.printf("read from displayQueue %s\n", queueEvent(ev));
     });
   }
 } // namespace M5StackDisplay
@@ -113,7 +117,7 @@ void controllerClientInit()
   // TODO: PRINT_FLAGS
   controllerClient.begin(&network, controllerPacketAvailable_cb);
   controllerClient.setConnectedStateChangeCallback([] {
-    Serial.printf("setConnectedStateChangeCallback");
+    Serial.printf("setConnectedStateChangeCallback\n");
   });
   controllerClient.setSentPacketCallback([](VescData data) {
     if (PRINT_TX_TO_CONTROLLER)
