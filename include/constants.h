@@ -210,3 +210,6 @@ namespace M5StackDisplay
 #ifndef FEATURE_FOOTLIGHT
 #define FEATURE_FOOTLIGHT 0
 #endif
+#ifndef MOCK_MOVING_WITH_BUTTON
+#define MOCK_MOVING_WITH_BUTTON 0
+#endif
