@@ -15,6 +15,7 @@
 #include <FsmManager.h>
 #include <QueueManager.h>
 #include <constants.h>
+#include <ControllerClass.h>
 
 #include <TFT_eSPI.h>
 TFT_eSPI tft = TFT_eSPI(LCD_HEIGHT, LCD_WIDTH);
@@ -98,6 +99,20 @@ void send_to_vesc(uint8_t throttle, bool cruise_control);
 
 #include <controller_comms.h>
 
+const char *getSummary(VescData d)
+{
+  char buff[50];
+  sprintf(buff, "id: %lu moving: %d", d.id, d.moving);
+  return buff;
+}
+
+const char *getSummary(ControllerData d)
+{
+  char buff[50];
+  sprintf(buff, "id: %lu throttle: %d", d.id, d.throttle);
+  return buff;
+}
+
 void controllerClientInit()
 {
   // TODO: PRINT_FLAGS
@@ -107,11 +122,11 @@ void controllerClientInit()
   });
   controllerClient.setSentPacketCallback([](VescData data) {
     if (PRINT_TX_TO_CONTROLLER)
-      Serial.printf(PRINT_TX_PACKET_TO_FORMAT, "CTRLR", data.getSummary());
+      Serial.printf(PRINT_TX_PACKET_TO_FORMAT, "CTRLR", getSummary(data));
   });
   controllerClient.setReadPacketCallback([](ControllerData data) {
     if (PRINT_RX_FROM_CONTROLLER)
-      Serial.printf(PRINT_RX_PACKET_FROM_FORMAT, "CTRLR", data.getSummary());
+      Serial.printf(PRINT_RX_PACKET_FROM_FORMAT, "CTRLR", getSummary(data));
   });
 }
 
