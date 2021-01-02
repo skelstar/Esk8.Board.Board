@@ -48,11 +48,11 @@ void m5StackButtons_init()
 {
   // ButtonA
   buttonA.setPressedHandler([](Button2 &btn) {
-    if (MOCK_MOVING_WITH_BUTTON == 1)
+    if (MOCK_MOVING_WITH_BUTTON)
       mockMoving(true);
   });
   buttonA.setReleasedHandler([](Button2 &btn) {
-    if (MOCK_MOVING_WITH_BUTTON == 1)
+    if (MOCK_MOVING_WITH_BUTTON)
       mockMoving(false);
   });
   buttonA.setLongClickHandler([](Button2 &btn) {

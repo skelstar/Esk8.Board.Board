@@ -169,8 +169,8 @@ void setup()
 
     m5StackButtons_init();
 
-    // M5StackDisplay::createTask(CORE_0, TASK_PRIORITY_2);
-    // M5StackDisplay::initQueue();
+    M5StackDisplay::createTask(CORE_0, TASK_PRIORITY_2);
+    M5StackDisplay::initQueue();
   }
 
   if (boardIs(chipId, TDISPLAYBOARD))

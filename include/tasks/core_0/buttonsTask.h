@@ -19,13 +19,13 @@ namespace Buttons
       primaryButton.loop();
 
       buttonA.loop();
-      if (sinceUpdatedButtonAValues > 1000 && buttonA.isPressed())
+      if (sinceUpdatedButtonAValues > 1000 && buttonA.isPressedRaw())
       {
         sinceUpdatedButtonAValues = 0;
         long r = random(300);
         board_packet.batteryVoltage -= r / 1000.0;
         if (MOCK_MOVING_WITH_BUTTON == 1)
-          mockMoving(buttonA.isPressed());
+          mockMoving(buttonA.isPressedRaw());
       }
 
       buttonB.loop();
