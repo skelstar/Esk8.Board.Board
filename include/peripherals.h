@@ -106,14 +106,20 @@ void mockMoving(bool buttonHeld)
     //     board_packet.motorCurrent,
     //     board_packet.batteryVoltage,
     //     board_packet.ampHours);
-    footlightQueue->send(FootLight::MOVING);
+    if (FEATURE_FOOTLIGHT)
+      footlightQueue->send(FootLight::MOVING);
 
+#if USING_M5STACK
     displayQueue->send(M5StackDisplay::Q_MOVING);
+#endif
   }
   else
   {
-    footlightQueue->send(FootLight::STOPPED);
+    if (FEATURE_FOOTLIGHT)
+      footlightQueue->send(FootLight::STOPPED);
+#if USING_M5STACK
     displayQueue->send(M5StackDisplay::Q_STOPPED);
+#endif
   }
 }
 //------------------------------------------------------

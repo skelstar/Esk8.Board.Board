@@ -87,11 +87,11 @@ namespace M5StackDisplay
 
     m5StackFsm.begin(&fsm);
     m5StackFsm.setPrintStateCallback([](uint16_t id) {
-      if (PRINT_M5STACK_DISP_FSM_STATE)
+      if (PRINT_DISP_FSM_STATE)
         Serial.printf(PRINT_STATE_FORMAT, "m5Stack", M5StackDisplay::stateID(id));
     });
     m5StackFsm.setPrintTriggerCallback([](uint16_t ev) {
-      if (PRINT_M5STACK_DISP_FSM_TRIGGER)
+      if (PRINT_DISP_FSM_TRIGGER)
         Serial.printf(PRINT_sFSM_sTRIGGER_FORMAT, "m5Stack", trigger(ev));
     });
 

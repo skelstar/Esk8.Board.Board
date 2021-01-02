@@ -16,21 +16,10 @@
 #include <QueueManager.h>
 #include <constants.h>
 
-#ifdef USE_SPI2
-#define SOFTSPI 1
-#define SOFT_SPI_MISO_PIN 12 // Orange
-#define SOFT_SPI_MOSI_PIN 13 // Blue
-#define SOFT_SPI_SCK_PIN 15  // Yellow
-#define SPI_CE 5             // 17
-#define SPI_CS 2
-
-#elif USING_M5STACK
-#define SPI_CE 5
-#define SPI_CS 13
 #include <TFT_eSPI.h>
-
 TFT_eSPI tft = TFT_eSPI(LCD_HEIGHT, LCD_WIDTH);
 
+#if USING_M5STACK
 xQueueHandle xM5StackDisplayQueue;
 Queue::Manager *displayQueue;
 namespace M5StackDisplay
@@ -39,20 +28,17 @@ namespace M5StackDisplay
   {
     displayQueue = new Queue::Manager(/*len*/ 3, sizeof(uint16_t), /*ticks*/ 3);
     displayQueue->setName("m5StackDispQueue");
-    displayQueue->setSentToQueueCallback([](uint16_t ev) {
+    displayQueue->setSentEventCallback([](uint16_t ev) {
       if (PRINT_DISP_QUEUE_SEND)
         Serial.printf("sent to displayQueue %s\n", queueEvent(ev));
     });
-    displayQueue->setReadFromQueueCallback([](uint16_t ev) {
+    displayQueue->setReadEventCallback([](uint16_t ev) {
       if (PRINT_DISP_QUEUE_READ)
         Serial.printf("read from displayQueue %s\n", queueEvent(ev));
     });
   }
 } // namespace M5StackDisplay
 #include <tasks/core_0/m5StackDisplayTask.h>
-#else
-#define SPI_CE 33
-#define SPI_CS 26
 #endif
 
 #include <RF24Network.h>
@@ -91,8 +77,8 @@ namespace FootLightQueue
   {
     footlightQueue = new Queue::Manager(/*len*/ 3, sizeof(FootLight::Event), /*ticks*/ 5);
     footlightQueue->setName("footLightQueue");
-    footlightQueue->setSentToQueueCallback(sendToQueue_cb);
-    footlightQueue->setReadFromQueueCallback(readFromQueue_cb);
+    footlightQueue->setSentEventCallback(sendToQueue_cb);
+    footlightQueue->setReadEventCallback(readFromQueue_cb);
   }
 } // namespace FootLightQueue
 
@@ -168,8 +154,15 @@ void setup()
 
     m5StackButtons_init();
 
-    M5StackDisplay::createTask(CORE_0, TASK_PRIORITY_2);
-    M5StackDisplay::initQueue();
+    // M5StackDisplay::createTask(CORE_0, TASK_PRIORITY_2);
+    // M5StackDisplay::initQueue();
+  }
+
+  if (boardIs(chipId, TDISPLAYBOARD))
+  {
+    DEBUG("-----------------------------------------------");
+    DEBUG("               T-DISPLAY BOARD              ");
+    DEBUG("-----------------------------------------------\n\n");
   }
 
   if (USING_M5STACK)
@@ -178,8 +171,11 @@ void setup()
   }
   Comms::createTask(CORE_0, TASK_PRIORITY_1);
 
-  FootLight::createTask(CORE_0, TASK_PRIORITY_3);
-  FootLightQueue::init();
+  if (FEATURE_FOOTLIGHT)
+  {
+    FootLight::createTask(CORE_0, TASK_PRIORITY_3);
+    FootLightQueue::init();
+  }
 
   while (false == Comms::taskReady &&
          false == Buttons::taskReady)

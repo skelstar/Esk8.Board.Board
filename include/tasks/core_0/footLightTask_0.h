@@ -12,9 +12,9 @@ elapsedMillis sinceUpdatedBatteryGraph;
 #define PIN_05 5
 
 #ifdef USING_M5STACK
-#define FOOT_LIGHT_PIXEL_PIN 1
+#define FOOTLIGHT_PIXEL_PIN 1
 #else
-#define FOOT_LIGHT_PIXEL_PIN PIN_05
+#define FOOTLIGHT_PIXEL_PIN PIN_05
 #endif
 #define NUM_PIXELS 8
 
@@ -49,7 +49,7 @@ namespace FootLight
   State stateBoardBooted(
       [] {
         footlightFsm.printState(STATE_BOOTED);
-        footLightPanel.setBrightness(FOOT_LIGHT_BRIGHTNESS_STOPPED);
+        footLightPanel.setBrightness(FOOTLIGHT_BRIGHTNESS_STOPPED);
         footLightPanel.setAll(footLightPanel.COLOUR_BLUE);
       },
       [] {
@@ -65,7 +65,7 @@ namespace FootLight
   State stateMoving(
       [] {
         footlightFsm.printState(STATE_MOVING);
-        footLightPanel.setBrightness(FOOT_LIGHT_BRIGHTNESS_MOVING);
+        footLightPanel.setBrightness(FOOTLIGHT_BRIGHTNESS_MOVING);
         footLightPanel.setAll(footLightPanel.COLOUR_HEADLIGHT_WHITE);
       });
 
@@ -73,7 +73,7 @@ namespace FootLight
   State stateStopped(
       [] {
         footlightFsm.printState(STATE_STOPPED);
-        footLightPanel.setBrightness(FOOT_LIGHT_BRIGHTNESS_STOPPED);
+        footLightPanel.setBrightness(FOOTLIGHT_BRIGHTNESS_STOPPED);
         float battPc = getBatteryPercentage(board_packet.batteryVoltage) / 100.0;
         footLightPanel.showBatteryGraph(battPc);
       },
@@ -81,7 +81,7 @@ namespace FootLight
         if (sinceUpdatedBatteryGraph > 1000)
         {
           sinceUpdatedBatteryGraph = 0;
-          footLightPanel.setBrightness(FOOT_LIGHT_BRIGHTNESS_STOPPED);
+          footLightPanel.setBrightness(FOOTLIGHT_BRIGHTNESS_STOPPED);
           uint8_t battPc = getBatteryPercentage(board_packet.batteryVoltage);
           footLightPanel.showBatteryGraph(battPc);
         }
@@ -103,7 +103,7 @@ namespace FootLight
   {
     Serial.printf("FootLight running on CORE_%d\n", xPortGetCoreID());
 
-    footLightPanel.initialise(FOOT_LIGHT_PIXEL_PIN, NUM_PIXELS, FOOT_LIGHT_BRIGHTNESS_STOPPED);
+    footLightPanel.initialise(FOOTLIGHT_PIXEL_PIN, NUM_PIXELS, FOOTLIGHT_BRIGHTNESS_STOPPED);
     // footLightPanel.setAll(footLightPanel.COLOUR_DARK_RED);
 
     // footlightFsm.begin(&fsm);
@@ -145,9 +145,9 @@ namespace FootLight
 } // namespace FootLight
 //--------------------------------------------------
 
-void PRINT_FOOT_LIGHT_STATE(const char *state_name)
+void PRINT_FOOTLIGHT_STATE(const char *state_name)
 {
-#ifdef PRINT_FOOT_LIGHT_STATE_NAME
+#ifdef PRINT_FOOTLIGHT_STATE_NAME
   Serial.printf("STATE: light-fsm ---> %s ---\n", state_name);
 #endif
 }

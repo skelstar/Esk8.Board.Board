@@ -29,7 +29,7 @@ void controllerPacketAvailable_cb(uint16_t from_id, uint8_t type)
 
     if (PRINT_THROTTLE && controller.throttleChanged())
     {
-      DEBUGVAL(controller.data.id, controller.data.throttle);
+      DEBUGVAL(controller.data.id, controller.data.throttle, controller.data.cruise_control);
     }
   }
   else if (type == Packet::CONFIG)
@@ -78,41 +78,51 @@ namespace Comms
 {
   Event lastCommsEvent = EV_NONE;
 
-  State stateOffline([] {
-    commsFsm.printState(OFFLINE);
-    controller_connected = false;
-  });
+  State stOffline(
+      [] {
+        commsFsm.printState(OFFLINE);
+        controller_connected = false;
+      },
+      NULL, NULL);
 
-  State stateCtrlrOnline([] {
-    commsFsm.printState(CTRLR_ONLINE);
-    controller_connected = true;
-  });
+  State stCtrlrOnline(
+      [] {
+        commsFsm.printState(CTRLR_ONLINE);
+        controller_connected = true;
+      },
+      NULL, NULL);
 
-  State stateVescOnline([] {
-    commsFsm.printState(VESC_ONLINE);
-  });
+  State stVescOnline(
+      [] {
+        commsFsm.printState(VESC_ONLINE);
+      },
+      NULL, NULL);
 
-  State stateCtrlrVescOnline([] {
-    commsFsm.printState(CTRLR_VESC_ONLINE);
-  });
+  State stCtrlrVescOnline(
+      [] {
+        commsFsm.printState(CTRLR_VESC_ONLINE);
+      },
+      NULL, NULL);
 
-  Fsm fsm(&stateOffline);
+  Fsm fsm(&stOffline);
 
   //------------------------------------------------------
   void addTransitions()
   {
     // state_offline
-    fsm.add_transition(&stateOffline, &stateCtrlrOnline, EV_CTRLR_PKT, NULL);
-    fsm.add_transition(&stateOffline, &stateVescOnline, EV_VESC_SUCCESS, NULL);
+    fsm.add_transition(&stOffline, &stCtrlrOnline, EV_CTRLR_PKT, NULL);
+    fsm.add_transition(&stOffline, &stVescOnline, EV_VESC_SUCCESS, NULL);
 
-    // stateCtrlrOnline
-    fsm.add_transition(&stateCtrlrOnline, &stateOffline, EV_CTRLR_TIMEOUT, NULL);
-    fsm.add_transition(&stateCtrlrOnline, &stateCtrlrVescOnline, EV_VESC_SUCCESS, NULL);
-    // stateVescOnline
-    fsm.add_transition(&stateVescOnline, &stateCtrlrVescOnline, EV_CTRLR_PKT, NULL);
-    fsm.add_transition(&stateVescOnline, &stateOffline, EV_VESC_FAILED, NULL);
-    // stateCtrlrVescOnline
-    fsm.add_transition(&stateCtrlrVescOnline, &stateVescOnline, EV_CTRLR_TIMEOUT, NULL);
-    fsm.add_transition(&stateCtrlrVescOnline, &stateCtrlrOnline, EV_VESC_FAILED, NULL);
+    // stCtrlrOnline
+    fsm.add_transition(&stCtrlrOnline, &stOffline, EV_CTRLR_TIMEOUT, NULL);
+    fsm.add_transition(&stCtrlrOnline, &stCtrlrVescOnline, EV_VESC_SUCCESS, NULL);
+
+    // stVescOnline
+    fsm.add_transition(&stVescOnline, &stCtrlrVescOnline, EV_CTRLR_PKT, NULL);
+    fsm.add_transition(&stVescOnline, &stOffline, EV_VESC_FAILED, NULL);
+
+    // stCtrlrVescOnline
+    fsm.add_transition(&stCtrlrVescOnline, &stVescOnline, EV_CTRLR_TIMEOUT, NULL);
+    fsm.add_transition(&stCtrlrVescOnline, &stCtrlrOnline, EV_VESC_FAILED, NULL);
   }
 } // namespace Comms

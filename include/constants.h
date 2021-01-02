@@ -158,7 +158,6 @@ namespace M5StackDisplay
     }
     return outOfRange("M5StackDisplay name()");
   }
-
 } // namespace M5StackDisplay
 
 //---------------------------------------------
@@ -181,8 +180,8 @@ namespace M5StackDisplay
 #ifndef PRINT_RX_FROM_CONTROLLER
 #define PRINT_RX_FROM_CONTROLLER 0
 #endif
-#ifndef PRINT_FOOT_LIGHT_STATE_NAME
-#define PRINT_FOOT_LIGHT_STATE_NAME 0
+#ifndef PRINT_FOOTLIGHT_STATE_NAME
+#define PRINT_FOOTLIGHT_STATE_NAME 0
 #endif
 #ifndef PRINT_LIGHT_FSM_EVENT_TRIGGER
 #define PRINT_LIGHT_FSM_EVENT_TRIGGER 0
@@ -199,13 +198,15 @@ namespace M5StackDisplay
 #ifndef PRINT_DISP_QUEUE_READ
 #define PRINT_DISP_QUEUE_READ 0
 #endif
-#ifndef PRINT_M5STACK_DISP_FSM_STATE
-#define PRINT_M5STACK_DISP_FSM_STATE 0
+#ifndef PRINT_DISP_FSM_STATE
+#define PRINT_DISP_FSM_STATE 0
 #endif
-#ifndef PRINT_M5STACK_DISP_FSM_TRIGGER
-#define PRINT_M5STACK_DISP_FSM_TRIGGER 0
+#ifndef PRINT_DISP_FSM_TRIGGER
+#define PRINT_DISP_FSM_TRIGGER 0
 #endif
-
-// #ifndef USE_SPI2
-// #define USE_SPI2 0
-// #endif
+#ifndef USING_M5STACK
+#define USING_M5STACK 0
+#endif
+#ifndef FEATURE_FOOTLIGHT
+#define FEATURE_FOOTLIGHT 0
+#endif

@@ -48,11 +48,13 @@ void try_get_values_from_vesc()
     }
     else if (board_packet.moving)
     {
-      footlightQueue->send(FootLight::MOVING);
+      if (FEATURE_FOOTLIGHT)
+        footlightQueue->send(FootLight::MOVING);
     }
     else if (board_packet.moving == false)
     {
-      footlightQueue->send(FootLight::STOPPED);
+      if (FEATURE_FOOTLIGHT)
+        footlightQueue->send(FootLight::STOPPED);
     }
     commsFsm.trigger(EV_VESC_SUCCESS);
   }

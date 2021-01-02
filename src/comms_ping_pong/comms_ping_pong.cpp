@@ -6,7 +6,7 @@
 #include <VescData.h>
 #include <elapsedMillis.h>
 
-#ifdef USE_SPI2
+#if USE_SPI2
 #define SOFTSPI 1
 #define SOFT_SPI_MOSI_PIN 13 // Blue
 #define SOFT_SPI_MISO_PIN 12 // Orange
