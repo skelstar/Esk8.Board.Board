@@ -164,13 +164,15 @@ void setup()
   if (boardIs(chipId, M5STACKFIREID))
   {
     DEBUG("-----------------------------------------------");
-    DEBUG("               USING_M5STACK              ");
+    DEBUG("               USING_M5STACK                   ");
     DEBUG("-----------------------------------------------\n\n");
 
     m5StackButtons_init();
 
+#if USING_M5STACK
     M5StackDisplay::createTask(CORE_0, TASK_PRIORITY_2);
     M5StackDisplay::initQueue();
+#endif
   }
 
   if (boardIs(chipId, TDISPLAYBOARD))
