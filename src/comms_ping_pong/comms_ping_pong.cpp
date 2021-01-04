@@ -6,7 +6,7 @@
 #include <VescData.h>
 #include <elapsedMillis.h>
 
-#ifdef USE_SPI2
+#if USE_SPI2
 #define SOFTSPI 1
 #define SOFT_SPI_MOSI_PIN 13 // Blue
 #define SOFT_SPI_MISO_PIN 12 // Orange
@@ -38,7 +38,7 @@ RF24Network network(radio);
 #define NUM_RETRIES 5
 //------------------------------------------------------------------
 
-void packet_available_cb(uint16_t from_id, uint8_t type)
+void controllerPacketAvailable_cb(uint16_t from_id, uint8_t type)
 {
   ControllerData controller_packet;
 
@@ -63,7 +63,7 @@ void setup()
 {
   Serial.begin(115200);
 
-  nrf24.begin(&radio, &network, COMMS_BOARD, packet_available_cb);
+  nrf24.begin(&radio, &network, COMMS_BOARD, controllerPacketAvailable_cb);
 
   DEBUG("Ready to rx from board...");
 }

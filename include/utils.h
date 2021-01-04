@@ -21,6 +21,14 @@ void print_build_status(String chipId)
   {
     Serial.printf("               M5STACK-FIRE\n");
   }
+  else if (chipId == TDISPLAYBOARD)
+  {
+    Serial.printf("               T-DISPLAY BOARD\n");
+  }
+  else
+  {
+    Serial.printf("               Board: unknown\n");
+  }
 
 #ifdef RELEASE_BUILD
   Serial.printf("-----------------------------------------------\n");
@@ -39,7 +47,7 @@ void print_build_status(String chipId)
   Serial.printf("               %s \n", __DATE__);
   Serial.printf("-----------------------------------------------\n");
 #endif
-  Serial.printf("\n");
+  // Serial.printf("\n");
 }
 //------------------------------------------------------
 

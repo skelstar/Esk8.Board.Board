@@ -48,11 +48,11 @@ void m5StackButtons_init()
 {
   // ButtonA
   buttonA.setPressedHandler([](Button2 &btn) {
-    if (MOCK_MOVING_WITH_BUTTON == 1)
+    if (MOCK_MOVING_WITH_BUTTON)
       mockMoving(true);
   });
   buttonA.setReleasedHandler([](Button2 &btn) {
-    if (MOCK_MOVING_WITH_BUTTON == 1)
+    if (MOCK_MOVING_WITH_BUTTON)
       mockMoving(false);
   });
   buttonA.setLongClickHandler([](Button2 &btn) {
@@ -101,16 +101,25 @@ void mockMoving(bool buttonHeld)
       board_packet.batteryVoltage = 43.3;
     board_packet.motorCurrent = 3;
     board_packet.ampHours += board_packet.motorCurrent;
-    DEBUGVAL(
-        board_packet.moving,
-        board_packet.motorCurrent,
-        board_packet.batteryVoltage,
-        board_packet.ampHours);
-    sendToFootLightEventQueue(FootLightEvent::QUEUE_EV_MOVING);
+    // DEBUGVAL(
+    //     board_packet.moving,
+    //     board_packet.motorCurrent,
+    //     board_packet.batteryVoltage,
+    //     board_packet.ampHours);
+    if (FEATURE_FOOTLIGHT)
+      footlightQueue->send(FootLight::MOVING);
+
+#if USING_M5STACK
+    displayQueue->send(M5StackDisplay::Q_MOVING);
+#endif
   }
   else
   {
-    sendToFootLightEventQueue(FootLightEvent::QUEUE_EV_STOPPED);
+    if (FEATURE_FOOTLIGHT)
+      footlightQueue->send(FootLight::STOPPED);
+#if USING_M5STACK
+    displayQueue->send(M5StackDisplay::Q_STOPPED);
+#endif
   }
 }
 //------------------------------------------------------

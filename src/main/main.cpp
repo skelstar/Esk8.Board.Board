@@ -8,34 +8,80 @@
 #include <VescData.h>
 #include <elapsedMillis.h>
 
+#include <shared-utils.h>
+#include <types.h>
+#include <printFormatStrings.h>
 #include <utils.h>
+#include <FsmManager.h>
+#include <QueueManager.h>
+#include <constants.h>
+#include <ControllerClass.h>
 
-#ifdef USE_SPI2
-#define SOFTSPI 1
-#define SOFT_SPI_MISO_PIN 12 // Orange
-#define SOFT_SPI_MOSI_PIN 13 // Blue
-#define SOFT_SPI_SCK_PIN 15  // Yellow
-#define SPI_CE 5             // 17
-#define SPI_CS 2
-#elif USING_M5STACK
-#define SPI_CE 5
-#define SPI_CS 13
-#else
-#define SPI_CE 33
-#define SPI_CS 26
-#endif
+#include <TFT_eSPI.h>
+TFT_eSPI tft = TFT_eSPI(LCD_HEIGHT, LCD_WIDTH);
 
-#ifndef PRINT_THROTTLE
-#define PRINT_THROTTLE 0
+#if USING_M5STACK
+xQueueHandle xM5StackDisplayQueue;
+Queue::Manager *displayQueue;
+namespace M5StackDisplay
+{
+  void initQueue()
+  {
+    displayQueue = new Queue::Manager(/*len*/ 3, sizeof(uint16_t), /*ticks*/ 3);
+    displayQueue->setName("m5StackDispQueue");
+    displayQueue->setSentEventCallback([](uint16_t ev) {
+      if (PRINT_DISP_QUEUE_SEND)
+        Serial.printf("sent to displayQueue %s\n", queueEvent(ev));
+    });
+    displayQueue->setReadEventCallback([](uint16_t ev) {
+      if (PRINT_DISP_QUEUE_READ)
+        Serial.printf("read from displayQueue %s\n", queueEvent(ev));
+    });
+  }
+} // namespace M5StackDisplay
+#include <tasks/core_0/m5StackDisplayTask.h>
 #endif
 
 #include <RF24Network.h>
 #include <NRF24L01Lib.h>
+#include <GenericClient.h>
+#include <QueueManager.h>
 
 #include <Fsm.h>
 
-#define COMMS_BOARD 00
-#define COMMS_CONTROLLER 01
+elapsedMillis
+    sinceLastControllerPacket,
+    sinceBoardBooted,
+    sinceUpdatedButtonAValues,
+    sinceNRFUpdate;
+
+bool controller_connected = false;
+
+xQueueHandle xFootLightEventQueue;
+
+Queue::Manager *footlightQueue;
+
+namespace FootLightQueue
+{
+  void sendToQueue_cb(uint16_t ev)
+  {
+    if (PRINT_SEND_TO_FOOTLIGHT_QUEUE)
+      Serial.printf(PRINT_QUEUE_SEND_FORMAT, "FootLight", FootLight::getEvent(ev));
+  }
+  void readFromQueue_cb(uint16_t ev)
+  {
+    if (PRINT_READ_FROM_FOOTLIGHT_QUEUE)
+      Serial.printf(PRINT_QUEUE_READ_FORMAT, "FootLight", FootLight::getEvent(ev));
+  }
+
+  void init()
+  {
+    footlightQueue = new Queue::Manager(/*len*/ 3, sizeof(FootLight::Event), /*ticks*/ 5);
+    footlightQueue->setName("footLightQueue");
+    footlightQueue->setSentEventCallback(sendToQueue_cb);
+    footlightQueue->setReadEventCallback(readFromQueue_cb);
+  }
+} // namespace FootLightQueue
 
 //------------------------------------------------------------------
 
@@ -47,22 +93,52 @@ NRF24L01Lib nrf24;
 RF24 radio(SPI_CE, SPI_CS);
 RF24Network network(radio);
 
-#define NUM_RETRIES 5
-
-elapsedMillis
-    sinceLastControllerPacket,
-    sinceBoardBooted;
-bool controller_connected = false;
-
-//------------------------------------------------------------------
+GenericClient<VescData, ControllerData> controllerClient(COMMS_CONTROLLER);
 
 void send_to_vesc(uint8_t throttle, bool cruise_control);
 
 #include <controller_comms.h>
 
-#include <footLightTask_0.h>
-#include <vesc_comms_2.h>
+const char *getSummary(VescData d)
+{
+  char buff[50];
+  sprintf(buff, "id: %lu moving: %d", d.id, d.moving);
+  return buff;
+}
+
+const char *getSummary(ControllerData d)
+{
+  char buff[50];
+  sprintf(buff, "id: %lu throttle: %d", d.id, d.throttle);
+  return buff;
+}
+
+void controllerClientInit()
+{
+  // TODO: PRINT_FLAGS
+  controllerClient.begin(&network, controllerPacketAvailable_cb);
+  controllerClient.setConnectedStateChangeCallback([] {
+    Serial.printf("setConnectedStateChangeCallback\n");
+  });
+  controllerClient.setSentPacketCallback([](VescData data) {
+    if (PRINT_TX_TO_CONTROLLER)
+      Serial.printf(PRINT_TX_PACKET_TO_FORMAT, "CTRLR", getSummary(data));
+  });
+  controllerClient.setReadPacketCallback([](ControllerData data) {
+    if (PRINT_RX_FROM_CONTROLLER)
+      Serial.printf(PRINT_RX_PACKET_FROM_FORMAT, "CTRLR", getSummary(data));
+  });
+}
+
+#define NUM_RETRIES 5
+
+//------------------------------------------------------------------
+
 #include <peripherals.h>
+#include <tasks/core_0/footLightTask_0.h>
+#include <tasks/core_0/buttonsTask.h>
+#include <tasks/core_0/commsFsmTask.h>
+#include <vesc_comms_2.h>
 
 //-------------------------------------------------------
 
@@ -72,78 +148,79 @@ void setup()
 
   board_packet.version = VERSION;
 
-  nrf24.begin(&radio, &network, COMMS_BOARD, packet_available_cb);
+  nrf24.begin(&radio, &network, COMMS_BOARD, controllerPacketAvailable_cb);
   vesc.init(VESC_UART_BAUDRATE);
-
-  button_init();
-  primaryButtonInit();
 
   //get chip id
   String chipId = String((uint32_t)ESP.getEfuseMac(), HEX);
   chipId.toUpperCase();
+
+  controllerClientInit();
+
+  controller.config.send_interval = 200;
 
   print_build_status(chipId);
 
   if (boardIs(chipId, M5STACKFIREID))
   {
     DEBUG("-----------------------------------------------");
-    DEBUG("               USING_M5STACK              ");
+    DEBUG("               USING_M5STACK                   ");
     DEBUG("-----------------------------------------------\n\n");
-#ifdef USING_M5STACK
+
     m5StackButtons_init();
+
+#if USING_M5STACK
+    M5StackDisplay::createTask(CORE_0, TASK_PRIORITY_2);
+    M5StackDisplay::initQueue();
 #endif
   }
 
-  xTaskCreatePinnedToCore(
-      footLightTask_0,
-      "footLightTask_0",
-      /*stack size*/ 10000,
-      /*params*/ NULL,
-      /*priority*/ 3,
-      /*handle*/ NULL,
-      /*core*/ 0);
-  xFootLightEventQueue = xQueueCreate(1, sizeof(FootLightEvent));
+  if (boardIs(chipId, TDISPLAYBOARD))
+  {
+    DEBUG("-----------------------------------------------");
+    DEBUG("               T-DISPLAY BOARD              ");
+    DEBUG("-----------------------------------------------\n\n");
+  }
 
-  commsFsm = new Fsm(&state_comms_offline);
-  commsFsm->setGetEventName(commsEventToString);
-  addfsmCommsTransitions();
+  if (USING_M5STACK)
+  {
+    Buttons::createTask(CORE_0, TASK_PRIORITY_2);
+  }
+  Comms::createTask(CORE_0, TASK_PRIORITY_1);
+
+  if (FEATURE_FOOTLIGHT)
+  {
+    FootLight::createTask(CORE_0, TASK_PRIORITY_3);
+    FootLightQueue::init();
+  }
+
+  while (false == Comms::taskReady &&
+         false == Buttons::taskReady)
+  {
+    vTaskDelay(5);
+  }
 
   // send startup packet
-  board_packet.id = 0;
   sendPacketToController(FIRST_PACKET);
 }
 
-elapsedMillis sinceUpdatedButtonAValues;
+elapsedMillis sinceCheckedCtrlOnline;
 
 void loop()
 {
-  nrf24.update();
-
-  button0.loop();
-  primaryButton.loop();
-#ifdef USING_M5STACK
-  buttonA.loop();
-  if (sinceUpdatedButtonAValues > 1000 && buttonA.isPressed())
+  if (sinceNRFUpdate > 20)
   {
-    sinceUpdatedButtonAValues = 0;
-    long r = random(300);
-    board_packet.batteryVoltage -= r / 1000.0;
-    if (MOCK_MOVING_WITH_BUTTON == 1)
-      mockMoving(buttonA.isPressed());
+    sinceNRFUpdate = 0;
+    controllerClient.update();
   }
-
-  buttonB.loop();
-  buttonC.loop();
-#endif
 
   vesc_update();
 
-  commsFsm->run_machine();
-
-  if (controller.hasTimedout(sinceLastControllerPacket))
+  if (sinceCheckedCtrlOnline > 500 && controller.hasTimedout(sinceLastControllerPacket))
   {
+    sinceCheckedCtrlOnline = 0;
     // DEBUGMVAL("timeout", sinceLastControllerPacket);
-    sendCommsStateEvent(EV_CTRLR_TIMEOUT);
+    Comms::commsFsm.trigger(Comms::EV_CTRLR_TIMEOUT);
   }
 
   vTaskDelay(10);
