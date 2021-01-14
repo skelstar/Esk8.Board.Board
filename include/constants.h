@@ -11,6 +11,8 @@
 #define BTN_B_XPOS LCD_WIDTH / 2
 #define BTN_C_XPOS LCD_WIDTH - BTN_A_XPOS
 
+#define FOOTLIGHT_NUM_PIXELS 8
+
 #define VESC_UART_BAUDRATE 115200
 
 namespace FootLight
