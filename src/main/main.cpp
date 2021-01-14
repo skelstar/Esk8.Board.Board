@@ -39,6 +39,9 @@ namespace M5StackDisplay
     });
   }
 } // namespace M5StackDisplay
+
+ControllerClass controller;
+
 #include <tasks/core_0/m5StackDisplayTask.h>
 #endif
 
@@ -87,7 +90,6 @@ namespace FootLightQueue
 
 VescData board_packet;
 
-ControllerClass controller;
 NRF24L01Lib nrf24;
 
 RF24 radio(SPI_CE, SPI_CS);

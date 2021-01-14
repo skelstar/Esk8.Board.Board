@@ -103,7 +103,9 @@ namespace M5StackDisplay
   {
     ST_READY = 0,
     ST_MOVING,
+    ST_REAL_MOVING,
     ST_STOPPED,
+    ST_STOPPING,
   };
   const char *stateID(uint16_t id)
   {
@@ -113,8 +115,12 @@ namespace M5StackDisplay
       return "READY";
     case ST_MOVING:
       return "MOVING";
+    case ST_REAL_MOVING:
+      return "ST_REAL_MOVING";
     case ST_STOPPED:
-      return "STOPPED";
+      return "ST_STOPPED";
+    case ST_STOPPING:
+      return "ST_STOPPING";
     }
     return outOfRange("FSM::stateID()");
   }
@@ -124,6 +130,7 @@ namespace M5StackDisplay
     TR_NO_EVENT = 0,
     TR_MOVING,
     TR_STOPPED,
+    TR_STOPPING,
   };
 
   const char *trigger(uint16_t ev)
@@ -134,6 +141,8 @@ namespace M5StackDisplay
       return "MOVING";
     case TR_STOPPED:
       return "STOPPED";
+    case TR_STOPPING:
+      return "TR_STOPPING";
     }
     return outOfRange("FSM::event()");
   }
@@ -142,7 +151,9 @@ namespace M5StackDisplay
   {
     Q_NO_EVENT = 0,
     Q_MOVING,
+    Q_RL_MOVING,
     Q_STOPPED,
+    Q_RL_STOPPING,
   };
 
   const char *queueEvent(uint16_t ev)
@@ -153,8 +164,12 @@ namespace M5StackDisplay
       return "NO_EVENT";
     case Q_MOVING:
       return " MOVING ";
+    case Q_RL_MOVING:
+      return "Q_RL_MOVING";
     case Q_STOPPED:
       return "STOPPED";
+    case Q_RL_STOPPING:
+      return "Q_RL_STOPPING";
     }
     return outOfRange("M5StackDisplay name()");
   }

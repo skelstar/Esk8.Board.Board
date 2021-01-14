@@ -4,6 +4,21 @@ namespace M5StackDisplay
 {
   bool taskReady = false;
 
+  Trigger mapToTrigger(uint16_t ev)
+  {
+    switch (ev)
+    {
+    case Q_MOVING:
+    case Q_RL_MOVING:
+      return TR_MOVING;
+    case Q_STOPPED:
+      return TR_STOPPED;
+    case Q_RL_STOPPING:
+      return TR_STOPPING;
+    }
+    return TR_NO_EVENT;
+  }
+
   namespace TFT
   {
     void drawCard(const char *text, uint32_t foreColour = TFT_WHITE, uint32_t bgColour = TFT_BLUE)
@@ -59,13 +74,26 @@ namespace M5StackDisplay
     State stateMoving(
         [] {
           m5StackFsm.printState(StateID::ST_MOVING);
-          TFT::drawCard("MOVING", TFT_WHITE, TFT_DARKGREEN);
+          uint8_t t = controller.data.throttle;
+          char thr[10];
+          sprintf(thr, "%03d", t);
+          TFT::drawCard(thr, TFT_WHITE, TFT_DARKGREEN);
         },
         NULL, NULL);
     State stateStopped(
         [] {
           m5StackFsm.printState(StateID::ST_STOPPED);
-          TFT::drawCard("STOPPED", TFT_WHITE, TFT_RED);
+          TFT::drawCard("STOPPED", TFT_WHITE, TFT_BLACK);
+        },
+        NULL, NULL);
+
+    State stateStopping(
+        [] {
+          m5StackFsm.printState(StateID::ST_STOPPING);
+          uint8_t t = controller.data.throttle;
+          char thr[10];
+          sprintf(thr, "%03d", t);
+          TFT::drawCard(thr, TFT_WHITE, TFT_RED);
         },
         NULL, NULL);
 
@@ -74,7 +102,17 @@ namespace M5StackDisplay
     void addTransitions()
     {
       fsm.add_transition(&stateReady, &stateMoving, M5StackDisplay::TR_MOVING, NULL);
+      fsm.add_transition(&stateStopped, &stateMoving, M5StackDisplay::TR_MOVING, NULL);
+      fsm.add_transition(&stateMoving, &stateMoving, M5StackDisplay::TR_MOVING, NULL);
+      fsm.add_transition(&stateStopping, &stateMoving, M5StackDisplay::TR_MOVING, NULL);
+
       fsm.add_transition(&stateMoving, &stateStopped, M5StackDisplay::TR_STOPPED, NULL);
+      fsm.add_transition(&stateStopping, &stateStopped, M5StackDisplay::TR_STOPPED, NULL);
+
+      fsm.add_transition(&stateReady, &stateStopping, M5StackDisplay::TR_STOPPING, NULL);
+      fsm.add_transition(&stateStopped, &stateStopping, M5StackDisplay::TR_STOPPING, NULL);
+      fsm.add_transition(&stateStopping, &stateStopping, M5StackDisplay::TR_STOPPING, NULL);
+      fsm.add_transition(&stateMoving, &stateStopping, M5StackDisplay::TR_STOPPING, NULL);
     }
   } // namespace FSM
   //-----------------------------------------------------------
@@ -108,15 +146,9 @@ namespace M5StackDisplay
         sinceCheckedQueue = 0;
 
         uint16_t ev = displayQueue->read<uint16_t>();
-        switch (ev)
-        {
-        case M5StackDisplay::Q_MOVING:
-          FSM::m5StackFsm.trigger(M5StackDisplay::TR_MOVING);
-          break;
-        case M5StackDisplay::Q_STOPPED:
-          FSM::m5StackFsm.trigger(M5StackDisplay::TR_STOPPED);
-          break;
-        }
+        Trigger trigger = mapToTrigger(ev);
+        if (trigger != TR_NO_EVENT)
+          m5StackFsm.trigger(trigger);
       }
       m5StackFsm.runMachine();
 
