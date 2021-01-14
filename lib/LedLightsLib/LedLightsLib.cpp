@@ -3,7 +3,7 @@
 
 void LedLightsLib::initialise(uint8_t pin, uint8_t numPixels, uint8_t brightness)
 {
-  _strip = new Adafruit_NeoPixel(numPixels, pin, NEO_GRBW + NEO_KHZ800);
+  _strip = new Adafruit_NeoPixel(numPixels, pin, NEO_GRB + NEO_KHZ800);
   _strip->begin();
   // _brightness = brightness;
   // _strip->setBrightness(_brightness);

@@ -9,15 +9,6 @@ elapsedMillis sinceUpdatedBatteryGraph;
 
 //------------------------------------------------------------------
 
-#define PIN_05 5
-
-#ifdef USING_M5STACK
-#define FOOTLIGHT_PIXEL_PIN 1
-#else
-#define FOOTLIGHT_PIXEL_PIN PIN_05
-#endif
-#define NUM_PIXELS 8
-
 namespace FootLight
 {
   /* prototypes */
@@ -43,7 +34,23 @@ namespace FootLight
     return OUT_OF_RANGE;
   }
 
+  bool taskReady = false;
+
   FsmManager<Event> footlightFsm;
+
+  const char *name = "FOOTLIGHT";
+
+  void printFsmState_cb(uint16_t id)
+  {
+    if (PRINT_FOOTLIGHT_STATE_NAME)
+      Serial.printf(PRINT_STATE_FORMAT, name, getStateName(StateID(id)));
+  }
+
+  void printFsmTrigger_cb(uint16_t ev)
+  {
+    // if (PRINT_COMMS_FSM_TRIGGER)
+    //   Serial.printf(PRINT_STATE_FORMAT, name, getEvent(Event(ev)));
+  }
 
   //--------------------------------------------------
   State stateBoardBooted(
@@ -52,22 +59,15 @@ namespace FootLight
         footLightPanel.setBrightness(FOOTLIGHT_BRIGHTNESS_STOPPED);
         footLightPanel.setAll(footLightPanel.COLOUR_BLUE);
       },
-      [] {
-        if (sinceBoardBooted > 3000)
-        {
-          footlightFsm.trigger(Event::STOPPED);
-        }
-      },
-      [] {
-
-      });
+      NULL, NULL);
   //--------------------------------------------------
   State stateMoving(
       [] {
         footlightFsm.printState(STATE_MOVING);
         footLightPanel.setBrightness(FOOTLIGHT_BRIGHTNESS_MOVING);
-        footLightPanel.setAll(footLightPanel.COLOUR_HEADLIGHT_WHITE);
-      });
+        footLightPanel.setAll(footLightPanel.COLOUR_WHITE);
+      },
+      NULL, NULL);
 
   //--------------------------------------------------
   State stateStopped(
@@ -92,6 +92,7 @@ namespace FootLight
 
   void addTransitions()
   {
+    fsm.add_timed_transition(&stateBoardBooted, &stateStopped, 1000, NULL);
     fsm.add_transition(&stateBoardBooted, &stateStopped, STOPPED, NULL);
     fsm.add_transition(&stateMoving, &stateStopped, STOPPED, NULL);
     fsm.add_transition(&stateStopped, &stateMoving, MOVING, NULL);
@@ -103,28 +104,32 @@ namespace FootLight
   {
     Serial.printf("FootLight running on CORE_%d\n", xPortGetCoreID());
 
-    footLightPanel.initialise(FOOTLIGHT_PIXEL_PIN, NUM_PIXELS, FOOTLIGHT_BRIGHTNESS_STOPPED);
-    // footLightPanel.setAll(footLightPanel.COLOUR_DARK_RED);
+    footLightPanel.initialise(FOOTLIGHT_PIXEL_PIN, FOOTLIGHT_NUM_PIXELS, FOOTLIGHT_BRIGHTNESS_STOPPED);
+    footLightPanel.setAll(footLightPanel.COLOUR_DARK_RED);
 
-    // footlightFsm.begin(&fsm);
+    footlightFsm.begin(&fsm);
+    footlightFsm.setPrintStateCallback(printFsmState_cb);
+    // footlightFsm.setPrintTriggerCallback(printFsmTrigger_cb);
 
-    // addTransitions();
+    addTransitions();
+
+    taskReady = true;
 
     while (true)
     {
-      // uint16_t ev = footlightQueue->read<FootLight::Event>();
+      uint16_t ev = footlightQueue->read<FootLight::Event>();
 
-      // switch (ev)
-      // {
-      // case FootLight::MOVING:
-      // case FootLight::STOPPED:
-      //   footlightFsm.trigger(FootLight::Event(ev));
-      //   break;
-      // default:
-      //   break;
-      // }
+      switch (ev)
+      {
+      case FootLight::MOVING:
+      case FootLight::STOPPED:
+        footlightFsm.trigger(FootLight::Event(ev));
+        break;
+      default:
+        break;
+      }
 
-      // footlightFsm.runMachine();
+      footlightFsm.runMachine();
 
       vTaskDelay(10);
     }
@@ -143,12 +148,3 @@ namespace FootLight
         core);
   }
 } // namespace FootLight
-//--------------------------------------------------
-
-void PRINT_FOOTLIGHT_STATE(const char *state_name)
-{
-#ifdef PRINT_FOOTLIGHT_STATE_NAME
-  Serial.printf("STATE: light-fsm ---> %s ---\n", state_name);
-#endif
-}
-//--------------------------------------------------

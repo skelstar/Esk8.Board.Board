@@ -7,14 +7,14 @@
 class LedLightsLib
 {
 public:
-    uint32_t COLOUR_OFF = _strip->Color(0, 0, 0, 0);
-    uint32_t COLOUR_RED = _strip->Color(255, 0, 0, 0);
-    uint32_t COLOUR_DARK_RED = _strip->Color(100, 0, 0, 0);
-    uint32_t COLOUR_GREEN = _strip->Color(0, 255, 0, 0);
-    uint32_t COLOUR_BLUE = _strip->Color(0, 0, 255, 0);
-    uint32_t COLOUR_WHITE = _strip->Color(0, 0, 0, 255);
-    uint32_t COLOUR_COLD_WHITE = _strip->Color(0, 0, 50, 255);
-    uint32_t COLOUR_HEADLIGHT_WHITE = _strip->Color(0, 0, 30, 255);
+    uint32_t COLOUR_OFF = _strip->Color(0, 0, 0);
+    uint32_t COLOUR_RED = _strip->Color(255, 0, 0);
+    uint32_t COLOUR_DARK_RED = _strip->Color(100, 0, 0);
+    uint32_t COLOUR_GREEN = _strip->Color(0, 255, 0);
+    uint32_t COLOUR_BLUE = _strip->Color(0, 0, 255);
+    uint32_t COLOUR_WHITE = _strip->Color(255, 255, 255);
+    // uint32_t COLOUR_COLD_WHITE = _strip->Color(0, 0, 50, 255);
+    // uint32_t COLOUR_HEADLIGHT_WHITE = _strip->Color(0, 0, 30, 255);
 
     void initialise(uint8_t pin, uint8_t numPixels, uint8_t brightness);
     void setBrightness(uint8_t brightness);

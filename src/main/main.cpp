@@ -40,10 +40,10 @@ namespace M5StackDisplay
   }
 } // namespace M5StackDisplay
 
-ControllerClass controller;
-
 #include <tasks/core_0/m5StackDisplayTask.h>
 #endif
+
+ControllerClass controller;
 
 #include <RF24Network.h>
 #include <NRF24L01Lib.h>
@@ -197,7 +197,8 @@ void setup()
   }
 
   while (false == Comms::taskReady &&
-         false == Buttons::taskReady)
+         false == Buttons::taskReady &&
+         false == FootLight::taskReady)
   {
     vTaskDelay(5);
   }
