@@ -20,6 +20,8 @@
 #include <TFT_eSPI.h>
 TFT_eSPI tft = TFT_eSPI(LCD_HEIGHT, LCD_WIDTH);
 
+ControllerClass controller;
+
 #if USING_M5STACK
 xQueueHandle xM5StackDisplayQueue;
 Queue::Manager *displayQueue;
@@ -42,8 +44,6 @@ namespace M5StackDisplay
 
 #include <tasks/core_0/m5StackDisplayTask.h>
 #endif
-
-ControllerClass controller;
 
 #include <RF24Network.h>
 #include <NRF24L01Lib.h>
