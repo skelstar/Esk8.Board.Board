@@ -114,6 +114,7 @@ void setup()
   board_packet.version = VERSION;
 
   nrf24.begin(&radio, &network, COMMS_BOARD, controllerPacketAvailable_cb);
+
   vesc.init(VESC_UART_BAUDRATE);
 
   //get chip id
@@ -186,6 +187,7 @@ void loop()
 
   vesc_update();
 
+  // TODO read from local "controller"
   if (sinceCheckedCtrlOnline > 500 && controller.hasTimedout(sinceLastControllerPacket))
   {
     sinceCheckedCtrlOnline = 0;

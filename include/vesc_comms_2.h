@@ -8,11 +8,10 @@
 
 #define POWERING_DOWN_BATT_VOLTS_START NUM_BATT_CELLS * 3.0
 
-vesc_comms vesc;
-
-uint8_t vesc_packet[PACKET_MAX_LENGTH];
-
 void try_get_values_from_vesc();
+VescData *get_vesc_values();
+
+vesc_comms vesc;
 
 #include <vesc_utils.h>
 //-----------------------------------------------------------------------
@@ -40,18 +39,41 @@ void vesc_update()
 void try_get_values_from_vesc()
 {
   using namespace Comms;
-  bool success = get_vesc_values();
+  VescData *board_packet1 = get_vesc_values();
 
-  if (success)
+  if (board_packet1 != nullptr)
   {
     if (vescQueue != nullptr)
-      vescQueue->send(&board_packet);
+      vescQueue->send(&board_packet1);
 
-    commsFsm.trigger(EV_VESC_SUCCESS); // TODO
+    commsFsm.trigger(EV_VESC_SUCCESS);
   }
   else
   {
     commsFsm.trigger(EV_VESC_FAILED);
   }
+}
+//-----------------------------------------------------------------------------------
+VescData *get_vesc_values()
+{
+  uint8_t vesc_packet[PACKET_MAX_LENGTH];
+  vesc_comms vesc;
+  VescData *board_packet_r;
+
+  bool success = vesc.fetch_packet(vesc_packet) > 0;
+
+  if (!success)
+    return nullptr;
+
+  rpm_raw = vesc.get_rpm(vesc_packet);
+
+  board_packet_r->batteryVoltage = vesc.get_voltage(vesc_packet);
+  board_packet_r->moving = rpm_raw > RPM_AT_MOVING;
+
+  board_packet_r->ampHours = vesc.get_amphours_discharged(vesc_packet) - initial_ampHours;
+  board_packet_r->motorCurrent = vesc.get_motor_current(vesc_packet);
+  board_packet_r->odometer = get_distance_in_meters(vesc.get_tachometer(vesc_packet)) - initial_odometer;
+
+  return board_packet_r;
 }
 //-----------------------------------------------------------------------------------

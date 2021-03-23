@@ -106,6 +106,7 @@ namespace M5StackDisplay
         StateID::ST_MOVING,
         [] {
           fsm_mgr.printState(StateID::ST_MOVING);
+          // TODO read from local instead
           uint8_t t = controller.data.throttle;
           char thr[10];
           sprintf(thr, "%03d", t);
