@@ -159,14 +159,16 @@ void setup()
   }
   Comms::createTask(CORE_0, TASK_PRIORITY_1);
 
-  if (FEATURE_FOOTLIGHT)
-  {
-    FootLight::createTask(CORE_0, TASK_PRIORITY_3);
-  }
+#if FEATURE_FOOTLIGHT == 1
+  FootLight::createTask(CORE_0, TASK_PRIORITY_3);
+#endif
 
   while (false == Comms::taskReady &&
          false == Buttons::taskReady &&
-         false == FootLight::taskReady)
+#if FEATURE_FOOTLIGHT == 1
+         false == FootLight::taskReady
+#endif
+             true)
   {
     vTaskDelay(5);
   }
