@@ -41,22 +41,13 @@ void try_get_values_from_vesc()
 {
   using namespace Comms;
   bool success = get_vesc_values();
+
   if (success)
   {
-    if (vesc_powering_down())
-    {
-    }
-    else if (board_packet.moving)
-    {
-      if (FEATURE_FOOTLIGHT)
-        footlightQueue->send(FootLight::MOVING);
-    }
-    else if (board_packet.moving == false)
-    {
-      if (FEATURE_FOOTLIGHT)
-        footlightQueue->send(FootLight::STOPPED);
-    }
-    commsFsm.trigger(EV_VESC_SUCCESS);
+    if (vescQueue != nullptr)
+      vescQueue->send(&board_packet);
+
+    commsFsm.trigger(EV_VESC_SUCCESS); // TODO
   }
   else
   {

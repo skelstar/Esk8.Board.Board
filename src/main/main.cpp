@@ -22,15 +22,18 @@ TFT_eSPI tft = TFT_eSPI(LCD_HEIGHT, LCD_WIDTH);
 
 ControllerClass controller;
 
+QueueHandle_t xVescQueueHandle;
+Queue::Manager *vescQueue;
+
 #if USING_M5STACK
 xQueueHandle xM5StackDisplayQueue;
 Queue::Manager *displayQueue;
 namespace M5StackDisplay
 {
+  // TODO move into task file
   void initQueue()
   {
-    displayQueue = new Queue::Manager(/*len*/ 3, sizeof(uint16_t), /*ticks*/ 3);
-    displayQueue->setName("m5StackDispQueue");
+    displayQueue = new Queue::Manager(xM5StackDisplayQueue, (TickType_t)3);
     displayQueue->setSentEventCallback([](uint16_t ev) {
       if (PRINT_DISP_QUEUE_SEND)
         Serial.printf("sent to displayQueue %s\n", queueEvent(ev));
@@ -59,32 +62,6 @@ elapsedMillis
     sinceNRFUpdate;
 
 bool controller_connected = false;
-
-xQueueHandle xFootLightEventQueue;
-
-Queue::Manager *footlightQueue;
-
-namespace FootLightQueue
-{
-  void sendToQueue_cb(uint16_t ev)
-  {
-    if (PRINT_SEND_TO_FOOTLIGHT_QUEUE)
-      Serial.printf(PRINT_QUEUE_SEND_FORMAT, "FootLight", FootLight::getEvent(ev));
-  }
-  void readFromQueue_cb(uint16_t ev)
-  {
-    if (PRINT_READ_FROM_FOOTLIGHT_QUEUE)
-      Serial.printf(PRINT_QUEUE_READ_FORMAT, "FootLight", FootLight::getEvent(ev));
-  }
-
-  void init()
-  {
-    footlightQueue = new Queue::Manager(/*len*/ 3, sizeof(FootLight::Event), /*ticks*/ 5);
-    footlightQueue->setName("footLightQueue");
-    footlightQueue->setSentEventCallback(sendToQueue_cb);
-    footlightQueue->setReadEventCallback(readFromQueue_cb);
-  }
-} // namespace FootLightQueue
 
 //------------------------------------------------------------------
 
@@ -137,7 +114,9 @@ void controllerClientInit()
 //------------------------------------------------------------------
 
 #include <peripherals.h>
+#if (FEATURE_FOOTLIGHT == 1)
 #include <tasks/core_0/footLightTask_0.h>
+#endif
 #include <tasks/core_0/buttonsTask.h>
 #include <tasks/core_0/commsFsmTask.h>
 #include <vesc_comms_2.h>
@@ -160,6 +139,9 @@ void setup()
   controllerClientInit();
 
   controller.config.send_interval = 200;
+
+  xVescQueueHandle = xQueueCreate(1, sizeof(VescData *));
+  vescQueue = new Queue::Manager(xVescQueueHandle, (TickType_t)50);
 
   print_build_status(chipId);
 
@@ -193,7 +175,6 @@ void setup()
   if (FEATURE_FOOTLIGHT)
   {
     FootLight::createTask(CORE_0, TASK_PRIORITY_3);
-    FootLightQueue::init();
   }
 
   while (false == Comms::taskReady &&

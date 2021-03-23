@@ -42,18 +42,19 @@ namespace FootLight
 
   void printFsmState_cb(uint16_t id)
   {
-    if (PRINT_FOOTLIGHT_STATE_NAME)
+    if (PRINT_FOOTLIGHT_FSM_STATE)
       Serial.printf(PRINT_STATE_FORMAT, name, getStateName(StateID(id)));
   }
 
   void printFsmTrigger_cb(uint16_t ev)
   {
-    // if (PRINT_COMMS_FSM_TRIGGER)
-    //   Serial.printf(PRINT_STATE_FORMAT, name, getEvent(Event(ev)));
+    if (PRINT_FOOTLIGHT_FSM_TRIGGER)
+      Serial.printf(PRINT_STATE_FORMAT, name, getEvent(Event(ev)));
   }
 
   //--------------------------------------------------
   State stateBoardBooted(
+      STATE_BOOTED,
       [] {
         footlightFsm.printState(STATE_BOOTED);
         footLightPanel.setBrightness(FOOTLIGHT_BRIGHTNESS_STOPPED);
@@ -62,6 +63,7 @@ namespace FootLight
       NULL, NULL);
   //--------------------------------------------------
   State stateMoving(
+      STATE_MOVING,
       [] {
         footlightFsm.printState(STATE_MOVING);
         footLightPanel.setBrightness(FOOTLIGHT_BRIGHTNESS_MOVING);
@@ -71,6 +73,7 @@ namespace FootLight
 
   //--------------------------------------------------
   State stateStopped(
+      STATE_STOPPED,
       [] {
         footlightFsm.printState(STATE_STOPPED);
         footLightPanel.setBrightness(FOOTLIGHT_BRIGHTNESS_STOPPED);
@@ -109,24 +112,26 @@ namespace FootLight
 
     footlightFsm.begin(&fsm);
     footlightFsm.setPrintStateCallback(printFsmState_cb);
-    // footlightFsm.setPrintTriggerCallback(printFsmTrigger_cb);
+    footlightFsm.setPrintTriggerCallback(printFsmTrigger_cb);
 
     addTransitions();
 
     taskReady = true;
 
+    elapsedMillis since_checked_vesc_queue;
+
     while (true)
     {
-      uint16_t ev = footlightQueue->read<FootLight::Event>();
-
-      switch (ev)
+      if (since_checked_vesc_queue > GET_FROM_VESC_INTERVAL)
       {
-      case FootLight::MOVING:
-      case FootLight::STOPPED:
-        footlightFsm.trigger(FootLight::Event(ev));
-        break;
-      default:
-        break;
+        VescData *vesc = vescQueue->peek<VescData>(__func__);
+        if (vesc != nullptr)
+        {
+          if (vesc->moving && footlightFsm.currentStateIs(STATE_MOVING) == false)
+            footlightFsm.trigger(Event::MOVING);
+          else if (vesc->moving == false && footlightFsm.currentStateIs(STATE_STOPPED))
+            footlightFsm.trigger(Event::STOPPED);
+        }
       }
 
       footlightFsm.runMachine();

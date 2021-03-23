@@ -92,6 +92,8 @@ void primaryButtonInit()
 }
 //------------------------------------------------------------------
 
+bool wasMoving = false;
+
 void mockMoving(bool buttonHeld)
 {
   board_packet.moving = buttonHeld;
@@ -101,25 +103,14 @@ void mockMoving(bool buttonHeld)
       board_packet.batteryVoltage = 43.3;
     board_packet.motorCurrent = 3;
     board_packet.ampHours += board_packet.motorCurrent;
-    // DEBUGVAL(
-    //     board_packet.moving,
-    //     board_packet.motorCurrent,
-    //     board_packet.batteryVoltage,
-    //     board_packet.ampHours);
-    if (FEATURE_FOOTLIGHT)
-      footlightQueue->send(FootLight::MOVING);
 
-#if USING_M5STACK
-    displayQueue->send(M5StackDisplay::Q_MOVING);
-#endif
+    vescQueue->send(&board_packet);
   }
-  else
+  else if (wasMoving && !buttonHeld)
   {
-    if (FEATURE_FOOTLIGHT)
-      footlightQueue->send(FootLight::STOPPED);
-#if USING_M5STACK
-    displayQueue->send(M5StackDisplay::Q_STOPPED);
-#endif
+    board_packet.moving = false;
+    vescQueue->send(&board_packet);
   }
+  wasMoving = buttonHeld;
 }
 //------------------------------------------------------

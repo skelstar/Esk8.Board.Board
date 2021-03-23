@@ -66,12 +66,22 @@ namespace M5StackDisplay
   {
     FsmManager<M5StackDisplay::Trigger> m5StackFsm;
 
+    enum StateId
+    {
+      READY = 0,
+      MOVING,
+      STOPPED,
+      STOPPING,
+    };
+
     State stateReady(
+        StateId::READY,
         [] {
           m5StackFsm.printState(StateID::ST_READY);
         },
         NULL, NULL);
     State stateMoving(
+        StateId::MOVING,
         [] {
           m5StackFsm.printState(StateID::ST_MOVING);
           uint8_t t = controller.data.throttle;
@@ -81,6 +91,7 @@ namespace M5StackDisplay
         },
         NULL, NULL);
     State stateStopped(
+        StateId::STOPPED,
         [] {
           m5StackFsm.printState(StateID::ST_STOPPED);
           TFT::drawCard("STOPPED", TFT_WHITE, TFT_BLACK);
@@ -88,6 +99,7 @@ namespace M5StackDisplay
         NULL, NULL);
 
     State stateStopping(
+        StateId::STOPPING,
         [] {
           m5StackFsm.printState(StateID::ST_STOPPING);
           uint8_t t = controller.data.throttle;
@@ -137,7 +149,7 @@ namespace M5StackDisplay
 
     taskReady = true;
 
-    elapsedMillis sinceCheckedQueue;
+    elapsedMillis sinceCheckedQueue, since_debug;
 
     while (true)
     {
@@ -145,12 +157,23 @@ namespace M5StackDisplay
       {
         sinceCheckedQueue = 0;
 
-        uint16_t ev = displayQueue->read<uint16_t>();
-        Trigger trigger = mapToTrigger(ev);
-        if (trigger != TR_NO_EVENT)
-          m5StackFsm.trigger(trigger);
+        VescData *vesc = vescQueue->peek<VescData>(__func__);
+
+        if (vesc != nullptr)
+        {
+          if (vesc->moving && m5StackFsm.currentStateIs(StateId::MOVING) == false)
+            fsm.trigger(TR_MOVING);
+          else if (vesc->moving == false && m5StackFsm.currentStateIs(StateId::STOPPED) == false)
+            fsm.trigger(TR_STOPPED);
+        }
       }
       m5StackFsm.runMachine();
+
+      if (since_debug > 3000)
+      {
+        since_debug = 0;
+        Serial.printf("m5StackDisplayTask\n");
+      }
 
       vTaskDelay(10);
     }
