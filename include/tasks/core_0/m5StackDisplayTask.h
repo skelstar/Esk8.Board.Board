@@ -4,19 +4,49 @@ namespace M5StackDisplay
 {
   bool taskReady = false;
 
-  Trigger mapToTrigger(uint16_t ev)
+  enum StateID
+  {
+    ST_READY = 0,
+    ST_MOVING,
+    ST_STOPPED,
+    ST_BRAKING,
+  };
+  const char *stateID(uint16_t id)
+  {
+    switch (id)
+    {
+    case ST_READY:
+      return "ST_READY";
+    case ST_MOVING:
+      return "ST_MOVING";
+    case ST_STOPPED:
+      return "ST_STOPPED";
+    case ST_BRAKING:
+      return "ST_BRAKING";
+    }
+    return outOfRange("FSM::stateID()");
+  }
+
+  enum Trigger
+  {
+    TR_NO_EVENT = 0,
+    TR_MOVING,
+    TR_STOPPED,
+    TR_BRAKING,
+  };
+
+  const char *trigger(uint16_t ev)
   {
     switch (ev)
     {
-    case Q_MOVING:
-    case Q_RL_MOVING:
-      return TR_MOVING;
-    case Q_STOPPED:
-      return TR_STOPPED;
-    case Q_RL_STOPPING:
-      return TR_STOPPING;
+    case TR_MOVING:
+      return "MOVING";
+    case TR_STOPPED:
+      return "STOPPED";
+    case TR_BRAKING:
+      return "TR_BRAKING";
     }
-    return TR_NO_EVENT;
+    return outOfRange("FSM::event()");
   }
 
   namespace TFT
@@ -64,26 +94,18 @@ namespace M5StackDisplay
 
   namespace FSM
   {
-    FsmManager<M5StackDisplay::Trigger> m5StackFsm;
-
-    enum StateId
-    {
-      READY = 0,
-      MOVING,
-      STOPPED,
-      STOPPING,
-    };
+    FsmManager<M5StackDisplay::Trigger> fsm_mgr;
 
     State stateReady(
-        StateId::READY,
+        StateID::ST_READY,
         [] {
-          m5StackFsm.printState(StateID::ST_READY);
+          fsm_mgr.printState(StateID::ST_READY);
         },
         NULL, NULL);
     State stateMoving(
-        StateId::MOVING,
+        StateID::ST_MOVING,
         [] {
-          m5StackFsm.printState(StateID::ST_MOVING);
+          fsm_mgr.printState(StateID::ST_MOVING);
           uint8_t t = controller.data.throttle;
           char thr[10];
           sprintf(thr, "%03d", t);
@@ -91,17 +113,17 @@ namespace M5StackDisplay
         },
         NULL, NULL);
     State stateStopped(
-        StateId::STOPPED,
+        StateID::ST_STOPPED,
         [] {
-          m5StackFsm.printState(StateID::ST_STOPPED);
+          fsm_mgr.printState(StateID::ST_STOPPED);
           TFT::drawCard("STOPPED", TFT_WHITE, TFT_BLACK);
         },
         NULL, NULL);
 
-    State stateStopping(
-        StateId::STOPPING,
+    State stateBraking(
+        StateID::ST_BRAKING,
         [] {
-          m5StackFsm.printState(StateID::ST_STOPPING);
+          fsm_mgr.printState(StateID::ST_BRAKING);
           uint8_t t = controller.data.throttle;
           char thr[10];
           sprintf(thr, "%03d", t);
@@ -116,18 +138,19 @@ namespace M5StackDisplay
       fsm.add_transition(&stateReady, &stateMoving, M5StackDisplay::TR_MOVING, NULL);
       fsm.add_transition(&stateStopped, &stateMoving, M5StackDisplay::TR_MOVING, NULL);
       fsm.add_transition(&stateMoving, &stateMoving, M5StackDisplay::TR_MOVING, NULL);
-      fsm.add_transition(&stateStopping, &stateMoving, M5StackDisplay::TR_MOVING, NULL);
+      fsm.add_transition(&stateBraking, &stateMoving, M5StackDisplay::TR_MOVING, NULL); // edge
 
       fsm.add_transition(&stateMoving, &stateStopped, M5StackDisplay::TR_STOPPED, NULL);
-      fsm.add_transition(&stateStopping, &stateStopped, M5StackDisplay::TR_STOPPED, NULL);
+      fsm.add_transition(&stateBraking, &stateStopped, M5StackDisplay::TR_STOPPED, NULL);
 
-      fsm.add_transition(&stateReady, &stateStopping, M5StackDisplay::TR_STOPPING, NULL);
-      fsm.add_transition(&stateStopped, &stateStopping, M5StackDisplay::TR_STOPPING, NULL);
-      fsm.add_transition(&stateStopping, &stateStopping, M5StackDisplay::TR_STOPPING, NULL);
-      fsm.add_transition(&stateMoving, &stateStopping, M5StackDisplay::TR_STOPPING, NULL);
+      fsm.add_transition(&stateReady, &stateBraking, M5StackDisplay::TR_BRAKING, NULL);
+      fsm.add_transition(&stateStopped, &stateBraking, M5StackDisplay::TR_BRAKING, NULL);
+      fsm.add_transition(&stateBraking, &stateBraking, M5StackDisplay::TR_BRAKING, NULL);
+      fsm.add_transition(&stateMoving, &stateBraking, M5StackDisplay::TR_BRAKING, NULL);
     }
   } // namespace FSM
-  //-----------------------------------------------------------
+  //======================================================================
+
   void task(void *pvParameters)
   {
     using namespace FSM;
@@ -135,12 +158,12 @@ namespace M5StackDisplay
 
     TFT::init();
 
-    m5StackFsm.begin(&fsm);
-    m5StackFsm.setPrintStateCallback([](uint16_t id) {
+    fsm_mgr.begin(&fsm);
+    fsm_mgr.setPrintStateCallback([](uint16_t id) {
       if (PRINT_DISP_FSM_STATE)
         Serial.printf(PRINT_STATE_FORMAT, "m5Stack", M5StackDisplay::stateID(id));
     });
-    m5StackFsm.setPrintTriggerCallback([](uint16_t ev) {
+    fsm_mgr.setPrintTriggerCallback([](uint16_t ev) {
       if (PRINT_DISP_FSM_TRIGGER)
         Serial.printf(PRINT_sFSM_sTRIGGER_FORMAT, "m5Stack", trigger(ev));
     });
@@ -149,31 +172,39 @@ namespace M5StackDisplay
 
     taskReady = true;
 
-    elapsedMillis sinceCheckedQueue, since_debug;
+    elapsedMillis since_checked_queues, since_debug;
 
     while (true)
     {
-      if (sinceCheckedQueue > 10)
+      if (since_checked_queues > 100)
       {
-        sinceCheckedQueue = 0;
+        since_checked_queues = 0;
 
         VescData *vesc = vescQueue->peek<VescData>(__func__);
+        ControllerClass *ctrlr = ctrlrQueue->peek<ControllerClass>(__func__);
 
         if (vesc != nullptr)
         {
-          if (vesc->moving && m5StackFsm.currentStateIs(StateId::MOVING) == false)
-            fsm.trigger(TR_MOVING);
-          else if (vesc->moving == false && m5StackFsm.currentStateIs(StateId::STOPPED) == false)
-            fsm.trigger(TR_STOPPED);
+          if (vesc->moving && fsm_mgr.currentStateIs(StateID::ST_MOVING) == false)
+            fsm_mgr.trigger(TR_MOVING);
+          else if (vesc->moving == false && fsm_mgr.currentStateIs(StateID::ST_STOPPED) == false)
+            fsm_mgr.trigger(TR_STOPPED);
+        }
+        else if (ctrlr != nullptr)
+        {
+          if (controller.throttleChanged())
+          {
+            if (controller.data.throttle == 127 && !fsm_mgr.currentStateIs(StateID::ST_STOPPED))
+              fsm_mgr.trigger(TR_STOPPED);
+            else if (controller.data.throttle > 127)
+              fsm_mgr.trigger(TR_MOVING);
+            else if (controller.data.throttle < 127)
+              fsm_mgr.trigger(TR_BRAKING);
+          }
         }
       }
-      m5StackFsm.runMachine();
 
-      if (since_debug > 3000)
-      {
-        since_debug = 0;
-        Serial.printf("m5StackDisplayTask\n");
-      }
+      fsm_mgr.runMachine();
 
       vTaskDelay(10);
     }

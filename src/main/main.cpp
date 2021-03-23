@@ -22,29 +22,13 @@ TFT_eSPI tft = TFT_eSPI(LCD_HEIGHT, LCD_WIDTH);
 
 ControllerClass controller;
 
+QueueHandle_t xControllerQueueHandle;
+Queue::Manager *ctrlrQueue;
+
 QueueHandle_t xVescQueueHandle;
 Queue::Manager *vescQueue;
 
 #if USING_M5STACK
-xQueueHandle xM5StackDisplayQueue;
-Queue::Manager *displayQueue;
-namespace M5StackDisplay
-{
-  // TODO move into task file
-  void initQueue()
-  {
-    displayQueue = new Queue::Manager(xM5StackDisplayQueue, (TickType_t)3);
-    displayQueue->setSentEventCallback([](uint16_t ev) {
-      if (PRINT_DISP_QUEUE_SEND)
-        Serial.printf("sent to displayQueue %s\n", queueEvent(ev));
-    });
-    displayQueue->setReadEventCallback([](uint16_t ev) {
-      if (PRINT_DISP_QUEUE_READ)
-        Serial.printf("read from displayQueue %s\n", queueEvent(ev));
-    });
-  }
-} // namespace M5StackDisplay
-
 #include <tasks/core_0/m5StackDisplayTask.h>
 #endif
 
@@ -140,6 +124,9 @@ void setup()
 
   controller.config.send_interval = 200;
 
+  xControllerQueueHandle = xQueueCreate(1, sizeof(ControllerClass *));
+  ctrlrQueue = new Queue::Manager(xControllerQueueHandle, (TickType_t)50);
+
   xVescQueueHandle = xQueueCreate(1, sizeof(VescData *));
   vescQueue = new Queue::Manager(xVescQueueHandle, (TickType_t)50);
 
@@ -155,7 +142,6 @@ void setup()
 
 #if USING_M5STACK
     M5StackDisplay::createTask(CORE_0, TASK_PRIORITY_2);
-    M5StackDisplay::initQueue();
 #endif
   }
 

@@ -22,23 +22,8 @@ void controllerPacketAvailable_cb(uint16_t from_id, uint8_t type)
     if (SEND_TO_VESC)
       send_to_vesc(controller.data.throttle, /*cruise*/ controller.data.cruise_control);
 
-#if USING_M5STACK
-    if (controller.throttleChanged())
-    {
-      if (controller.data.throttle == 127)
-      {
-        displayQueue->send(M5StackDisplay::Q_STOPPED);
-      }
-      else if (controller.data.throttle > 127)
-      {
-        displayQueue->send(M5StackDisplay::Q_RL_MOVING);
-      }
-      else if (controller.data.throttle < 127)
-      {
-        displayQueue->send(M5StackDisplay::Q_RL_STOPPING);
-      }
-    }
-#endif
+    // should only do this if we have something subscribed to it
+    ctrlrQueue->send(&controller);
 
     board_packet.id = controller.data.id;
     board_packet.reason = ReasonType::RESPONSE;
