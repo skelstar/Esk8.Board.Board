@@ -14,7 +14,7 @@
 Button2 button0(BUTTON_0);
 Button2 primaryButton(PIN_04);
 
-#ifdef USING_M5STACK
+#ifdef USING_M5STACK == 1
 const uint8_t M5_BUTTON_A = PIN_39;
 const uint8_t M5_BUTTON_B = PIN_38;
 const uint8_t M5_BUTTON_C = PIN_37;
@@ -43,7 +43,7 @@ void button_init()
 }
 //------------------------------------------------------------------
 
-#ifdef USING_M5STACK
+#if USING_M5STACK == 1
 void m5StackButtons_init()
 {
   // ButtonA

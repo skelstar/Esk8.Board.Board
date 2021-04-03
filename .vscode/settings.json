@@ -27,7 +27,14 @@
     "sstream": "cpp",
     "streambuf": "cpp",
     "cstddef": "cpp",
-    "limits": "cpp"
+    "limits": "cpp",
+    "array": "cpp",
+    "deque": "cpp",
+    "string": "cpp",
+    "unordered_map": "cpp",
+    "unordered_set": "cpp",
+    "vector": "cpp",
+    "initializer_list": "cpp"
   },
   "peacock.color": "#1f0452",
   "python.autoComplete.extraPaths": [

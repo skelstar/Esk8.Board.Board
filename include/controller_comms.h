@@ -22,6 +22,8 @@ void controllerPacketAvailable_cb(uint16_t from_id, uint8_t type)
     if (SEND_TO_VESC)
       send_to_vesc(controller.data.throttle, /*cruise*/ controller.data.cruise_control);
 
+    Serial.printf("rx CONTROL id: %lu | ", controller.data.id);
+
     // should only do this if we have something subscribed to it
     ctrlrQueue->send(&controller);
 
@@ -40,11 +42,12 @@ void controllerPacketAvailable_cb(uint16_t from_id, uint8_t type)
     ControllerConfig config = controllerClient.readAlt<ControllerConfig>();
     controller.save(config);
 
+    Serial.printf("rx CONFIG id: %lu | ", controller.data.id);
+
     board_packet.id = controller.config.id;
+    board_packet.reason = ReasonType::CONFIG_RESPONSE;
 
     sendPacketToController();
-
-    DEBUGVAL("***config***", controller.config.id, controller.config.send_interval);
   }
   else
   {
@@ -56,10 +59,10 @@ void controllerPacketAvailable_cb(uint16_t from_id, uint8_t type)
 
 bool sendPacketToController(ReasonType reason)
 {
-  board_packet.id = 0;
   board_packet.reason = reason;
-
   bool sent = controllerClient.sendTo(Packet::CONTROL, board_packet);
+
+  Serial.printf("sent id: %d\n", board_packet.id);
 
   // TODO: tidy this up
   if (board_packet.command == CommandType::RESET)

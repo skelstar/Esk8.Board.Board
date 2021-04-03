@@ -155,7 +155,7 @@ namespace M5StackDisplay
   void task(void *pvParameters)
   {
     using namespace FSM;
-    Serial.printf("M5StackDisplay Task running on CORE_%d\n", xPortGetCoreID());
+    Serial.printf("M5StackDisplay Task\n"); // running on CORE_%d\n", xPortGetCoreID());
 
     TFT::init();
 

@@ -102,6 +102,7 @@ namespace Comms
 #ifndef SEND_TO_VESC
 #define SEND_TO_VESC 0
 #endif
+
 #ifndef PRINT_THROTTLE
 #define PRINT_THROTTLE 0
 #endif

@@ -6,7 +6,7 @@ namespace Buttons
 
   void task(void *pvParameters)
   {
-    Serial.printf("Buttons Task running on CORE_%d\n", xPortGetCoreID());
+    Serial.printf("[TASK] Buttons Task running on CORE_%d\n", xPortGetCoreID());
 
     button_init();
     primaryButtonInit();

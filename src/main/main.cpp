@@ -28,7 +28,7 @@ Queue::Manager *ctrlrQueue;
 QueueHandle_t xVescQueueHandle;
 Queue::Manager *vescQueue;
 
-#if USING_M5STACK
+#if USING_M5STACK == 1
 #include <tasks/core_0/m5StackDisplayTask.h>
 #endif
 
@@ -105,7 +105,9 @@ void controllerClientInit()
 #include <tasks/core_0/commsFsmTask.h>
 #include <vesc_comms_2.h>
 
-//-------------------------------------------------------
+void waitForTasksToBeReady();
+
+//============================================================
 
 void setup()
 {
@@ -133,16 +135,17 @@ void setup()
 
   print_build_status(chipId);
 
-  if (boardIs(chipId, M5STACKFIREID))
+  if (boardIs(chipId, M5STACKFIREID) && USING_M5STACK == 1)
   {
     DEBUG("-----------------------------------------------");
     DEBUG("               USING_M5STACK                   ");
     DEBUG("-----------------------------------------------\n\n");
 
+#if USING_M5STACK == 1
     m5StackButtons_init();
 
-#if USING_M5STACK
     M5StackDisplay::createTask(CORE_0, TASK_PRIORITY_2);
+    Buttons::createTask(CORE_0, TASK_PRIORITY_2);
 #endif
   }
 
@@ -153,25 +156,13 @@ void setup()
     DEBUG("-----------------------------------------------\n\n");
   }
 
-  if (USING_M5STACK)
-  {
-    Buttons::createTask(CORE_0, TASK_PRIORITY_2);
-  }
   Comms::createTask(CORE_0, TASK_PRIORITY_1);
 
 #if FEATURE_FOOTLIGHT == 1
   FootLight::createTask(CORE_0, TASK_PRIORITY_3);
 #endif
 
-  while (false == Comms::taskReady &&
-         false == Buttons::taskReady &&
-#if FEATURE_FOOTLIGHT == 1
-         false == FootLight::taskReady
-#endif
-             true)
-  {
-    vTaskDelay(5);
-  }
+  waitForTasksToBeReady();
 
   // send startup packet
   sendPacketToController(FIRST_PACKET);
@@ -199,3 +190,19 @@ void loop()
 
   vTaskDelay(10);
 }
+
+//===================================================
+
+void waitForTasksToBeReady()
+{
+  while (false == Comms::taskReady &&
+         false == Buttons::taskReady &&
+#if FEATURE_FOOTLIGHT == 1
+         false == FootLight::taskReady &&
+#endif
+         true)
+  {
+    vTaskDelay(5);
+  }
+}
+//---------------------------------------------------

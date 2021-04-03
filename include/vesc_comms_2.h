@@ -73,6 +73,7 @@ VescData *get_vesc_values()
   board_packet_r->ampHours = vesc.get_amphours_discharged(vesc_packet) - initial_ampHours;
   board_packet_r->motorCurrent = vesc.get_motor_current(vesc_packet);
   board_packet_r->odometer = get_distance_in_meters(vesc.get_tachometer(vesc_packet)) - initial_odometer;
+  board_packet_r->temp_mosfet = vesc.get_temp_mosfet(vesc_packet);
 
   return board_packet_r;
 }
