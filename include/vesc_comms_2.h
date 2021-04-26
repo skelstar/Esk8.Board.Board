@@ -44,7 +44,7 @@ void try_get_values_from_vesc()
   if (board_packet1 != nullptr)
   {
     if (vescQueue != nullptr)
-      vescQueue->send(&board_packet1);
+      vescQueue->send(board_packet1);
 
     commsFsm.trigger(EV_VESC_SUCCESS);
   }

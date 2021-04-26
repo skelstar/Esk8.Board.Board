@@ -1,4 +1,4 @@
-
+#pragma once
 
 #ifndef PRINT_THROTTLE
 #define PRINT_THROTTLE 0

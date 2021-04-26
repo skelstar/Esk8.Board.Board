@@ -8,6 +8,9 @@
 #include <VescData.h>
 #include <elapsedMillis.h>
 
+SemaphoreHandle_t mux_I2C;
+SemaphoreHandle_t mux_SPI;
+
 #include <shared-utils.h>
 #include <types.h>
 #include <printFormatStrings.h>
@@ -22,20 +25,18 @@ TFT_eSPI tft = TFT_eSPI(LCD_HEIGHT, LCD_WIDTH);
 
 ControllerClass controller;
 
-QueueHandle_t xControllerQueueHandle;
-Queue::Manager *ctrlrQueue;
+#include <tasks/queues/queues.h>
 
-QueueHandle_t xVescQueueHandle;
-Queue::Manager *vescQueue;
-
-#if USING_M5STACK == 1
-#include <tasks/core_0/m5StackDisplayTask.h>
-#endif
+// #if USING_M5STACK == 1
+// #include <tasks/core_0/m5StackDisplayTask.h>
+// #endif
 
 #include <RF24Network.h>
 #include <NRF24L01Lib.h>
 #include <GenericClient.h>
 #include <QueueManager.h>
+
+#include <tasks/root.h>
 
 #include <Fsm.h>
 
@@ -51,61 +52,68 @@ bool controller_connected = false;
 
 VescData board_packet;
 
-NRF24L01Lib nrf24;
+// NRF24L01Lib nrf24;
 
-RF24 radio(SPI_CE, SPI_CS);
-RF24Network network(radio);
+// RF24 radio(SPI_CE, SPI_CS);
+// RF24Network network(radio);
 
-GenericClient<VescData, ControllerData> controllerClient(COMMS_CONTROLLER);
+// GenericClient<VescData, ControllerData> controllerClient(COMMS_CONTROLLER);
 
 void send_to_vesc(uint8_t throttle, bool cruise_control);
 
-#include <controller_comms.h>
+// #include <controller_comms.h>
 
-const char *getSummary(VescData d)
-{
-  char buff[50];
-  sprintf(buff, "id: %lu moving: %d", d.id, d.moving);
-  return buff;
-}
+// const char *getSummary(VescData d)
+// {
+//   char buff[50];
+//   sprintf(buff, "id: %lu moving: %d", d.id, d.moving);
+//   return buff;
+// }
 
-const char *getSummary(ControllerData d)
-{
-  char buff[50];
-  sprintf(buff, "id: %lu throttle: %d", d.id, d.throttle);
-  return buff;
-}
+// const char *getSummary(ControllerData d)
+// {
+//   char buff[50];
+//   sprintf(buff, "id: %lu throttle: %d", d.id, d.throttle);
+//   return buff;
+// }
 
-void controllerClientInit()
-{
-  // TODO: PRINT_FLAGS
-  controllerClient.begin(&network, controllerPacketAvailable_cb);
-  controllerClient.setConnectedStateChangeCallback([] {
-    Serial.printf("setConnectedStateChangeCallback\n");
-  });
-  controllerClient.setSentPacketCallback([](VescData data) {
-    if (PRINT_TX_TO_CONTROLLER)
-      Serial.printf(PRINT_TX_PACKET_TO_FORMAT, "CTRLR", getSummary(data));
-  });
-  controllerClient.setReadPacketCallback([](ControllerData data) {
-    if (PRINT_RX_FROM_CONTROLLER)
-      Serial.printf(PRINT_RX_PACKET_FROM_FORMAT, "CTRLR", getSummary(data));
-  });
-}
+// void controllerClientInit()
+// {
+//   // TODO: PRINT_FLAGS
+//   controllerClient.begin(&network, controllerPacketAvailable_cb);
+//   controllerClient.setConnectedStateChangeCallback([] {
+//     Serial.printf("setConnectedStateChangeCallback\n");
+//   });
+//   controllerClient.setSentPacketCallback([](VescData data) {
+//     if (PRINT_TX_TO_CONTROLLER)
+//       Serial.printf(PRINT_TX_PACKET_TO_FORMAT, "CTRLR", getSummary(data));
+//   });
+//   controllerClient.setReadPacketCallback([](ControllerData data) {
+//     if (PRINT_RX_FROM_CONTROLLER)
+//       Serial.printf(PRINT_RX_PACKET_FROM_FORMAT, "CTRLR", getSummary(data));
+//   });
+// }
 
 #define NUM_RETRIES 5
 
 //------------------------------------------------------------------
 
-#include <peripherals.h>
-#if (FEATURE_FOOTLIGHT == 1)
-#include <tasks/core_0/footLightTask_0.h>
-#endif
-#include <tasks/core_0/buttonsTask.h>
-#include <tasks/core_0/commsFsmTask.h>
-#include <vesc_comms_2.h>
+// #include <peripherals.h>
+// #if (FEATURE_FOOTLIGHT == 1)
+// #include <tasks/core_0/footLightTask_0.h>
+// #endif
+// #include <tasks/core_0/buttonsTask.h>
+// #include <tasks/core_0/commsFsmTask.h>
+// #include <vesc_comms_2.h>
 
 void waitForTasksToBeReady();
+
+void createQueues();
+void createLocalQueueManagers();
+void startTasks();
+void configureTasks();
+void waitForTasks();
+void enableTasks(bool print = false);
 
 //============================================================
 
@@ -115,23 +123,15 @@ void setup()
 
   board_packet.version = VERSION;
 
-  nrf24.begin(&radio, &network, COMMS_BOARD, controllerPacketAvailable_cb);
+  // nrf24.begin(&radio, &network, COMMS_BOARD, controllerPacketAvailable_cb);
 
-  vesc.init(VESC_UART_BAUDRATE);
+  // vesc.init(VESC_UART_BAUDRATE);
 
   //get chip id
   String chipId = String((uint32_t)ESP.getEfuseMac(), HEX);
   chipId.toUpperCase();
 
-  controllerClientInit();
-
-  controller.config.send_interval = 200;
-
-  xControllerQueueHandle = xQueueCreate(1, sizeof(ControllerClass *));
-  ctrlrQueue = new Queue::Manager(xControllerQueueHandle, (TickType_t)50);
-
-  xVescQueueHandle = xQueueCreate(1, sizeof(VescData *));
-  vescQueue = new Queue::Manager(xVescQueueHandle, (TickType_t)50);
+  createQueues();
 
   print_build_status(chipId);
 
@@ -142,10 +142,10 @@ void setup()
     DEBUG("-----------------------------------------------\n\n");
 
 #if USING_M5STACK == 1
-    m5StackButtons_init();
+    // m5StackButtons_init();
 
-    M5StackDisplay::createTask(CORE_0, TASK_PRIORITY_2);
-    Buttons::createTask(CORE_0, TASK_PRIORITY_2);
+    // M5StackDisplay::createTask(CORE_0, TASK_PRIORITY_2);
+    // Buttons::createTask(CORE_0, TASK_PRIORITY_2);
 #endif
   }
 
@@ -156,16 +156,16 @@ void setup()
     DEBUG("-----------------------------------------------\n\n");
   }
 
-  Comms::createTask(CORE_0, TASK_PRIORITY_1);
+  configureTasks();
 
-#if FEATURE_FOOTLIGHT == 1
-  FootLight::createTask(CORE_0, TASK_PRIORITY_3);
-#endif
+  startTasks();
 
-  waitForTasksToBeReady();
+  waitForTasks();
+
+  enableTasks();
 
   // send startup packet
-  sendPacketToController(FIRST_PACKET);
+  // sendPacketToController(FIRST_PACKET);
 }
 
 elapsedMillis sinceCheckedCtrlOnline;
@@ -175,34 +175,60 @@ void loop()
   if (sinceNRFUpdate > 20)
   {
     sinceNRFUpdate = 0;
-    controllerClient.update();
+    // controllerClient.update();
   }
 
-  vesc_update();
+  // vesc_update();
 
   // TODO read from local "controller"
-  if (sinceCheckedCtrlOnline > 500 && controller.hasTimedout(sinceLastControllerPacket))
-  {
-    sinceCheckedCtrlOnline = 0;
-    // DEBUGMVAL("timeout", sinceLastControllerPacket);
-    Comms::commsFsm.trigger(Comms::EV_CTRLR_TIMEOUT);
-  }
+  // if (sinceCheckedCtrlOnline > 500 && controller.hasTimedout(sinceLastControllerPacket))
+  // {
+  //   sinceCheckedCtrlOnline = 0;
+  //   // DEBUGMVAL("timeout", sinceLastControllerPacket);
+  //   // Comms::commsFsm.trigger(Comms::EV_CTRLR_TIMEOUT);
+  // }
 
   vTaskDelay(10);
 }
 
 //===================================================
 
-void waitForTasksToBeReady()
+void createQueues()
 {
-  while (false == Comms::taskReady &&
-         false == Buttons::taskReady &&
-#if FEATURE_FOOTLIGHT == 1
-         false == FootLight::taskReady &&
-#endif
-         true)
-  {
-    vTaskDelay(5);
-  }
+  xControllerQueueHandle = xQueueCreate(1, sizeof(ControllerClass *));
+  xVescQueueHandle = xQueueCreate(1, sizeof(VescData *));
 }
-//---------------------------------------------------
+
+#include <tasks/queues/QueueFactory.h>
+
+void createLocalQueueManagers()
+{
+}
+
+void configureTasks()
+{
+}
+
+void startTasks()
+{
+  controllerCommsTask.start(nsControllerCommsTask::task1);
+  vescCommsTask.start(nsVescCommsTask::task1);
+  m5StackDisplayTask.start(nsM5StackDisplayTask::task1);
+}
+
+void waitForTasks()
+{
+  while (
+      controllerCommsTask.ready == false ||
+      vescCommsTask.ready == false ||
+      m5StackDisplayTask.ready == false ||
+      false)
+    vTaskDelay(PERIOD_10ms);
+}
+
+void enableTasks(bool print)
+{
+  controllerCommsTask.enable(print);
+  vescCommsTask.enable(print);
+  m5StackDisplayTask.enable(print);
+}

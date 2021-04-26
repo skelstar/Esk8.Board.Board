@@ -24,7 +24,6 @@ void controllerPacketAvailable_cb(uint16_t from_id, uint8_t type)
 
     Serial.printf("rx CONTROL id: %lu | ", controller.data.id);
 
-    // should only do this if we have something subscribed to it
     ctrlrQueue->send(&controller);
 
     board_packet.id = controller.data.id;

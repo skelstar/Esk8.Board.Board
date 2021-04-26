@@ -34,7 +34,9 @@
     "unordered_map": "cpp",
     "unordered_set": "cpp",
     "vector": "cpp",
-    "initializer_list": "cpp"
+    "initializer_list": "cpp",
+    "type_traits": "cpp",
+    "typeinfo": "cpp"
   },
   "peacock.color": "#1f0452",
   "python.autoComplete.extraPaths": [
