@@ -11,8 +11,6 @@ RF24Network network(radio);
 
 namespace nsControllerCommsTask
 {
-  ControllerData *controller_packet;
-
   void controllerPacketAvailable_cb(uint16_t from_id, uint8_t type);
 }
 
@@ -27,10 +25,10 @@ public:
 private:
 public:
   ControllerCommsTask(unsigned long p_doWorkInterval)
-      : TaskBase("ControllerCommsTask", 3000, p_doWorkInterval)
+      : TaskBase("ControllerCommsTask", 5000, p_doWorkInterval)
   {
     _core = CORE_1;
-    _priority = TASK_PRIORITY_3;
+    _priority = TASK_PRIORITY_4;
   }
 
 private:
@@ -57,11 +55,8 @@ private:
 
   void doWork()
   {
+    vTaskDelay(1);
     controllerClient->update();
-  }
-
-  void lowerFunc()
-  {
   }
 };
 
@@ -74,34 +69,21 @@ namespace nsControllerCommsTask
     controllerCommsTask.task(parameters);
   }
 
+  ControllerData sendPacket;
+
   void controllerPacketAvailable_cb(uint16_t from_id, uint8_t type)
   {
-    // sinceLastControllerPacket = 0;
-
+    Serial.printf("packet available\n");
     if (type == Packet::CONTROL)
     {
       ControllerData packet = controllerCommsTask.controllerClient->read();
-      Serial.printf("Comms: id=%d\n", packet.id);
-      // ControllerData::print(packet, "[COMMS]");
 
-      //   controller.save(data);
+      sendPacket.id = packet.id;
+      sendPacket.throttle = packet.throttle;
 
-      // if (SEND_TO_VESC)
-      //   send_to_vesc(controller.data.throttle, /*cruise*/ controller.data.cruise_control);
-
-      //   Serial.printf("rx CONTROL id: %lu | ", controller.data.id);
-
-      //   ctrlrQueue->send(&controller);
-
-      //   board_packet.id = controller.data.id;
-      //   board_packet.reason = ReasonType::RESPONSE;
-
-      //   sendPacketToController();
-
-      //   if (PRINT_THROTTLE && controller.throttleChanged())
-      //   {
-      //     DEBUGVAL(controller.data.id, controller.data.throttle, controller.data.cruise_control);
-      //   }
+      controllerCommsTask.controllerQueue->send(&sendPacket);
+      ControllerData::print(sendPacket, "---------------\ncontrollerPacketAvailable_cb: ");
+      vTaskDelay(TICKS_100ms);
     }
     else if (type == Packet::CONFIG)
     {

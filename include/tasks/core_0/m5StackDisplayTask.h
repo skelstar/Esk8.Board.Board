@@ -3,8 +3,6 @@
 #include <TaskBase.h>
 #include <QueueManager.h>
 #include <tasks/queues/QueueFactory.h>
-//
-
 #include <tasks/core_0/Helpers/M5StackDisplayTaskFsm.h>
 
 namespace m5Stack = nsM5StackDisplayTask;
@@ -20,12 +18,12 @@ public:
 
 private:
 private:
-  Queue1::Manager<ControllerClass> *controllerQueue = nullptr;
+  Queue1::Manager<ControllerData> *controllerQueue = nullptr;
   Queue1::Manager<VescData> *vescQueue = nullptr;
 
   void initialiseQueues()
   {
-    controllerQueue = createQueue<ControllerClass>("(M5StackDisplayTask) controllerQueue");
+    controllerQueue = createQueue<ControllerData>("(M5StackDisplayTask) controllerQueue");
     vescQueue = createQueue<VescData>("(M5StackDisplayTask) vescQueue");
   }
 
@@ -50,6 +48,8 @@ private:
   {
     if (controllerQueue->hasValue())
     {
+      ControllerData::print(controllerQueue->payload, "[M5StackDisplay]");
+
       if (controller.throttleChanged())
       {
         if (controller.data.throttle == 127 && !m5Stack::fsm_mgr.currentStateIs(m5Stack::ST_STOPPED))
@@ -73,7 +73,7 @@ private:
   }
 };
 
-M5StackDisplayTask m5StackDisplayTask(PERIOD_500ms);
+M5StackDisplayTask m5StackDisplayTask(PERIOD_50ms);
 
 namespace nsM5StackDisplayTask
 {

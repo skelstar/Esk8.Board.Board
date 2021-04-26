@@ -123,10 +123,6 @@ void setup()
 
   board_packet.version = VERSION;
 
-  // nrf24.begin(&radio, &network, COMMS_BOARD, controllerPacketAvailable_cb);
-
-  // vesc.init(VESC_UART_BAUDRATE);
-
   //get chip id
   String chipId = String((uint32_t)ESP.getEfuseMac(), HEX);
   chipId.toUpperCase();
@@ -140,13 +136,6 @@ void setup()
     DEBUG("-----------------------------------------------");
     DEBUG("               USING_M5STACK                   ");
     DEBUG("-----------------------------------------------\n\n");
-
-#if USING_M5STACK == 1
-    // m5StackButtons_init();
-
-    // M5StackDisplay::createTask(CORE_0, TASK_PRIORITY_2);
-    // Buttons::createTask(CORE_0, TASK_PRIORITY_2);
-#endif
   }
 
   if (boardIs(chipId, TDISPLAYBOARD))
@@ -172,11 +161,11 @@ elapsedMillis sinceCheckedCtrlOnline;
 
 void loop()
 {
-  if (sinceNRFUpdate > 20)
-  {
-    sinceNRFUpdate = 0;
-    // controllerClient.update();
-  }
+  // if (sinceNRFUpdate > 20)
+  // {
+  //   sinceNRFUpdate = 0;
+  //   // controllerClient.update();
+  // }
 
   // vesc_update();
 
