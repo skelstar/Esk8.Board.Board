@@ -1,5 +1,5 @@
 
-int32_t rpm_raw;
+// int32_t rpm_raw;
 float initial_ampHours = 0.0;
 float initial_odometer = 0.0;
 

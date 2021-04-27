@@ -58,7 +58,7 @@ VescData *get_vesc_values()
 {
   uint8_t vesc_packet[PACKET_MAX_LENGTH];
   vesc_comms vesc;
-  VescData *board_packet_r;
+  VescData *res;
 
   bool success = vesc.fetch_packet(vesc_packet) > 0;
 
@@ -67,14 +67,14 @@ VescData *get_vesc_values()
 
   rpm_raw = vesc.get_rpm(vesc_packet);
 
-  board_packet_r->batteryVoltage = vesc.get_voltage(vesc_packet);
-  board_packet_r->moving = rpm_raw > RPM_AT_MOVING;
+  res->batteryVoltage = vesc.get_voltage(vesc_packet);
+  res->moving = rpm_raw > RPM_AT_MOVING;
 
-  board_packet_r->ampHours = vesc.get_amphours_discharged(vesc_packet) - initial_ampHours;
-  board_packet_r->motorCurrent = vesc.get_motor_current(vesc_packet);
-  board_packet_r->odometer = get_distance_in_meters(vesc.get_tachometer(vesc_packet)) - initial_odometer;
-  board_packet_r->temp_mosfet = vesc.get_temp_mosfet(vesc_packet);
+  res->ampHours = vesc.get_amphours_discharged(vesc_packet) - initial_ampHours;
+  res->motorCurrent = vesc.get_motor_current(vesc_packet);
+  res->odometer = get_distance_in_meters(vesc.get_tachometer(vesc_packet)) - initial_odometer;
+  res->temp_mosfet = vesc.get_temp_mosfet(vesc_packet);
 
-  return board_packet_r;
+  return res;
 }
 //-----------------------------------------------------------------------------------

@@ -21,6 +21,7 @@ public:
 
   GenericClient<VescData, ControllerData> *controllerClient;
   Queue1::Manager<ControllerData> *controllerQueue = nullptr;
+  Queue1::Manager<VescData> *vescQueue = nullptr;
 
 private:
 public:
@@ -35,6 +36,7 @@ private:
   void initialiseQueues()
   {
     controllerQueue = createQueue<ControllerData>("(ControllerCommsTask) controllerQueue");
+    vescQueue = createQueue<VescData>("(ControllerCommsTask) vescQueue");
   }
 
   void initialise()
@@ -57,6 +59,16 @@ private:
   {
     vTaskDelay(1);
     controllerClient->update();
+
+    if (vescQueue->hasValue())
+    {
+      // send to controller
+
+      VescData::print(vescQueue->payload);
+
+      vescQueue->payload.version = VERSION;
+      controllerClient->sendTo(Packet::CONTROL, vescQueue->payload);
+    }
   }
 };
 
