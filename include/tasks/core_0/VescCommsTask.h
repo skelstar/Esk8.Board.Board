@@ -25,13 +25,14 @@ private:
 
   Queue1::Manager<ControllerData> *controllerQueue = nullptr;
   Queue1::Manager<VescData> *vescDataQueue = nullptr;
+  Queue1::Manager<VescData> *vescReadDataQueue = nullptr;
 
-  VescData dummyVescData;
+  VescData *vescData;
 
 public:
-  VescCommsTask(unsigned long p_doWorkInterval) : TaskBase("VescCommsTask", 5000, p_doWorkInterval)
+  VescCommsTask() : TaskBase("VescCommsTask", 5000, PERIOD_50ms)
   {
-    _core = CORE_1;
+    _core = CORE_0;
     _priority = TASK_PRIORITY_3;
   }
 
@@ -45,6 +46,7 @@ private:
 
   void initialise()
   {
+    vescData = new VescData();
   }
 
   bool timeToDoWork()
@@ -52,38 +54,59 @@ private:
     return true;
   }
 
+#define IGNORE_X_AXIS 127
+
   void doWork()
   {
+    if (vescDataQueue->hasValue())
+    {
+      VescData::print(vescDataQueue->payload, "[VescCommsTask] vescDataQueue:read ");
+      vescData->moving = vescDataQueue->payload.moving;
+    }
+
     if (controllerQueue->hasValue())
     {
-      ControllerData::print(controllerQueue->payload, "[VescCommsTask]");
+      ControllerData::print(controllerQueue->payload, "[VescCommsTask] ControllerQueue:read ");
+
+      vescData->id = controllerQueue->payload.id;
+      vescData->txTime = controllerQueue->payload.txTime;
+      vescData->version = VERSION;
 
       if (SEND_TO_VESC)
       {
         nsVescCommsTask::vesc.setNunchuckValues(
-            /*x*/ 127,
+            IGNORE_X_AXIS,
             /*y*/ controllerQueue->payload.throttle,
             controllerQueue->payload.cruise_control,
             /*upper button*/ 0);
       }
       else
       {
-        // return immediately
-        dummyVescData.id = controllerQueue->payload.id;
-        vescDataQueue->send(&dummyVescData);
+        // reply immediately
+        vescDataQueue->send(vescData);
+        VescData::print(*vescData, "[VescCommsTask]:reply");
       }
     }
 
-    VescData *packet = nsVescCommsTask::get_vesc_values();
-    if (packet != nullptr)
+    if (SEND_TO_VESC == 1)
     {
-      vescDataQueue->send(packet);
-      VescData::print(*packet);
+      vescData = nsVescCommsTask::get_vesc_values();
+      if (vescData != nullptr)
+      {
+        vescDataQueue->send(vescData);
+      }
     }
   } // doWork
+
+  void cleanup()
+  {
+    delete (controllerQueue);
+    delete (vescDataQueue);
+    delete (vescData);
+  }
 };
 
-VescCommsTask vescCommsTask(PERIOD_10ms);
+VescCommsTask vescCommsTask;
 
 namespace nsVescCommsTask
 {

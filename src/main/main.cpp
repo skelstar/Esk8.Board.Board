@@ -106,7 +106,7 @@ void send_to_vesc(uint8_t throttle, bool cruise_control);
 // #include <tasks/core_0/commsFsmTask.h>
 // #include <vesc_comms_2.h>
 
-void waitForTasksToBeReady();
+// void waitForTasksToBeReady();
 
 void createQueues();
 void createLocalQueueManagers();
@@ -152,9 +152,6 @@ void setup()
   waitForTasks();
 
   enableTasks();
-
-  // send startup packet
-  // sendPacketToController(FIRST_PACKET);
 }
 
 elapsedMillis sinceCheckedCtrlOnline;
@@ -196,28 +193,50 @@ void createLocalQueueManagers()
 
 void configureTasks()
 {
+  // ctrlrCommsTask.healthCheck = true;
+  // vescCommsTask.healthCheck = true;
+  // m5StackDisplayTask.healthCheck = true;
+  // mockVescTask.healthCheck = true;
+  vescCommsTask.doWorkInterval = PERIOD_100ms;
 }
+
+#define USE_M5STACK_DISPLAY 0
+#define USE_M5STACK_BUTTONS 1
 
 void startTasks()
 {
-  controllerCommsTask.start(nsControllerCommsTask::task1);
+  ctrlrCommsTask.start(nsControllerCommsTask::task1);
   vescCommsTask.start(nsVescCommsTask::task1);
   m5StackDisplayTask.start(nsM5StackDisplayTask::task1);
+  mockVescTask.start(nsMockVescTask::task1);
 }
+
+elapsedMillis since_reported_waiting;
 
 void waitForTasks()
 {
+
   while (
-      controllerCommsTask.ready == false ||
-      vescCommsTask.ready == false ||
-      m5StackDisplayTask.ready == false ||
+      !ctrlrCommsTask.ready ||
+      !vescCommsTask.ready ||
+      !m5StackDisplayTask.ready ||
+      !mockVescTask.ready ||
       false)
+  {
+    if (since_reported_waiting > PERIOD_500ms)
+    {
+      since_reported_waiting = 0;
+      Serial.printf("Waiting for Tasks to be ready\n");
+    }
     vTaskDelay(PERIOD_10ms);
+  }
+  Serial.printf("-- all tasks ready! --\n");
 }
 
 void enableTasks(bool print)
 {
-  controllerCommsTask.enable(print);
+  ctrlrCommsTask.enable(print);
   vescCommsTask.enable(print);
   m5StackDisplayTask.enable(print);
+  mockVescTask.enable(print);
 }

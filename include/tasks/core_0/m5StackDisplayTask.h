@@ -48,7 +48,7 @@ private:
   {
     if (controllerQueue->hasValue())
     {
-      ControllerData::print(controllerQueue->payload, "[M5StackDisplay]");
+      // ControllerData::print(controllerQueue->payload, "[M5StackDisplay]");
 
       if (controller.throttleChanged())
       {
@@ -63,6 +63,7 @@ private:
 
     if (vescQueue->hasValue())
     {
+      // VescData::print(vescQueue->payload, "[M5StackDisplayTask]");
       if (vescQueue->payload.moving && m5Stack::fsm_mgr.currentStateIs(m5Stack::ST_MOVING) == false)
         m5Stack::fsm_mgr.trigger(m5Stack::TR_MOVING);
       else if (vescQueue->payload.moving == false && m5Stack::fsm_mgr.currentStateIs(m5Stack::ST_STOPPED) == false)
@@ -70,6 +71,12 @@ private:
     }
 
     m5Stack::fsm_mgr.runMachine();
+  }
+
+  void cleanup()
+  {
+    delete (controllerQueue);
+    delete (vescQueue);
   }
 };
 

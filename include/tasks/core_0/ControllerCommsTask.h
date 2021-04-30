@@ -20,13 +20,16 @@ public:
   bool printRadioDetails = true;
 
   GenericClient<VescData, ControllerData> *controllerClient;
+
   Queue1::Manager<ControllerData> *controllerQueue = nullptr;
-  Queue1::Manager<VescData> *vescQueue = nullptr;
+  Queue1::Manager<VescData> *vescDataQueue = nullptr;
+
+  // ControllerData controllerPacket;
 
 private:
 public:
-  ControllerCommsTask(unsigned long p_doWorkInterval)
-      : TaskBase("ControllerCommsTask", 5000, p_doWorkInterval)
+  ControllerCommsTask()
+      : TaskBase("ControllerCommsTask", 5000, PERIOD_50ms)
   {
     _core = CORE_1;
     _priority = TASK_PRIORITY_4;
@@ -36,7 +39,7 @@ private:
   void initialiseQueues()
   {
     controllerQueue = createQueue<ControllerData>("(ControllerCommsTask) controllerQueue");
-    vescQueue = createQueue<VescData>("(ControllerCommsTask) vescQueue");
+    vescDataQueue = createQueue<VescData>("(ControllerCommsTask) vescDataQueue");
   }
 
   void initialise()
@@ -44,7 +47,17 @@ private:
     if (mux_SPI == nullptr)
       mux_SPI = xSemaphoreCreateMutex();
 
-    nrf24.begin(&radio, &network, COMMS_BOARD, nullptr, false, printRadioDetails);
+    vTaskDelay(TICKS_100ms);
+
+    if (take(mux_SPI, TICKS_1s))
+    {
+      nrf24.begin(&radio, &network, COMMS_BOARD, nullptr, false, printRadioDetails);
+      give(mux_SPI);
+    }
+    else
+    {
+      Serial.printf("TASK: ControllerCommsTask unable to init radio (take mux)\n");
+    }
 
     controllerClient = new GenericClient<VescData, ControllerData>(COMMS_CONTROLLER);
     controllerClient->begin(&network, nsControllerCommsTask::controllerPacketAvailable_cb, mux_SPI);
@@ -58,42 +71,50 @@ private:
   void doWork()
   {
     vTaskDelay(1);
+
     controllerClient->update();
 
-    if (vescQueue->hasValue())
+    // reply to controller on queue
+    if (vescDataQueue->hasValue())
     {
       // send to controller
+      vescDataQueue->payload.version = VERSION;
 
-      VescData::print(vescQueue->payload);
-
-      vescQueue->payload.version = VERSION;
-      controllerClient->sendTo(Packet::CONTROL, vescQueue->payload);
+      controllerClient->sendTo(Packet::CONTROL, vescDataQueue->payload);
+      VescData::print(vescDataQueue->payload, "[ControllerCommsTask]:reply");
     }
+  }
+
+  void cleanup()
+  {
+    delete (controllerClient);
+    delete (controllerQueue);
+    delete (vescDataQueue);
   }
 };
 
-ControllerCommsTask controllerCommsTask(PERIOD_50ms);
+ControllerCommsTask ctrlrCommsTask;
 
 namespace nsControllerCommsTask
 {
   void task1(void *parameters)
   {
-    controllerCommsTask.task(parameters);
+    ctrlrCommsTask.task(parameters);
   }
 
   ControllerData sendPacket;
 
   void controllerPacketAvailable_cb(uint16_t from_id, uint8_t type)
   {
-    Serial.printf("packet available\n");
     if (type == Packet::CONTROL)
     {
-      ControllerData packet = controllerCommsTask.controllerClient->read();
+      ControllerData packet = ctrlrCommsTask.controllerClient->read();
 
       sendPacket.id = packet.id;
       sendPacket.throttle = packet.throttle;
+      sendPacket.txTime = packet.txTime;
 
-      controllerCommsTask.controllerQueue->send(&sendPacket);
+      ctrlrCommsTask.controllerQueue->send(&sendPacket);
       ControllerData::print(sendPacket, "---------------\ncontrollerPacketAvailable_cb: ");
       vTaskDelay(TICKS_100ms);
     }
