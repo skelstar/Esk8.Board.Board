@@ -27,13 +27,10 @@ ControllerClass controller;
 
 #include <tasks/queues/queues.h>
 
-// #if USING_M5STACK == 1
-// #include <tasks/core_0/m5StackDisplayTask.h>
-// #endif
-
 #include <RF24Network.h>
 #include <NRF24L01Lib.h>
 #include <GenericClient.h>
+
 #include <QueueManager.h>
 
 #include <tasks/root.h>
@@ -183,6 +180,7 @@ void createQueues()
 {
   xControllerQueueHandle = xQueueCreate(1, sizeof(ControllerClass *));
   xVescQueueHandle = xQueueCreate(1, sizeof(VescData *));
+  xSimplMessageQueue = xQueueCreate(1, sizeof(SimplMessageObj *));
 }
 
 #include <tasks/queues/QueueFactory.h>

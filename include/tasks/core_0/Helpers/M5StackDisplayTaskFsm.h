@@ -147,7 +147,7 @@ namespace nsM5StackDisplayTask
     tft.setTextDatum(MC_DATUM);
     // buttons
     int position[] = {BTN_A_XPOS, BTN_B_XPOS, BTN_C_XPOS};
-    const char *names[] = {"MOVE", "RESET", "-"};
+    const char *names[] = {"MOVE", "RESET", "LOOP"};
     int size = 10,
         offset = 10,
         startY = LCD_HEIGHT - (size * 1.5 + offset),

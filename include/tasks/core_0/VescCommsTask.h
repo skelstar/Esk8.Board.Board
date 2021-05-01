@@ -13,6 +13,7 @@ namespace nsVescCommsTask
 
   // prototypes
   VescData *get_vesc_values();
+  void handleSimplMessage(SimplMessageObj obj);
 }
 
 class VescCommsTask : public TaskBase
@@ -25,9 +26,11 @@ private:
 
   Queue1::Manager<ControllerData> *controllerQueue = nullptr;
   Queue1::Manager<VescData> *vescDataQueue = nullptr;
-  Queue1::Manager<VescData> *vescReadDataQueue = nullptr;
+  Queue1::Manager<SimplMessageObj> *simplMsgQueue = nullptr;
 
   VescData *vescData;
+
+  bool mockMovingLoop = false;
 
 public:
   VescCommsTask() : TaskBase("VescCommsTask", 5000, PERIOD_50ms)
@@ -42,6 +45,7 @@ private:
     controllerQueue = createQueue<ControllerData>("(VescCommsTask) controllerQueue");
     controllerQueue->read(); // clear the queue
     vescDataQueue = createQueue<VescData>("(VescCommsTask) vescDataQueue");
+    simplMsgQueue = createQueue<SimplMessageObj>("(VescCommsTask) simplMsgQueue");
   }
 
   void initialise()
@@ -60,13 +64,16 @@ private:
   {
     if (vescDataQueue->hasValue())
     {
-      VescData::print(vescDataQueue->payload, "[VescCommsTask] vescDataQueue:read ");
+      // VescData::print(vescDataQueue->payload, "->[VescCommsTask]vescDataQueue");
       vescData->moving = vescDataQueue->payload.moving;
     }
 
+    if (simplMsgQueue->hasValue())
+      handleSimplMessage(simplMsgQueue->payload);
+
     if (controllerQueue->hasValue())
     {
-      ControllerData::print(controllerQueue->payload, "[VescCommsTask] ControllerQueue:read ");
+      // ControllerData::print(controllerQueue->payload, "-->[VescCommsTask]:ControllerQueue");
 
       vescData->id = controllerQueue->payload.id;
       vescData->txTime = controllerQueue->payload.txTime;
@@ -82,9 +89,13 @@ private:
       }
       else
       {
+        if (mockMovingLoop)
+        {
+          vescData->moving = !vescData->moving;
+        }
         // reply immediately
         vescDataQueue->send(vescData);
-        VescData::print(*vescData, "[VescCommsTask]:reply");
+        VescData::print(*vescData, "[VescCommsTask]-->:reply");
       }
     }
 
@@ -103,6 +114,16 @@ private:
     delete (controllerQueue);
     delete (vescDataQueue);
     delete (vescData);
+  }
+
+  void handleSimplMessage(SimplMessageObj obj)
+  {
+    SimplMessageObj::print(obj, "-->[VescCommsTask]");
+    if (obj.message == SIMPL_MOCK_MOVING_LOOP)
+    {
+      mockMovingLoop = !mockMovingLoop;
+      Serial.printf("[VescCommsTask] mock moving is %s\n", mockMovingLoop ? "ON" : "OFF");
+    }
   }
 };
 

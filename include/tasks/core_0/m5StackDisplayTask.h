@@ -61,12 +61,14 @@ private:
       }
     }
 
+#define NOT_IN_STATE(x) !m5Stack::fsm_mgr.currentStateIs(x)
+
     if (vescQueue->hasValue())
     {
       // VescData::print(vescQueue->payload, "[M5StackDisplayTask]");
-      if (vescQueue->payload.moving && m5Stack::fsm_mgr.currentStateIs(m5Stack::ST_MOVING) == false)
+      if (vescQueue->payload.moving && NOT_IN_STATE(m5Stack::ST_MOVING))
         m5Stack::fsm_mgr.trigger(m5Stack::TR_MOVING);
-      else if (vescQueue->payload.moving == false && m5Stack::fsm_mgr.currentStateIs(m5Stack::ST_STOPPED) == false)
+      else if (vescQueue->payload.moving == false && NOT_IN_STATE(m5Stack::ST_STOPPED))
         m5Stack::fsm_mgr.trigger(m5Stack::TR_STOPPED);
     }
 

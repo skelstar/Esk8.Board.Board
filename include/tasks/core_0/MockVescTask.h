@@ -20,6 +20,7 @@ bool wasMoving = false;
 // prototypes
 void buttonAPressed(Button2 &btn);
 void buttonAReleased(Button2 &btn);
+void buttonCReleased(Button2 &btn);
 
 //============================================
 
@@ -27,11 +28,16 @@ class MockVescTask : public TaskBase
 {
 public:
   bool printWarnings = true;
+  bool mockMovingLoopMode = false;
+  int mockMovingLoopState = 0;
 
   VescData *vescData;
 
 private:
   Queue1::Manager<VescData> *vescDataQueue = nullptr;
+  Queue1::Manager<SimplMessageObj> *simplMessageQueue = nullptr;
+
+  SimplMessageObj _simplMessage;
 
 public:
   MockVescTask() : TaskBase("MockVescTask", 3000, PERIOD_50ms)
@@ -40,10 +46,19 @@ public:
     _priority = TASK_PRIORITY_0;
   }
 
+  void sendSimplMessage(SimplMessage message)
+  {
+    _simplMessage.message = message;
+    simplMessageQueue->send(&_simplMessage);
+  }
+
 private:
   void initialiseQueues()
   {
     vescDataQueue = createQueue<VescData>("(MockVescTask) vescDataQueue");
+    simplMessageQueue = createQueue<SimplMessageObj>("(MockVescTask) simplMessageQueue");
+
+    simplMessageQueue->read(); // clear the queue
   }
 
   void initialise()
@@ -66,11 +81,17 @@ private:
       vescData = new VescData(vescDataQueue->payload);
       vescData->moving = buttonA.isPressed();
       vescData->batteryVoltage = oldBatt;
-      VescData::print(*vescData, "[MockVescTask] vescDataQueue:read");
+      // VescData::print(*vescData, "[MockVescTask] vescDataQueue:read");
+    }
+
+    if (simplMessageQueue->hasValue())
+    {
+      SimplMessageObj::print(simplMessageQueue->payload, "-->[MockVescTask]");
     }
 
     buttonA.loop();
     buttonB.loop();
+    buttonC.loop();
 
     if (buttonsChanged)
     {
@@ -96,6 +117,8 @@ private:
     });
     buttonB.setReleasedHandler([](Button2 &btn) {
     });
+
+    buttonC.setReleasedHandler(buttonCReleased);
   }
 };  // namespace Buttons
     //=====================================================
@@ -139,4 +162,9 @@ void buttonAReleased(Button2 &btn)
 {
   *mockVescTask.vescData = mockMoving(*(mockVescTask.vescData), false);
   buttonsChanged = true;
+}
+
+void buttonCReleased(Button2 &btn)
+{
+  mockVescTask.sendSimplMessage(SIMPL_MOCK_MOVING_LOOP);
 }
