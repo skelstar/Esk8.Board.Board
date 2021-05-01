@@ -32,6 +32,9 @@ private:
 
   bool mockMovingLoop = false;
 
+  elapsedMillis sinceLastMock;
+  const ulong mockMovinginterval = 5000;
+
 public:
   VescCommsTask() : TaskBase("VescCommsTask", 5000, PERIOD_50ms)
   {
@@ -89,8 +92,9 @@ private:
       }
       else
       {
-        if (mockMovingLoop)
+        if (mockMovingLoop && sinceLastMock > mockMovinginterval)
         {
+          sinceLastMock = 0;
           vescData->moving = !vescData->moving;
         }
         // reply immediately
@@ -119,10 +123,11 @@ private:
   void handleSimplMessage(SimplMessageObj obj)
   {
     SimplMessageObj::print(obj, "-->[VescCommsTask]");
-    if (obj.message == SIMPL_MOCK_MOVING_LOOP)
+    if (obj.message == SIMPL_TOGGLE_MOCK_MOVING_LOOP)
     {
       mockMovingLoop = !mockMovingLoop;
       Serial.printf("[VescCommsTask] mock moving is %s\n", mockMovingLoop ? "ON" : "OFF");
+      m5StackDisplayTask.enabled = !mockMovingLoop;
     }
   }
 };

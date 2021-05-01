@@ -118,22 +118,9 @@ namespace nsControllerCommsTask
       ControllerData::print(sendPacket, "---------------\ncontrollerPacketAvailable_cb: ");
       vTaskDelay(TICKS_100ms);
     }
-    else if (type == Packet::CONFIG)
+    else
     {
-      //   ControllerConfig config = controllerClient->readAlt<ControllerConfig>();
-      //   controller.save(config);
-
-      //   Serial.printf("rx CONFIG id: %lu | ", controller.data.id);
-
-      //   board_packet.id = controller.config.id;
-      //   board_packet.reason = ReasonType::CONFIG_RESPONSE;
-
-      //   sendPacketToController();
-      // }
-      // else
-      // {
-      //   Serial.printf("unknown packet from controller: %d\n", type);
-      // }
+      Serial.printf("Unknown packet (type: %d) %s\n", __FILE__);
     }
   }
 }

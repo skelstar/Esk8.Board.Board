@@ -55,8 +55,8 @@ public:
 private:
   void initialiseQueues()
   {
-    vescDataQueue = createQueue<VescData>("(MockVescTask) vescDataQueue");
-    simplMessageQueue = createQueue<SimplMessageObj>("(MockVescTask) simplMessageQueue");
+    vescDataQueue = createQueue<VescData>("vescDataQueue");
+    simplMessageQueue = createQueue<SimplMessageObj>("simplMessageQueue");
 
     simplMessageQueue->read(); // clear the queue
   }
@@ -81,7 +81,7 @@ private:
       vescData = new VescData(vescDataQueue->payload);
       vescData->moving = buttonA.isPressed();
       vescData->batteryVoltage = oldBatt;
-      // VescData::print(*vescData, "[MockVescTask] vescDataQueue:read");
+      VescData::print(vescDataQueue, /*in*/ true, this->_name);
     }
 
     if (simplMessageQueue->hasValue())
@@ -166,5 +166,5 @@ void buttonAReleased(Button2 &btn)
 
 void buttonCReleased(Button2 &btn)
 {
-  mockVescTask.sendSimplMessage(SIMPL_MOCK_MOVING_LOOP);
+  mockVescTask.sendSimplMessage(SIMPL_TOGGLE_MOCK_MOVING_LOOP);
 }

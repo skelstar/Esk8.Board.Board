@@ -9,7 +9,7 @@ QueueHandle_t xSimplMessageQueue;
 enum SimplMessage
 {
   SIMPL_NONE = 0,
-  SIMPL_MOCK_MOVING_LOOP,
+  SIMPL_TOGGLE_MOCK_MOVING_LOOP,
 };
 
 const char *getSimplMessage(int msg)
@@ -18,8 +18,8 @@ const char *getSimplMessage(int msg)
   {
   case SIMPL_NONE:
     return "SIMPL_NONE";
-  case SIMPL_MOCK_MOVING_LOOP:
-    return "SIMPL_MOCK_MOVING_LOOP";
+  case SIMPL_TOGGLE_MOCK_MOVING_LOOP:
+    return "SIMPL_TOGGLE_MOCK_MOVING_LOOP";
   }
   return "OUT OF RANGE (getSimplMessage())";
 }
