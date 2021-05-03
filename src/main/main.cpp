@@ -195,7 +195,14 @@ void configureTasks()
   // vescCommsTask.healthCheck = true;
   // m5StackDisplayTask.healthCheck = true;
   // mockVescTask.healthCheck = true;
-  vescCommsTask.doWorkInterval = PERIOD_100ms;
+
+  ctrlrCommsTask.doWorkInterval = PERIOD_10ms;
+
+  m5StackDisplayTask.doWorkInterval = PERIOD_100ms;
+
+  mockVescTask.doWorkInterval = PERIOD_50ms;
+
+  vescCommsTask.doWorkInterval = PERIOD_10ms;
 }
 
 #define USE_M5STACK_DISPLAY 0
@@ -213,21 +220,13 @@ elapsedMillis since_reported_waiting;
 
 void waitForTasks()
 {
-
   while (
       !ctrlrCommsTask.ready ||
       !vescCommsTask.ready ||
       !m5StackDisplayTask.ready ||
       !mockVescTask.ready ||
       false)
-  {
-    if (since_reported_waiting > PERIOD_500ms)
-    {
-      since_reported_waiting = 0;
-      Serial.printf("Waiting for Tasks to be ready\n");
-    }
     vTaskDelay(PERIOD_10ms);
-  }
   Serial.printf("-- all tasks ready! --\n");
 }
 

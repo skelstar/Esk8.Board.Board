@@ -19,6 +19,8 @@ class ControllerCommsTask : public TaskBase
 public:
   bool printRadioDetails = true;
 
+  elapsedMillis since_got_packet_from_controller = 0;
+
   GenericClient<VescData, ControllerData> *controllerClient;
 
   Queue1::Manager<ControllerData> *controllerQueue = nullptr;
@@ -36,14 +38,11 @@ public:
   }
 
 private:
-  void initialiseQueues()
+  void initialise()
   {
     controllerQueue = createQueue<ControllerData>("(ControllerCommsTask) controllerQueue");
     vescDataQueue = createQueue<VescData>("(ControllerCommsTask) vescDataQueue");
-  }
 
-  void initialise()
-  {
     if (mux_SPI == nullptr)
       mux_SPI = xSemaphoreCreateMutex();
 
@@ -81,7 +80,7 @@ private:
       vescDataQueue->payload.version = VERSION;
 
       controllerClient->sendTo(Packet::CONTROL, vescDataQueue->payload);
-      VescData::print(vescDataQueue->payload, "[ControllerCommsTask]:reply");
+      // Serial.printf("replied after %lums\n", (unsigned long)since_got_packet_from_controller);
     }
   }
 
@@ -106,21 +105,21 @@ namespace nsControllerCommsTask
 
   void controllerPacketAvailable_cb(uint16_t from_id, uint8_t type)
   {
+    ctrlrCommsTask.since_got_packet_from_controller = 0;
+
     if (type == Packet::CONTROL)
     {
-      ControllerData packet = ctrlrCommsTask.controllerClient->read();
+      ControllerData controllerPacket = ctrlrCommsTask.controllerClient->read();
 
-      sendPacket.id = packet.id;
-      sendPacket.throttle = packet.throttle;
-      sendPacket.txTime = packet.txTime;
+      sendPacket.id = controllerPacket.id;
+      sendPacket.throttle = controllerPacket.throttle;
+      sendPacket.txTime = controllerPacket.txTime;
 
       ctrlrCommsTask.controllerQueue->send(&sendPacket);
-      ControllerData::print(sendPacket, "---------------\ncontrollerPacketAvailable_cb: ");
-      vTaskDelay(TICKS_100ms);
-    }
-    else
-    {
-      Serial.printf("Unknown packet (type: %d) %s\n", __FILE__);
+
+      ControllerData::print(sendPacket, "[controllerPacketAvailable_cb]-->");
+
+      vTaskDelay(TICKS_5ms);
     }
   }
 }

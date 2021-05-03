@@ -67,7 +67,6 @@ private:
   {
     if (vescDataQueue->hasValue())
     {
-      // VescData::print(vescDataQueue->payload, "->[VescCommsTask]vescDataQueue");
       vescData->moving = vescDataQueue->payload.moving;
     }
 
@@ -76,8 +75,6 @@ private:
 
     if (controllerQueue->hasValue())
     {
-      // ControllerData::print(controllerQueue->payload, "-->[VescCommsTask]:ControllerQueue");
-
       vescData->id = controllerQueue->payload.id;
       vescData->txTime = controllerQueue->payload.txTime;
       vescData->version = VERSION;
@@ -99,7 +96,6 @@ private:
         }
         // reply immediately
         vescDataQueue->send(vescData);
-        VescData::print(*vescData, "[VescCommsTask]-->:reply");
       }
     }
 

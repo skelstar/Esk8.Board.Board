@@ -31,7 +31,7 @@ public:
   bool mockMovingLoopMode = false;
   int mockMovingLoopState = 0;
 
-  VescData *vescData;
+  VescData vescData;
 
 private:
   Queue1::Manager<VescData> *vescDataQueue = nullptr;
@@ -40,7 +40,7 @@ private:
   SimplMessageObj _simplMessage;
 
 public:
-  MockVescTask() : TaskBase("MockVescTask", 3000, PERIOD_50ms)
+  MockVescTask() : TaskBase("MockVescTask", 5000, PERIOD_50ms)
   {
     _core = CORE_0;
     _priority = TASK_PRIORITY_0;
@@ -53,35 +53,24 @@ public:
   }
 
 private:
-  void initialiseQueues()
+  void initialise()
   {
     vescDataQueue = createQueue<VescData>("vescDataQueue");
     simplMessageQueue = createQueue<SimplMessageObj>("simplMessageQueue");
-
     simplMessageQueue->read(); // clear the queue
-  }
 
-  void initialise()
-  {
-    vescData = new VescData();
     buttonsChanged = false;
     m5StackButtonsInit();
-  }
-
-  bool timeToDoWork()
-  {
-    return true;
   }
 
   void doWork()
   {
     if (vescDataQueue->hasValue())
     {
-      float oldBatt = vescData->batteryVoltage;
-      vescData = new VescData(vescDataQueue->payload);
-      vescData->moving = buttonA.isPressed();
-      vescData->batteryVoltage = oldBatt;
-      VescData::print(vescDataQueue, /*in*/ true, this->_name);
+      float oldBatt = vescData.batteryVoltage;
+      vescData = vescDataQueue->payload;
+      vescData.moving = buttonA.isPressed();
+      vescData.batteryVoltage = oldBatt;
     }
 
     if (simplMessageQueue->hasValue())
@@ -95,7 +84,7 @@ private:
 
     if (buttonsChanged)
     {
-      vescDataQueue->send(vescData);
+      vescDataQueue->send(&vescData);
       buttonsChanged = false;
     }
   } // doWork
@@ -103,6 +92,7 @@ private:
   void cleanup()
   {
     delete (vescDataQueue);
+    delete (simplMessageQueue);
   }
   //------------------------------------------
 
@@ -133,7 +123,7 @@ namespace nsMockVescTask
   }
 }
 
-static VescData mockMoving(VescData v, bool buttonHeld)
+static void mockMoving(VescData &v, bool buttonHeld)
 {
   v.moving = buttonHeld;
   if (buttonHeld)
@@ -148,19 +138,18 @@ static VescData mockMoving(VescData v, bool buttonHeld)
     v.moving = false;
   }
   wasMoving = buttonHeld;
-  return v;
 }
 
 void buttonAPressed(Button2 &btn)
 {
   Serial.printf("buttonA pressed\n");
-  *mockVescTask.vescData = mockMoving(*(mockVescTask.vescData), true);
+  mockMoving(mockVescTask.vescData, true);
   buttonsChanged = true;
 }
 
 void buttonAReleased(Button2 &btn)
 {
-  *mockVescTask.vescData = mockMoving(*(mockVescTask.vescData), false);
+  mockMoving(mockVescTask.vescData, false);
   buttonsChanged = true;
 }
 
