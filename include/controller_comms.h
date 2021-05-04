@@ -19,7 +19,7 @@ void controllerPacketAvailable_cb(uint16_t from_id, uint8_t type)
     ControllerData data = controllerClient.read();
     controller.save(data);
 
-    if (SEND_TO_VESC)
+    if (SEND_TO_VESC == 1)
       send_to_vesc(controller.data.throttle, /*cruise*/ controller.data.cruise_control);
 
     Serial.printf("rx CONTROL id: %lu | ", controller.data.id);

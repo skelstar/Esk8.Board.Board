@@ -80,6 +80,8 @@ private:
       vescDataQueue->payload.version = VERSION;
 
       controllerClient->sendTo(Packet::CONTROL, vescDataQueue->payload);
+      // if (vescDataQueue->payload.moving)
+      //   Serial.printf("replied after %lums moving: %d\n", (unsigned long)since_got_packet_from_controller, vescDataQueue->payload.moving);
       // Serial.printf("replied after %lums\n", (unsigned long)since_got_packet_from_controller);
     }
   }
@@ -117,7 +119,7 @@ namespace nsControllerCommsTask
 
       ctrlrCommsTask.controllerQueue->send(&sendPacket);
 
-      ControllerData::print(sendPacket, "[controllerPacketAvailable_cb]-->");
+      // ControllerData::print(sendPacket, "[controllerPacketAvailable_cb]-->");
 
       vTaskDelay(TICKS_5ms);
     }

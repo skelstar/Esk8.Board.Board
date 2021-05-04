@@ -47,7 +47,7 @@ bool controller_connected = false;
 
 //------------------------------------------------------------------
 
-VescData board_packet;
+// VescData board_packet;
 
 // NRF24L01Lib nrf24;
 
@@ -56,7 +56,7 @@ VescData board_packet;
 
 // GenericClient<VescData, ControllerData> controllerClient(COMMS_CONTROLLER);
 
-void send_to_vesc(uint8_t throttle, bool cruise_control);
+// void send_to_vesc(uint8_t throttle, bool cruise_control);
 
 // #include <controller_comms.h>
 
@@ -116,9 +116,9 @@ void enableTasks(bool print = false);
 
 void setup()
 {
+#ifdef DEBUG_SERIAL
   Serial.begin(115200);
-
-  board_packet.version = VERSION;
+#endif
 
   //get chip id
   String chipId = String((uint32_t)ESP.getEfuseMac(), HEX);
@@ -191,16 +191,14 @@ void createLocalQueueManagers()
 
 void configureTasks()
 {
-  // ctrlrCommsTask.healthCheck = true;
-  // vescCommsTask.healthCheck = true;
-  // m5StackDisplayTask.healthCheck = true;
-  // mockVescTask.healthCheck = true;
-
   ctrlrCommsTask.doWorkInterval = PERIOD_10ms;
 
+#ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.doWorkInterval = PERIOD_100ms;
-
+#endif
+#if SEND_TO_VESC == 0
   mockVescTask.doWorkInterval = PERIOD_50ms;
+#endif
 
   vescCommsTask.doWorkInterval = PERIOD_10ms;
 }
@@ -212,8 +210,12 @@ void startTasks()
 {
   ctrlrCommsTask.start(nsControllerCommsTask::task1);
   vescCommsTask.start(nsVescCommsTask::task1);
+#ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.start(nsM5StackDisplayTask::task1);
+#endif
+#if SEND_TO_VESC == 0
   mockVescTask.start(nsMockVescTask::task1);
+#endif
 }
 
 elapsedMillis since_reported_waiting;
@@ -223,8 +225,12 @@ void waitForTasks()
   while (
       !ctrlrCommsTask.ready ||
       !vescCommsTask.ready ||
+#ifdef USING_M5STACK_DISPLAY
       !m5StackDisplayTask.ready ||
+#endif
+#if SEND_TO_VESC == 0
       !mockVescTask.ready ||
+#endif
       false)
     vTaskDelay(PERIOD_10ms);
   Serial.printf("-- all tasks ready! --\n");
@@ -234,6 +240,10 @@ void enableTasks(bool print)
 {
   ctrlrCommsTask.enable(print);
   vescCommsTask.enable(print);
+#ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.enable(print);
+#endif
+#if SEND_TO_VESC == 0
   mockVescTask.enable(print);
+#endif
 }

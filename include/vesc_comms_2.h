@@ -31,7 +31,7 @@ void vesc_update()
   {
     since_got_values_from_vesc = 0;
 
-    if (SEND_TO_VESC)
+    if (SEND_TO_VESC == 1)
       try_get_values_from_vesc();
   }
 }

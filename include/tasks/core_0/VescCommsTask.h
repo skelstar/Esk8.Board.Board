@@ -12,7 +12,7 @@ namespace nsVescCommsTask
   vesc_comms vesc;
 
   // prototypes
-  VescData *get_vesc_values();
+  bool get_vesc_values(VescData &vescData);
   void handleSimplMessage(SimplMessageObj obj);
 }
 
@@ -28,11 +28,11 @@ private:
   Queue1::Manager<VescData> *vescDataQueue = nullptr;
   Queue1::Manager<SimplMessageObj> *simplMsgQueue = nullptr;
 
-  VescData *vescData;
+  VescData vescData;
 
   bool mockMovingLoop = false;
 
-  elapsedMillis sinceLastMock;
+  elapsedMillis sinceLastMock, sinceReadFromVesc;
   const ulong mockMovinginterval = 5000;
 
 public:
@@ -53,7 +53,7 @@ private:
 
   void initialise()
   {
-    vescData = new VescData();
+    nsVescCommsTask::vesc.init(VESC_UART_BAUDRATE);
   }
 
   bool timeToDoWork()
@@ -67,7 +67,7 @@ private:
   {
     if (vescDataQueue->hasValue())
     {
-      vescData->moving = vescDataQueue->payload.moving;
+      vescData.moving = vescDataQueue->payload.moving;
     }
 
     if (simplMsgQueue->hasValue())
@@ -75,36 +75,39 @@ private:
 
     if (controllerQueue->hasValue())
     {
-      vescData->id = controllerQueue->payload.id;
-      vescData->txTime = controllerQueue->payload.txTime;
-      vescData->version = VERSION;
+      vescData.id = controllerQueue->payload.id;
+      vescData.txTime = controllerQueue->payload.txTime;
+      vescData.version = VERSION;
 
-      if (SEND_TO_VESC)
+      if (SEND_TO_VESC == 1)
       {
         nsVescCommsTask::vesc.setNunchuckValues(
             IGNORE_X_AXIS,
             /*y*/ controllerQueue->payload.throttle,
             controllerQueue->payload.cruise_control,
             /*upper button*/ 0);
+        vescDataQueue->send(&vescData);
       }
       else
       {
         if (mockMovingLoop && sinceLastMock > mockMovinginterval)
         {
           sinceLastMock = 0;
-          vescData->moving = !vescData->moving;
+          vescData.moving = !vescData.moving;
         }
         // reply immediately
-        vescDataQueue->send(vescData);
+        vescDataQueue->send(&vescData);
       }
     }
 
-    if (SEND_TO_VESC == 1)
+    if (SEND_TO_VESC == 1 && sinceReadFromVesc > GET_FROM_VESC_INTERVAL)
     {
-      vescData = nsVescCommsTask::get_vesc_values();
-      if (vescData != nullptr)
+      sinceReadFromVesc = 0;
+
+      bool success = nsVescCommsTask::get_vesc_values(vescData);
+      if (success)
       {
-        vescDataQueue->send(vescData);
+        vescDataQueue->send(&vescData);
       }
     }
   } // doWork
@@ -113,7 +116,6 @@ private:
   {
     delete (controllerQueue);
     delete (vescDataQueue);
-    delete (vescData);
   }
 
   void handleSimplMessage(SimplMessageObj obj)
@@ -123,7 +125,10 @@ private:
     {
       mockMovingLoop = !mockMovingLoop;
       Serial.printf("[VescCommsTask] mock moving is %s\n", mockMovingLoop ? "ON" : "OFF");
+#ifdef USING_M5STACK_DISPLAY
+      // TODO move this into M5StackDisplayTask
       m5StackDisplayTask.enabled = !mockMovingLoop;
+#endif
     }
   }
 };
@@ -137,27 +142,29 @@ namespace nsVescCommsTask
     vescCommsTask.task(parameters);
   }
   //-----------------------------------------------------------------------
-  VescData *get_vesc_values()
+  bool get_vesc_values(VescData &vescData)
   {
     uint8_t vesc_packet[PACKET_MAX_LENGTH];
-    vesc_comms vesc;
-    VescData *board_packet_r;
 
-    bool success = vesc.fetch_packet(vesc_packet) > 0;
+    int numBytes = vesc.fetch_packet(vesc_packet);
 
-    if (!success)
-      return nullptr;
+    if (numBytes == 0 || numBytes != 70)
+      // sometimes ony getting 5 bytes
+      return false;
+    if (vesc.get_voltage(vesc_packet) < 5.0)
+      return false;
 
     int32_t rpm_raw = vesc.get_rpm(vesc_packet);
 
-    board_packet_r->batteryVoltage = vesc.get_voltage(vesc_packet);
-    board_packet_r->moving = rpm_raw > RPM_AT_MOVING;
+    vescData.batteryVoltage = vesc.get_voltage(vesc_packet);
+    vescData.moving = rpm_raw > RPM_AT_MOVING;
+    Serial.printf("numBytes: %d rpm: %d, batt volts: %.1fV\n", numBytes, rpm_raw, vescData.batteryVoltage);
+    // TODO initial_amphours etc
+    vescData.ampHours = vesc.get_amphours_discharged(vesc_packet) - initial_ampHours;
+    vescData.motorCurrent = vesc.get_motor_current(vesc_packet);
+    vescData.odometer = get_distance_in_meters(vesc.get_tachometer(vesc_packet)) - initial_odometer;
+    vescData.temp_mosfet = vesc.get_temp_mosfet(vesc_packet);
 
-    board_packet_r->ampHours = vesc.get_amphours_discharged(vesc_packet) - initial_ampHours;
-    board_packet_r->motorCurrent = vesc.get_motor_current(vesc_packet);
-    board_packet_r->odometer = get_distance_in_meters(vesc.get_tachometer(vesc_packet)) - initial_odometer;
-    board_packet_r->temp_mosfet = vesc.get_temp_mosfet(vesc_packet);
-
-    return board_packet_r;
+    return true;
   }
 }
