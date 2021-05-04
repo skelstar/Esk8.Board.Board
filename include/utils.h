@@ -2,6 +2,16 @@
 #include <Arduino.h>
 #endif
 
+#ifndef SOFT_SPI_MOSI_PIN
+#define SOFT_SPI_MOSI_PIN 0
+#endif
+#ifndef SOFT_SPI_MISO_PIN
+#define SOFT_SPI_MISO_PIN 0
+#endif
+#ifndef SOFT_SPI_CLK_PIN
+#define SOFT_SPI_CLK_PIN 0
+#endif
+
 //------------------------------------------------------
 
 bool boardIs(String chipId, String compareId)
@@ -12,22 +22,44 @@ bool boardIs(String chipId, String compareId)
 
 void print_build_status(String chipId)
 {
+  const char *line = "-----------------------------------------------\n";
+  const char *spaces = "    ";
+
   Serial.printf("\n");
-  Serial.printf("-----------------------------------------------\n");
-  Serial.printf("               Esk8.Board.Board \n");
-  Serial.printf("               Chip id: %s\n", chipId.c_str());
+  Serial.printf(line);
+  Serial.printf("%s Esk8.Board.Board \n", spaces);
+  Serial.printf("%s Chip id: %s\n", chipId.c_str());
 
   if (chipId == M5STACKFIREID)
   {
-    Serial.printf("               M5STACK-FIRE\n");
+    Serial.printf("%s M5STACK-FIRE\n", spaces);
+    Serial.printf("%s MISO: %d\n", spaces, MISO);
+    Serial.printf("%s MOSI: %d\n", spaces, MOSI);
+    Serial.printf("%s SCK:  %d\n", spaces, SCK);
+    Serial.printf("%s CS:   %d\n", spaces, SPI_CS);
+    Serial.printf("%s CE:   %d\n", spaces, SPI_CE);
+    Serial.printf("\n");
   }
-  else if (chipId == TDISPLAYBOARD)
+  else if (chipId == TDISPLAYBOARD ||
+           chipId == TDISPLAYBOARD_BROWN)
   {
-    Serial.printf("               T-DISPLAY BOARD\n");
+    Serial.printf("%s T-DISPLAY BOARD\n", spaces);
+    Serial.printf("%s MISO: %d\n", spaces, SOFT_SPI_MISO_PIN);
+    Serial.printf("%s MOSI: %d\n", spaces, SOFT_SPI_MOSI_PIN);
+    Serial.printf("%s SCK:  %d\n", spaces, SOFT_SPI_CLK_PIN);
+    Serial.printf("%s CS:   %d\n", spaces, SPI_CS);
+    Serial.printf("%s CE:   %d\n", spaces, SPI_CE);
+    Serial.printf("\n");
   }
   else
   {
-    Serial.printf("               Board: unknown\n");
+    Serial.printf("%s Board: unknown\n", spaces);
+    Serial.printf("%s MISO: %d\n", spaces, MISO);
+    Serial.printf("%s MOSI: %d\n", spaces, MOSI);
+    Serial.printf("%s SCK:  %d\n", spaces, SCK);
+    Serial.printf("%s CS:   %d\n", spaces, SPI_CS);
+    Serial.printf("%s CE:   %d\n", spaces, SPI_CE);
+    Serial.printf("\n");
   }
 
 #ifdef RELEASE_BUILD

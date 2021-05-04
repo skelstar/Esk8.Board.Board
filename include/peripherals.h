@@ -14,7 +14,7 @@
 Button2 button0(BUTTON_0);
 Button2 primaryButton(PIN_04);
 
-#ifdef USING_M5STACK
+#ifdef USING_M5STACK == 1
 const uint8_t M5_BUTTON_A = PIN_39;
 const uint8_t M5_BUTTON_B = PIN_38;
 const uint8_t M5_BUTTON_C = PIN_37;
@@ -43,7 +43,7 @@ void button_init()
 }
 //------------------------------------------------------------------
 
-#ifdef USING_M5STACK
+#if USING_M5STACK == 1
 void m5StackButtons_init()
 {
   // ButtonA
@@ -92,6 +92,8 @@ void primaryButtonInit()
 }
 //------------------------------------------------------------------
 
+bool wasMoving = false;
+
 void mockMoving(bool buttonHeld)
 {
   board_packet.moving = buttonHeld;
@@ -101,25 +103,14 @@ void mockMoving(bool buttonHeld)
       board_packet.batteryVoltage = 43.3;
     board_packet.motorCurrent = 3;
     board_packet.ampHours += board_packet.motorCurrent;
-    // DEBUGVAL(
-    //     board_packet.moving,
-    //     board_packet.motorCurrent,
-    //     board_packet.batteryVoltage,
-    //     board_packet.ampHours);
-    if (FEATURE_FOOTLIGHT)
-      footlightQueue->send(FootLight::MOVING);
 
-#if USING_M5STACK
-    displayQueue->send(M5StackDisplay::Q_MOVING);
-#endif
+    vescQueue->send(&board_packet);
   }
-  else
+  else if (wasMoving && !buttonHeld)
   {
-    if (FEATURE_FOOTLIGHT)
-      footlightQueue->send(FootLight::STOPPED);
-#if USING_M5STACK
-    displayQueue->send(M5StackDisplay::Q_STOPPED);
-#endif
+    board_packet.moving = false;
+    vescQueue->send(&board_packet);
   }
+  wasMoving = buttonHeld;
 }
 //------------------------------------------------------

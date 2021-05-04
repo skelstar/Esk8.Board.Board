@@ -8,11 +8,10 @@
 
 #define POWERING_DOWN_BATT_VOLTS_START NUM_BATT_CELLS * 3.0
 
-vesc_comms vesc;
-
-uint8_t vesc_packet[PACKET_MAX_LENGTH];
-
 void try_get_values_from_vesc();
+VescData *get_vesc_values();
+
+vesc_comms vesc;
 
 #include <vesc_utils.h>
 //-----------------------------------------------------------------------
@@ -32,7 +31,7 @@ void vesc_update()
   {
     since_got_values_from_vesc = 0;
 
-    if (SEND_TO_VESC)
+    if (SEND_TO_VESC == 1)
       try_get_values_from_vesc();
   }
 }
@@ -40,27 +39,42 @@ void vesc_update()
 void try_get_values_from_vesc()
 {
   using namespace Comms;
-  bool success = get_vesc_values();
-  if (success)
+  VescData *board_packet1 = get_vesc_values();
+
+  if (board_packet1 != nullptr)
   {
-    if (vesc_powering_down())
-    {
-    }
-    else if (board_packet.moving)
-    {
-      if (FEATURE_FOOTLIGHT)
-        footlightQueue->send(FootLight::MOVING);
-    }
-    else if (board_packet.moving == false)
-    {
-      if (FEATURE_FOOTLIGHT)
-        footlightQueue->send(FootLight::STOPPED);
-    }
+    if (vescQueue != nullptr)
+      vescQueue->send(board_packet1);
+
     commsFsm.trigger(EV_VESC_SUCCESS);
   }
   else
   {
     commsFsm.trigger(EV_VESC_FAILED);
   }
+}
+//-----------------------------------------------------------------------------------
+VescData *get_vesc_values()
+{
+  uint8_t vesc_packet[PACKET_MAX_LENGTH];
+  vesc_comms vesc;
+  VescData *res;
+
+  bool success = vesc.fetch_packet(vesc_packet) > 0;
+
+  if (!success)
+    return nullptr;
+
+  rpm_raw = vesc.get_rpm(vesc_packet);
+
+  res->batteryVoltage = vesc.get_voltage(vesc_packet);
+  res->moving = rpm_raw > RPM_AT_MOVING;
+
+  res->ampHours = vesc.get_amphours_discharged(vesc_packet) - initial_ampHours;
+  res->motorCurrent = vesc.get_motor_current(vesc_packet);
+  res->odometer = get_distance_in_meters(vesc.get_tachometer(vesc_packet)) - initial_odometer;
+  res->temp_mosfet = vesc.get_temp_mosfet(vesc_packet);
+
+  return res;
 }
 //-----------------------------------------------------------------------------------

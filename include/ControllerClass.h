@@ -1,5 +1,8 @@
+#pragma once
 
-class ControllerClass
+#include <QueueBase.h>
+
+class ControllerClass : public QueueBase
 {
 public:
   ControllerData data;
