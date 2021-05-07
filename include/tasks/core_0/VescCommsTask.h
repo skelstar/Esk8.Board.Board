@@ -43,22 +43,14 @@ public:
   }
 
 private:
-  void initialiseQueues()
+  void initialise()
   {
     controllerQueue = createQueue<ControllerData>("(VescCommsTask) controllerQueue");
     controllerQueue->read(); // clear the queue
     vescDataQueue = createQueue<VescData>("(VescCommsTask) vescDataQueue");
     simplMsgQueue = createQueue<SimplMessageObj>("(VescCommsTask) simplMsgQueue");
-  }
 
-  void initialise()
-  {
     nsVescCommsTask::vesc.init(VESC_UART_BAUDRATE);
-  }
-
-  bool timeToDoWork()
-  {
-    return true;
   }
 
 #define IGNORE_X_AXIS 127

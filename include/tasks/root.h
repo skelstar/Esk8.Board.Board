@@ -9,5 +9,4 @@
 
 #include <tasks/core_0/VescCommsTask.h>
 #include <tasks/core_0/FootLightTask.h>
-// #include <tasks/core_0/buttonsTask.h>
-// #include <tasks/core_0/commsFsmTask.h>
+#include <tasks/core_0/HeadlightTask.h>

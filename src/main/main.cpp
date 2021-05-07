@@ -163,21 +163,21 @@ elapsedMillis sinceCheckedCtrlOnline, sinceToggleLight, sinceCheckedQueues;
 
 void loop()
 {
-  if (sinceCheckedQueues > 500)
-  {
-    sinceCheckedQueues = 0;
-    if (simplMsgQueue->hasValue())
-    {
-      if (simplMsgQueue->payload.message == SIMPL_HEADLIGHT_ON)
-      {
-        digitalWrite(26, HIGH);
-      }
-      else if (simplMsgQueue->payload.message == SIMPL_HEADLIGHT_OFF)
-      {
-        digitalWrite(26, LOW);
-      }
-    }
-  }
+  // if (sinceCheckedQueues > 500)
+  // {
+  //   sinceCheckedQueues = 0;
+  //   if (simplMsgQueue->hasValue())
+  //   {
+  //     if (simplMsgQueue->payload.message == SIMPL_HEADLIGHT_ON)
+  //     {
+  //       digitalWrite(26, HIGH);
+  //     }
+  //     else if (simplMsgQueue->payload.message == SIMPL_HEADLIGHT_OFF)
+  //     {
+  //       digitalWrite(26, LOW);
+  //     }
+  //   }
+  // }
 
   vTaskDelay(10);
 }
@@ -206,6 +206,8 @@ void configureTasks()
   footLightTask.doWorkInterval = PERIOD_100ms;
   footLightTask.printStateChange = true;
 
+  headlightTask.doWorkInterval = PERIOD_500ms;
+
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.doWorkInterval = PERIOD_100ms;
 #endif
@@ -223,6 +225,7 @@ void startTasks()
 {
   ctrlrCommsTask.start(nsControllerCommsTask::task1);
   footLightTask.start(nsFootlightTask::task1);
+  headlightTask.start(nsHeadlightTask::task1);
   vescCommsTask.start(nsVescCommsTask::task1);
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.start(nsM5StackDisplayTask::task1);
@@ -239,6 +242,7 @@ void waitForTasks()
   while (
       !ctrlrCommsTask.ready ||
       !footLightTask.ready ||
+      !headlightTask.ready ||
       !vescCommsTask.ready ||
 #ifdef USING_M5STACK_DISPLAY
       !m5StackDisplayTask.ready ||
@@ -255,6 +259,7 @@ void enableTasks(bool print)
 {
   ctrlrCommsTask.enable(print);
   footLightTask.enable(print);
+  headlightTask.enable(print);
   vescCommsTask.enable(print);
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.enable(print);
