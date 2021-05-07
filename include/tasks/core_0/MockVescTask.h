@@ -16,10 +16,13 @@ Button2 buttonC(M5_BUTTON_C);
 
 bool buttonsChanged;
 bool wasMoving = false;
+bool headLightState = false;
 
 // prototypes
 void buttonAPressed(Button2 &btn);
 void buttonAReleased(Button2 &btn);
+void buttonBPressed(Button2 &btn);
+void buttonBReleased(Button2 &btn);
 void buttonCReleased(Button2 &btn);
 
 //============================================
@@ -60,6 +63,7 @@ private:
     simplMessageQueue->read(); // clear the queue
 
     buttonsChanged = false;
+    headLightState = false;
     m5StackButtonsInit();
   }
 
@@ -75,7 +79,7 @@ private:
 
     if (simplMessageQueue->hasValue())
     {
-      SimplMessageObj::print(simplMessageQueue->payload, "-->[MockVescTask]");
+      simplMessageQueue->payload.print("-->[MockVescTask]");
     }
 
     buttonA.loop();
@@ -103,11 +107,10 @@ private:
     buttonA.setReleasedHandler(buttonAReleased);
 
     // ButtonB
-    buttonB.setPressedHandler([](Button2 &btn) {
-    });
-    buttonB.setReleasedHandler([](Button2 &btn) {
-    });
+    buttonB.setPressedHandler(buttonBPressed);
+    buttonB.setReleasedHandler(buttonBReleased);
 
+    // Button C
     buttonC.setReleasedHandler(buttonCReleased);
   }
 };  // namespace Buttons
@@ -149,8 +152,18 @@ void buttonAPressed(Button2 &btn)
 
 void buttonAReleased(Button2 &btn)
 {
-  mockMoving(mockVescTask.vescData, false);
+  mockMoving(mockVescTask.vescData, /*button held*/ false);
   buttonsChanged = true;
+}
+
+void buttonBPressed(Button2 &B)
+{
+  mockVescTask.sendSimplMessage(SIMPL_HEADLIGHT_ON);
+}
+
+void buttonBReleased(Button2 &B)
+{
+  mockVescTask.sendSimplMessage(SIMPL_HEADLIGHT_OFF);
 }
 
 void buttonCReleased(Button2 &btn)

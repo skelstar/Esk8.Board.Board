@@ -120,7 +120,7 @@ private:
 
   void handleSimplMessage(SimplMessageObj obj)
   {
-    SimplMessageObj::print(obj, "-->[VescCommsTask]");
+    obj.print("-->[VescCommsTask]");
     if (obj.message == SIMPL_TOGGLE_MOCK_MOVING_LOOP)
     {
       mockMovingLoop = !mockMovingLoop;
@@ -158,7 +158,7 @@ namespace nsVescCommsTask
 
     vescData.batteryVoltage = vesc.get_voltage(vesc_packet);
     vescData.moving = rpm_raw > RPM_AT_MOVING;
-    Serial.printf("numBytes: %d rpm: %d, batt volts: %.1fV\n", numBytes, rpm_raw, vescData.batteryVoltage);
+    // Serial.printf("numBytes: %d rpm: %d, batt volts: %.1fV\n", numBytes, rpm_raw, vescData.batteryVoltage);
     // TODO initial_amphours etc
     vescData.ampHours = vesc.get_amphours_discharged(vesc_packet) - initial_ampHours;
     vescData.motorCurrent = vesc.get_motor_current(vesc_packet);

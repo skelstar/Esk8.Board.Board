@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef Arduino
 #include <Arduino.h>
 #endif

@@ -14,12 +14,16 @@ namespace nsM5StackDisplayTask
 
   TFT_eSPI tft = TFT_eSPI(LCD_HEIGHT, LCD_WIDTH);
 
+  bool _g_HeadlightState = false;
+
   enum Trigger
   {
     TR_NO_EVENT = 0,
     TR_MOVING,
     TR_STOPPED,
     TR_BRAKING,
+    TR_HEADLIGHT_ON,
+    TR_HEADLIGHT_OFF,
   };
 
   enum StateID
@@ -77,6 +81,10 @@ namespace nsM5StackDisplayTask
     fsm1.add_transition(&stateStopped, &stateBraking, Trigger::TR_BRAKING, NULL);
     fsm1.add_transition(&stateBraking, &stateBraking, Trigger::TR_BRAKING, NULL);
     fsm1.add_transition(&stateMoving, &stateBraking, Trigger::TR_BRAKING, NULL);
+
+    // HEADLIGHT
+    fsm1.add_transition(&stateStopped, &stateStopped, Trigger::TR_HEADLIGHT_ON, NULL);
+    fsm1.add_transition(&stateStopped, &stateStopped, Trigger::TR_HEADLIGHT_OFF, NULL);
   }
 
   void initFsm(bool print = false)

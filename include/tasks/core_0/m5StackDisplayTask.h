@@ -20,62 +20,61 @@ private:
 private:
   Queue1::Manager<ControllerData> *controllerQueue = nullptr;
   Queue1::Manager<VescData> *vescQueue = nullptr;
-
-  void initialiseQueues()
-  {
-    controllerQueue = createQueue<ControllerData>("(M5StackDisplayTask) controllerQueue");
-    vescQueue = createQueue<VescData>("(M5StackDisplayTask) vescQueue");
-  }
+  Queue1::Manager<SimplMessageObj> *simplMsgQueue = nullptr;
 
   void initialise()
   {
+    controllerQueue = createQueue<ControllerData>("(M5StackDisplayTask) controllerQueue");
+    vescQueue = createQueue<VescData>("(M5StackDisplayTask) vescQueue");
+    simplMsgQueue = createQueue<SimplMessageObj>("(M5StackDisplayTask) simplMsgQueue");
+
     m5Stack::initTFT();
 
     m5Stack::initFsm();
   }
 
-  void initialTask()
-  {
-    // doWork();
-  }
-
-  bool timeToDoWork()
-  {
-    return true;
-  }
-
   void doWork()
   {
+    using namespace m5Stack;
+
     if (controllerQueue->hasValue())
     {
-      // ControllerData::print(controllerQueue->payload, "[M5StackDisplay]");
-
       if (controller.throttleChanged())
       {
-        if (controller.data.throttle == 127 && !m5Stack::fsm_mgr.currentStateIs(m5Stack::ST_STOPPED))
-          m5Stack::fsm_mgr.trigger(m5Stack::TR_STOPPED);
+        if (controller.data.throttle == 127 && NOT_IN_STATE(ST_STOPPED))
+          TRIGGER(TR_STOPPED);
         else if (controller.data.throttle > 127)
-          m5Stack::fsm_mgr.trigger(m5Stack::TR_MOVING);
+          TRIGGER(TR_MOVING);
         else if (controller.data.throttle < 127)
-          m5Stack::fsm_mgr.trigger(m5Stack::TR_BRAKING);
+          TRIGGER(TR_BRAKING);
       }
     }
 
-#define NOT_IN_STATE(x) !m5Stack::fsm_mgr.currentStateIs(x)
+    if (simplMsgQueue->hasValue())
+    {
+      if (simplMsgQueue->payload.message == SIMPL_HEADLIGHT_ON ||
+          simplMsgQueue->payload.message == SIMPL_HEADLIGHT_OFF)
+      {
+        _g_HeadlightState = simplMsgQueue->payload.message == SIMPL_HEADLIGHT_ON;
+        TRIGGER(simplMsgQueue->payload.message == SIMPL_HEADLIGHT_ON
+                    ? TR_HEADLIGHT_ON
+                    : TR_HEADLIGHT_OFF);
+      }
+    }
 
     if (vescQueue->hasValue())
     {
-      // VescData::print(vescQueue->payload, "[M5StackDisplayTask]");
-      if (vescQueue->payload.moving && NOT_IN_STATE(m5Stack::ST_MOVING))
-        m5Stack::fsm_mgr.trigger(m5Stack::TR_MOVING);
-      else if (vescQueue->payload.moving == false && NOT_IN_STATE(m5Stack::ST_STOPPED))
-        m5Stack::fsm_mgr.trigger(m5Stack::TR_STOPPED);
+      if (vescQueue->payload.moving && NOT_IN_STATE(ST_MOVING))
+        TRIGGER(TR_MOVING);
+      else if (vescQueue->payload.moving == false && NOT_IN_STATE(ST_STOPPED))
+        TRIGGER(TR_STOPPED);
     }
 
-    m5Stack::fsm_mgr.runMachine();
+    fsm_mgr.runMachine();
   }
 
-  void cleanup()
+  void
+  cleanup()
   {
     delete (controllerQueue);
     delete (vescQueue);
@@ -90,34 +89,34 @@ namespace nsM5StackDisplayTask
   {
     m5StackDisplayTask.task(parameters);
   }
-}
 
-void m5Stack::stateReadyOnEnter()
-{
-  m5Stack::fsm_mgr.printState(m5Stack::ST_READY);
-}
+  void stateReadyOnEnter()
+  {
+    PRINT_STATE(ST_READY);
+  }
 
-void m5Stack::stateMovingOnEnter()
-{
-  m5Stack::fsm_mgr.printState(m5Stack::ST_MOVING);
-  // TODO read from local instead
-  uint8_t t = controller.data.throttle;
-  char thr[10];
-  sprintf(thr, "%03d", t);
-  m5Stack::drawCard(thr, TFT_WHITE, TFT_DARKGREEN);
-}
+  void stateMovingOnEnter()
+  {
+    PRINT_STATE(ST_MOVING);
+    // TODO read from local instead
+    uint8_t t = controller.data.throttle;
+    char thr[10];
+    sprintf(thr, "%03d", t);
+    drawCard(thr, TFT_WHITE, TFT_DARKGREEN);
+  }
 
-void m5Stack::stateStoppedOnEnter()
-{
-  m5Stack::fsm_mgr.printState(m5Stack::ST_STOPPED);
-  m5Stack::drawCard("STOPPED", TFT_WHITE, TFT_BLACK);
-}
+  void stateStoppedOnEnter()
+  {
+    PRINT_STATE(ST_STOPPED);
+    drawCard(_g_HeadlightState == true ? "HEADLIGHT" : "STOPPED", TFT_WHITE, TFT_BLACK);
+  }
 
-void m5Stack::stateBrakingOnEnter()
-{
-  m5Stack::fsm_mgr.printState(m5Stack::ST_BRAKING);
-  uint8_t t = controller.data.throttle;
-  char thr[10];
-  sprintf(thr, "%03d", t);
-  m5Stack::drawCard(thr, TFT_WHITE, TFT_RED);
+  void stateBrakingOnEnter()
+  {
+    PRINT_STATE(ST_BRAKING);
+    uint8_t t = controller.data.throttle;
+    char thr[10];
+    sprintf(thr, "%03d", t);
+    drawCard(thr, TFT_WHITE, TFT_RED);
+  }
 }

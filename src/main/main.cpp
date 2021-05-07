@@ -16,8 +16,10 @@ SemaphoreHandle_t mux_SPI;
 #include <printFormatStrings.h>
 #include <utils.h>
 #include <FsmManager.h>
+#include <SharedConstants.h>
 #include <QueueManager.h>
 #include <constants.h>
+#include <macros.h>
 #include <ControllerClass.h>
 
 #include <TFT_eSPI.h>
@@ -142,6 +144,8 @@ void setup()
     DEBUG("-----------------------------------------------\n\n");
   }
 
+  createLocalQueueManagers();
+
   configureTasks();
 
   startTasks();
@@ -149,27 +153,31 @@ void setup()
   waitForTasks();
 
   enableTasks();
+
+  pinMode(26, OUTPUT);
 }
 
-elapsedMillis sinceCheckedCtrlOnline;
+Queue1::Manager<SimplMessageObj> *simplMsgQueue = nullptr;
+
+elapsedMillis sinceCheckedCtrlOnline, sinceToggleLight, sinceCheckedQueues;
 
 void loop()
 {
-  // if (sinceNRFUpdate > 20)
-  // {
-  //   sinceNRFUpdate = 0;
-  //   // controllerClient.update();
-  // }
-
-  // vesc_update();
-
-  // TODO read from local "controller"
-  // if (sinceCheckedCtrlOnline > 500 && controller.hasTimedout(sinceLastControllerPacket))
-  // {
-  //   sinceCheckedCtrlOnline = 0;
-  //   // DEBUGMVAL("timeout", sinceLastControllerPacket);
-  //   // Comms::commsFsm.trigger(Comms::EV_CTRLR_TIMEOUT);
-  // }
+  if (sinceCheckedQueues > 500)
+  {
+    sinceCheckedQueues = 0;
+    if (simplMsgQueue->hasValue())
+    {
+      if (simplMsgQueue->payload.message == SIMPL_HEADLIGHT_ON)
+      {
+        digitalWrite(26, HIGH);
+      }
+      else if (simplMsgQueue->payload.message == SIMPL_HEADLIGHT_OFF)
+      {
+        digitalWrite(26, LOW);
+      }
+    }
+  }
 
   vTaskDelay(10);
 }
@@ -187,11 +195,16 @@ void createQueues()
 
 void createLocalQueueManagers()
 {
+  simplMsgQueue = createQueue<SimplMessageObj>("(loop) simplMsgQueue");
 }
 
 void configureTasks()
 {
   ctrlrCommsTask.doWorkInterval = PERIOD_10ms;
+  ctrlrCommsTask.printRxFromController = true;
+
+  footLightTask.doWorkInterval = PERIOD_100ms;
+  footLightTask.printStateChange = true;
 
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.doWorkInterval = PERIOD_100ms;
@@ -209,6 +222,7 @@ void configureTasks()
 void startTasks()
 {
   ctrlrCommsTask.start(nsControllerCommsTask::task1);
+  footLightTask.start(nsFootlightTask::task1);
   vescCommsTask.start(nsVescCommsTask::task1);
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.start(nsM5StackDisplayTask::task1);
@@ -224,6 +238,7 @@ void waitForTasks()
 {
   while (
       !ctrlrCommsTask.ready ||
+      !footLightTask.ready ||
       !vescCommsTask.ready ||
 #ifdef USING_M5STACK_DISPLAY
       !m5StackDisplayTask.ready ||
@@ -239,6 +254,7 @@ void waitForTasks()
 void enableTasks(bool print)
 {
   ctrlrCommsTask.enable(print);
+  footLightTask.enable(print);
   vescCommsTask.enable(print);
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.enable(print);

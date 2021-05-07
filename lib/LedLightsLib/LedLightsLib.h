@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef LedLightsLib_h
 #define LedLightsLib_h
 

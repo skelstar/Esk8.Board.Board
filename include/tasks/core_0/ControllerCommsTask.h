@@ -17,7 +17,8 @@ namespace nsControllerCommsTask
 class ControllerCommsTask : public TaskBase
 {
 public:
-  bool printRadioDetails = true;
+  bool printRadioDetails = true,
+       printRxFromController = false;
 
   elapsedMillis since_got_packet_from_controller = 0;
 
@@ -119,7 +120,8 @@ namespace nsControllerCommsTask
 
       ctrlrCommsTask.controllerQueue->send(&sendPacket);
 
-      // ControllerData::print(sendPacket, "[controllerPacketAvailable_cb]-->");
+      if (ctrlrCommsTask.printRxFromController)
+        ControllerData::print(sendPacket, "[controllerPacketAvailable_cb]-->");
 
       vTaskDelay(TICKS_5ms);
     }
