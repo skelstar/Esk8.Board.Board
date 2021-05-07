@@ -55,21 +55,13 @@ private:
 
   void cleanup()
   {
+    delete (vescDataQueue);
+    delete (simplMsgQueue);
   }
 
 private:
   void _handleSimplMessage(SimplMessageObj obj)
   {
-    // obj.print("-->[HeadlightTask]");
-    //     if (obj.message == SIMPL_TOGGLE_MOCK_MOVING_LOOP)
-    //     {
-    //       mockMovingLoop = !mockMovingLoop;
-    //       Serial.printf("[HeadlightTask] mock moving is %s\n", mockMovingLoop ? "ON" : "OFF");
-    // #ifdef USING_M5STACK_DISPLAY
-    //       // TODO move this into M5StackDisplayTask
-    //       m5StackDisplayTask.enabled = !mockMovingLoop;
-    // #endif
-    //     }
   }
 
   void _turnLights(bool on)
