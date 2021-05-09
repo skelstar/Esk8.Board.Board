@@ -14,11 +14,13 @@ namespace nsHeadlightTask
 class HeadlightTask : public TaskBase
 {
 public:
-  bool printWarnings = true;
+  bool printWarnings = true, printState = false;
 
 private:
   Queue1::Manager<VescData> *vescDataQueue = nullptr;
   Queue1::Manager<SimplMessageObj> *simplMsgQueue = nullptr;
+
+  SimplMessageObj _simplMsg;
 
   const uint8_t LIGHTS_OFF = 0;
   const uint8_t LIGHTS_ON = 1;
@@ -44,14 +46,11 @@ private:
   void doWork()
   {
     if (vescDataQueue->hasValue())
-    {
-      vescData.moving = vescDataQueue->payload.moving;
-      _turnLights(vescData.moving == true);
-    }
+      _handleVescData(vescDataQueue->payload);
 
     if (simplMsgQueue->hasValue())
       _handleSimplMessage(simplMsgQueue->payload);
-  } // doWork
+  }
 
   void cleanup()
   {
@@ -60,22 +59,36 @@ private:
   }
 
 private:
+  void _handleVescData(VescData &p_vescData)
+  {
+    vescData = p_vescData;
+  }
+
   void _handleSimplMessage(SimplMessageObj obj)
   {
+    _simplMsg = obj;
+
+    if (_simplMsg.message == I2C_INPUT_7_PRESSED)
+    {
+      // toggle lights
+      lightState = lightState == LIGHTS_ON
+                       ? LIGHTS_OFF
+                       : LIGHTS_ON;
+
+      _turnLights(lightState == LIGHTS_ON);
+
+      if (printState)
+        Serial.printf("HEADLIGHT light: %s\n",
+                      lightState == LIGHTS_ON ? "LIGHTS_ON" : "LIGHTS_OFF");
+    }
   }
 
   void _turnLights(bool on)
   {
-    if (lightState == LIGHTS_OFF && on)
-    {
-      digitalWrite(HEADLIGHT_PIN, LIGHTS_ON);
-      lightState = LIGHTS_ON;
-    }
-    else if (lightState == LIGHTS_ON && !on)
-    {
-      digitalWrite(HEADLIGHT_PIN, LIGHTS_OFF);
-      lightState = LIGHTS_OFF;
-    }
+    _simplMsg.message = on
+                            ? SIMPL_HEADLIGHT_ON
+                            : SIMPL_HEADLIGHT_OFF;
+    simplMsgQueue->send(&_simplMsg);
   }
 };
 

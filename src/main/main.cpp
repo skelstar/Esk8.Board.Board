@@ -11,6 +11,8 @@
 SemaphoreHandle_t mux_I2C;
 SemaphoreHandle_t mux_SPI;
 
+#include <Wire.h>
+
 #include <shared-utils.h>
 #include <types.h>
 #include <printFormatStrings.h>
@@ -49,63 +51,9 @@ bool controller_connected = false;
 
 //------------------------------------------------------------------
 
-// VescData board_packet;
-
-// NRF24L01Lib nrf24;
-
-// RF24 radio(SPI_CE, SPI_CS);
-// RF24Network network(radio);
-
-// GenericClient<VescData, ControllerData> controllerClient(COMMS_CONTROLLER);
-
-// void send_to_vesc(uint8_t throttle, bool cruise_control);
-
-// #include <controller_comms.h>
-
-// const char *getSummary(VescData d)
-// {
-//   char buff[50];
-//   sprintf(buff, "id: %lu moving: %d", d.id, d.moving);
-//   return buff;
-// }
-
-// const char *getSummary(ControllerData d)
-// {
-//   char buff[50];
-//   sprintf(buff, "id: %lu throttle: %d", d.id, d.throttle);
-//   return buff;
-// }
-
-// void controllerClientInit()
-// {
-//   // TODO: PRINT_FLAGS
-//   controllerClient.begin(&network, controllerPacketAvailable_cb);
-//   controllerClient.setConnectedStateChangeCallback([] {
-//     Serial.printf("setConnectedStateChangeCallback\n");
-//   });
-//   controllerClient.setSentPacketCallback([](VescData data) {
-//     if (PRINT_TX_TO_CONTROLLER)
-//       Serial.printf(PRINT_TX_PACKET_TO_FORMAT, "CTRLR", getSummary(data));
-//   });
-//   controllerClient.setReadPacketCallback([](ControllerData data) {
-//     if (PRINT_RX_FROM_CONTROLLER)
-//       Serial.printf(PRINT_RX_PACKET_FROM_FORMAT, "CTRLR", getSummary(data));
-//   });
-// }
-
 #define NUM_RETRIES 5
 
 //------------------------------------------------------------------
-
-// #include <peripherals.h>
-// #if (FEATURE_FOOTLIGHT == 1)
-// #include <tasks/core_0/footLightTask_0.h>
-// #endif
-// #include <tasks/core_0/buttonsTask.h>
-// #include <tasks/core_0/commsFsmTask.h>
-// #include <vesc_comms_2.h>
-
-// void waitForTasksToBeReady();
 
 void createQueues();
 void createLocalQueueManagers();
@@ -120,6 +68,10 @@ void setup()
 {
 #ifdef DEBUG_SERIAL
   Serial.begin(115200);
+#endif
+
+#ifdef I2CPORTEXP1_TASK
+  Wire.begin();
 #endif
 
   //get chip id
@@ -201,17 +153,19 @@ void createLocalQueueManagers()
 void configureTasks()
 {
   ctrlrCommsTask.doWorkInterval = PERIOD_10ms;
-  ctrlrCommsTask.printRxFromController = true;
+  // ctrlrCommsTask.printRxFromController = true;
 
   footLightTask.doWorkInterval = PERIOD_100ms;
-  footLightTask.printStateChange = true;
+  // footLightTask.printStateChange = true;
 
   headlightTask.doWorkInterval = PERIOD_500ms;
+
+  i2cButtonTask.doWorkInterval = PERIOD_100ms;
 
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.doWorkInterval = PERIOD_100ms;
 #endif
-#if SEND_TO_VESC == 0
+#if USING_M5STACK == 1 && SEND_TO_VESC == 0
   mockVescTask.doWorkInterval = PERIOD_50ms;
 #endif
 
@@ -226,11 +180,12 @@ void startTasks()
   ctrlrCommsTask.start(nsControllerCommsTask::task1);
   footLightTask.start(nsFootlightTask::task1);
   headlightTask.start(nsHeadlightTask::task1);
+  i2cButtonTask.start(nsI2CPortExp1Task::task1);
   vescCommsTask.start(nsVescCommsTask::task1);
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.start(nsM5StackDisplayTask::task1);
 #endif
-#if SEND_TO_VESC == 0
+#if MOCK_VESC == 1 && SEND_TO_VESC == 0
   mockVescTask.start(nsMockVescTask::task1);
 #endif
 }
@@ -244,10 +199,11 @@ void waitForTasks()
       !footLightTask.ready ||
       !headlightTask.ready ||
       !vescCommsTask.ready ||
+      !i2cButtonTask.ready ||
 #ifdef USING_M5STACK_DISPLAY
       !m5StackDisplayTask.ready ||
 #endif
-#if SEND_TO_VESC == 0
+#if MOCK_VESC == 1 && SEND_TO_VESC == 0
       !mockVescTask.ready ||
 #endif
       false)
@@ -260,11 +216,12 @@ void enableTasks(bool print)
   ctrlrCommsTask.enable(print);
   footLightTask.enable(print);
   headlightTask.enable(print);
+  i2cButtonTask.enable(print);
   vescCommsTask.enable(print);
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.enable(print);
 #endif
-#if SEND_TO_VESC == 0
+#if MOCK_VESC && SEND_TO_VESC == 0
   mockVescTask.enable(print);
 #endif
 }

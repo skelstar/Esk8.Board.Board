@@ -112,7 +112,7 @@ private:
 
   void handleSimplMessage(SimplMessageObj obj)
   {
-    obj.print("-->[VescCommsTask]");
+    // obj.print("-->[VescCommsTask]simplMessageQueue");
     if (obj.message == SIMPL_TOGGLE_MOCK_MOVING_LOOP)
     {
       mockMovingLoop = !mockMovingLoop;

@@ -12,6 +12,7 @@ enum SimplMessage
   SIMPL_TOGGLE_MOCK_MOVING_LOOP,
   SIMPL_HEADLIGHT_ON,
   SIMPL_HEADLIGHT_OFF,
+  I2C_INPUT_7_PRESSED,
 };
 
 const char *getSimplMessage(int msg)
