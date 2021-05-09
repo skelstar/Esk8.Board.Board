@@ -6,5 +6,5 @@
 #define PRINT_STATE(x) fsm_mgr.printState(x)
 
 // bitwise
-#define CHECK_SET(var, pos) ((var) & (1 << (pos))) // pos is bit mask (like 0x80, 0x40, 0x20, 0x10 etc)
-#define CHECK_CLEAR(var, pos) ((var & pos) == 0)   // pos is bit mask (like 0x80)
+#define CHECK_BIT_HIGH(var, pos) ((var) & (1 << (pos)))
+#define CHECK_BIT_LOW(var, pos) ((var & pos) == 0) // pos is bit mask (like 0x80, 0x40, 0x20, 0x10 etc)

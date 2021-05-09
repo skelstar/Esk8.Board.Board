@@ -69,7 +69,7 @@ private:
     uint8_t latest = _readInputs();
     if (_inputPins != latest)
     {
-      if (CHECK_CLEAR(latest, PIN_7))
+      if (CHECK_BIT_LOW(latest, PIN_7))
       {
         _simplMsg.message = I2C_INPUT_7_PRESSED;
         simplMsgQueue->send(&_simplMsg);
