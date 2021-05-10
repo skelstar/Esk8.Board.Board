@@ -172,6 +172,7 @@ void configureTasks()
 #endif
 
   vescCommsTask.doWorkInterval = PERIOD_10ms;
+  // vescCommsTask.printReadFromVesc = true;
 }
 
 #define USE_M5STACK_DISPLAY 0
@@ -193,7 +194,6 @@ void startTasks()
 #endif
 
   // initialise tasks sequentially
-
   ctrlrCommsTask.initialiseTask();
   footLightTask.initialiseTask();
   headlightTask.initialiseTask();

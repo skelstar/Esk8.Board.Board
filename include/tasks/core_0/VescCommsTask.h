@@ -13,13 +13,14 @@ namespace nsVescCommsTask
 
   // prototypes
   bool get_vesc_values(VescData &vescData);
-  void handleSimplMessage(SimplMessageObj obj);
+  void _handleSimplMessage(SimplMessageObj obj);
 }
 
 class VescCommsTask : public TaskBase
 {
 public:
-  bool printWarnings = true;
+  bool printWarnings = true,
+       printReadFromVesc = false;
 
 private:
   // BatteryInfo Prototype;
@@ -58,49 +59,19 @@ private:
   void doWork()
   {
     if (vescDataQueue->hasValue())
-    {
+      // from MockTask maybe?
       vescData.moving = vescDataQueue->payload.moving;
-    }
 
     if (simplMsgQueue->hasValue())
-      handleSimplMessage(simplMsgQueue->payload);
+      _handleSimplMessage(simplMsgQueue->payload);
 
     if (controllerQueue->hasValue())
-    {
-      vescData.id = controllerQueue->payload.id;
-      vescData.txTime = controllerQueue->payload.txTime;
-      vescData.version = VERSION;
+      _handleControllerPacket(controllerQueue->payload);
 
-      if (SEND_TO_VESC == 1)
-      {
-        nsVescCommsTask::vesc.setNunchuckValues(
-            IGNORE_X_AXIS,
-            /*y*/ controllerQueue->payload.throttle,
-            controllerQueue->payload.cruise_control,
-            /*upper button*/ 0);
-        vescDataQueue->send(&vescData);
-      }
-      else
-      {
-        if (mockMovingLoop && sinceLastMock > mockMovinginterval)
-        {
-          sinceLastMock = 0;
-          vescData.moving = !vescData.moving;
-        }
-        // reply immediately
-        vescDataQueue->send(&vescData);
-      }
-    }
-
-    if (SEND_TO_VESC == 1 && sinceReadFromVesc > GET_FROM_VESC_INTERVAL)
+    if (sinceReadFromVesc > GET_FROM_VESC_INTERVAL)
     {
       sinceReadFromVesc = 0;
-
-      bool success = nsVescCommsTask::get_vesc_values(vescData);
-      if (success)
-      {
-        vescDataQueue->send(&vescData);
-      }
+      _readFromVesc();
     }
   } // doWork
 
@@ -110,9 +81,51 @@ private:
     delete (vescDataQueue);
   }
 
-  void handleSimplMessage(SimplMessageObj obj)
+  void _readFromVesc()
   {
-    // obj.print("-->[VescCommsTask]simplMessageQueue");
+    if (!SEND_TO_VESC == 1)
+      return;
+
+    // half the packet are successful (right length), speed/interval makes do difference
+    bool success = nsVescCommsTask::get_vesc_values(vescData);
+    if (success)
+    {
+      vescDataQueue->send(&vescData);
+    }
+
+    if (printReadFromVesc)
+      vescData.printThis("[VescCommsTask]-->");
+  }
+
+  void _handleControllerPacket(ControllerData packet)
+  {
+    vescData.id = packet.id;
+    vescData.txTime = packet.txTime;
+    vescData.version = VERSION;
+
+    if (SEND_TO_VESC == 1)
+    {
+      nsVescCommsTask::vesc.setNunchuckValues(
+          IGNORE_X_AXIS,
+          /*y*/ packet.throttle,
+          packet.cruise_control,
+          /*upper button*/ 0);
+      vescDataQueue->send(&vescData);
+    }
+    else
+    {
+      if (mockMovingLoop && sinceLastMock > mockMovinginterval)
+      {
+        sinceLastMock = 0;
+        vescData.moving = !vescData.moving;
+      }
+      // reply immediately
+      vescDataQueue->send(&vescData);
+    }
+  }
+
+  void _handleSimplMessage(SimplMessageObj obj)
+  {
     if (obj.message == SIMPL_TOGGLE_MOCK_MOVING_LOOP)
     {
       mockMovingLoop = !mockMovingLoop;
@@ -141,8 +154,8 @@ namespace nsVescCommsTask
     int numBytes = vesc.fetch_packet(vesc_packet);
 
     if (numBytes == 0 || numBytes != 70)
-      // sometimes ony getting 5 bytes
       return false;
+
     if (vesc.get_voltage(vesc_packet) < 5.0)
       return false;
 
