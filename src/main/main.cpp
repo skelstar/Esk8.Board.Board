@@ -8,8 +8,8 @@
 #include <VescData.h>
 #include <elapsedMillis.h>
 
-SemaphoreHandle_t mux_I2C;
-SemaphoreHandle_t mux_SPI;
+SemaphoreHandle_t mux_I2C = nullptr;
+SemaphoreHandle_t mux_SPI = nullptr;
 
 #include <Wire.h>
 
@@ -180,13 +180,28 @@ void startTasks()
   ctrlrCommsTask.start(nsControllerCommsTask::task1);
   footLightTask.start(nsFootlightTask::task1);
   headlightTask.start(nsHeadlightTask::task1);
-  i2cButtonTask.start(nsI2CPortExp1Task::task1);
+  i2cPortExpTask.start(nsI2CPortExp1Task::task1);
   vescCommsTask.start(nsVescCommsTask::task1);
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.start(nsM5StackDisplayTask::task1);
 #endif
 #if MOCK_VESC == 1 && SEND_TO_VESC == 0
   mockVescTask.start(nsMockVescTask::task1);
+#endif
+
+  // initialise tasks sequentially
+
+  ctrlrCommsTask.initialiseTask();
+  footLightTask.initialiseTask();
+  headlightTask.initialiseTask();
+  i2cPortExpTask.initialiseTask();
+  imuTask.initialiseTask();
+  vescCommsTask.initialiseTask();
+#ifdef USING_M5STACK_DISPLAY
+  m5StackDisplayTask.initialiseTask();
+#endif
+#if MOCK_VESC == 1 && SEND_TO_VESC == 0
+  mockVescTask.initialiseTask();
 #endif
 }
 

@@ -56,7 +56,7 @@ public:
   }
 
 private:
-  void initialise()
+  void _initialise()
   {
     vescDataQueue = createQueue<VescData>("vescDataQueue");
     simplMessageQueue = createQueue<SimplMessageObj>("simplMessageQueue");

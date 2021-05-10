@@ -39,7 +39,7 @@ public:
   }
 
 private:
-  void initialise()
+  void _initialise()
   {
     controllerQueue = createQueue<ControllerData>("(ControllerCommsTask) controllerQueue");
     vescDataQueue = createQueue<VescData>("(ControllerCommsTask) vescDataQueue");

@@ -22,7 +22,7 @@ private:
   Queue1::Manager<VescData> *vescQueue = nullptr;
   Queue1::Manager<SimplMessageObj> *simplMsgQueue = nullptr;
 
-  void initialise()
+  void _initialise()
   {
     controllerQueue = createQueue<ControllerData>("(M5StackDisplayTask) controllerQueue");
     vescQueue = createQueue<VescData>("(M5StackDisplayTask) vescQueue");

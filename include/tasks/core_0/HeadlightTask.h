@@ -37,7 +37,7 @@ public:
   }
 
 private:
-  void initialise()
+  void _initialise()
   {
     vescDataQueue = createQueue<VescData>("(HeadlightTask) vescDataQueue");
     simplMsgQueue = createQueue<SimplMessageObj>("(HeadlightTask) simplMsgQueue");

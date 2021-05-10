@@ -43,7 +43,7 @@ public:
   }
 
 private:
-  void initialise()
+  void _initialise()
   {
     controllerQueue = createQueue<ControllerData>("(VescCommsTask) controllerQueue");
     controllerQueue->read(); // clear the queue

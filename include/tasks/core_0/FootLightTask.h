@@ -60,7 +60,7 @@ public:
   }
 
 private:
-  void initialise()
+  void _initialise()
   {
     vescDataQueue = createQueue<VescData>("vescDataQueue");
     lightStrip.initialise(FOOTLIGHT_PIXEL_PIN, FOOTLIGHT_NUM_PIXELS, FOOTLIGHT_BRIGHTNESS_STOPPED);

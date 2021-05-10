@@ -49,11 +49,8 @@ public:
   }
 
 private:
-  void initialise()
+  void _initialise()
   {
-    mcp.init();
-    mcp.portMode(MCP23017Port::A, 0);          //port A output
-    mcp.portMode(MCP23017Port::B, 0b11111111); //port B input
 
     mcp.writeRegister(MCP23017Register::GPIO_A, 0x00); //Reset port A
     mcp.writeRegister(MCP23017Register::GPIO_B, 0x00); //Reset port B
