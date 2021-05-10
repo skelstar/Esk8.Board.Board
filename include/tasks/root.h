@@ -6,6 +6,7 @@
 #ifdef USING_M5STACK_DISPLAY
 #include <tasks/core_0/M5StackDisplayTask.h>
 #endif
+#include <tasks/core_0/IMUTask.h>
 
 #include <tasks/core_0/VescCommsTask.h>
 #include <tasks/core_0/FootLightTask.h>

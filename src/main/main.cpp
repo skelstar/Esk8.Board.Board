@@ -160,7 +160,9 @@ void configureTasks()
 
   headlightTask.doWorkInterval = PERIOD_500ms;
 
-  i2cButtonTask.doWorkInterval = PERIOD_100ms;
+  i2cPortExpTask.doWorkInterval = PERIOD_100ms;
+
+  imuTask.doWorkInterval = PERIOD_200ms;
 
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.doWorkInterval = PERIOD_100ms;
@@ -181,6 +183,7 @@ void startTasks()
   footLightTask.start(nsFootlightTask::task1);
   headlightTask.start(nsHeadlightTask::task1);
   i2cPortExpTask.start(nsI2CPortExp1Task::task1);
+  imuTask.start(nsIMUTask::task1);
   vescCommsTask.start(nsVescCommsTask::task1);
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.start(nsM5StackDisplayTask::task1);
@@ -213,8 +216,9 @@ void waitForTasks()
       !ctrlrCommsTask.ready ||
       !footLightTask.ready ||
       !headlightTask.ready ||
+      !i2cPortExpTask.ready ||
+      !imuTask.ready ||
       !vescCommsTask.ready ||
-      !i2cButtonTask.ready ||
 #ifdef USING_M5STACK_DISPLAY
       !m5StackDisplayTask.ready ||
 #endif
@@ -231,7 +235,8 @@ void enableTasks(bool print)
   ctrlrCommsTask.enable(print);
   footLightTask.enable(print);
   headlightTask.enable(print);
-  i2cButtonTask.enable(print);
+  i2cPortExpTask.enable(print);
+  imuTask.enable(print);
   vescCommsTask.enable(print);
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.enable(print);

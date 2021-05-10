@@ -35,6 +35,8 @@ private:
   Queue1::Manager<SimplMessageObj> *simplMsgQueue = nullptr;
   SimplMessageObj _simplMsg;
 
+  const uint8_t ERROR_MUX_LOCKED = 99;
+
 #define MCP23017_ADDR 0x20
   MCP23017 mcp = MCP23017(MCP23017_ADDR);
 
@@ -51,10 +53,19 @@ public:
 private:
   void _initialise()
   {
+    if (mux_I2C == nullptr)
+      mux_I2C = xSemaphoreCreateMutex();
 
-    mcp.writeRegister(MCP23017Register::GPIO_A, 0x00); //Reset port A
-    mcp.writeRegister(MCP23017Register::GPIO_B, 0x00); //Reset port B
+    if (take(mux_I2C, TICKS_10ms))
+    {
+      mcp.init();
+      mcp.portMode(MCP23017Port::A, 0);          //port A output
+      mcp.portMode(MCP23017Port::B, 0b11111111); //port B input
 
+      mcp.writeRegister(MCP23017Register::GPIO_A, 0x00); //Reset port A
+      mcp.writeRegister(MCP23017Register::GPIO_B, 0x00); //Reset port B
+      give(mux_I2C);
+    }
     simplMsgQueue = createQueue<SimplMessageObj>("(I2CPortExp1Task) simplMsgQueue");
   }
 
@@ -64,7 +75,7 @@ private:
       _handleSimplMessage(simplMsgQueue->payload);
 
     uint8_t latest = _readInputs();
-    if (_inputPins != latest)
+    if (latest != ERROR_MUX_LOCKED && _inputPins != latest)
     {
       if (CHECK_BIT_LOW(latest, PIN_7))
       {
@@ -99,29 +110,42 @@ private:
   void _setOutputPortPin(uint8_t pin)
   {
     _outputPins |= pin;
-    mcp.writePort(MCP23017Port::A, _outputPins);
+    if (take(mux_I2C, TICKS_10ms))
+    {
+      mcp.writePort(MCP23017Port::A, _outputPins);
+      give(mux_I2C);
+    }
   }
 
   void _clearOutputPortPin(uint8_t pin)
   {
     _outputPins &= ~pin;
-    mcp.writePort(MCP23017Port::A, _outputPins);
+    if (take(mux_I2C, TICKS_10ms))
+    {
+      mcp.writePort(MCP23017Port::A, _outputPins);
+      give(mux_I2C);
+    }
   }
 
   uint8_t _readInputs()
   {
-    mcp.writePort(MCP23017Port::B, 0x00); // write LOW before read
-    uint8_t currentB = mcp.readPort(MCP23017Port::B);
-    return currentB;
+    if (take(mux_I2C, TICKS_50ms))
+    {
+      mcp.writePort(MCP23017Port::B, 0x00); // write LOW before read
+      uint8_t currentB = mcp.readPort(MCP23017Port::B);
+      give(mux_I2C);
+      return currentB;
+    }
+    return ERROR_MUX_LOCKED;
   }
 };
 
-I2CPortExp1Task i2cButtonTask;
+I2CPortExp1Task i2cPortExpTask;
 
 namespace nsI2CPortExp1Task
 {
   void task1(void *parameters)
   {
-    i2cButtonTask.task(parameters);
+    i2cPortExpTask.task(parameters);
   }
 }
