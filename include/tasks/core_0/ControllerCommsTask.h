@@ -30,6 +30,8 @@ public:
   // ControllerData controllerPacket;
 
 private:
+  uint32_t _numPacketsSentToController = 0;
+
 public:
   ControllerCommsTask()
       : TaskBase("ControllerCommsTask", 5000, PERIOD_50ms)
@@ -79,11 +81,12 @@ private:
     {
       // send to controller
       vescDataQueue->payload.version = VERSION;
+      vescDataQueue->payload.reason = _getReasonForSending();
 
-      controllerClient->sendTo(Packet::CONTROL, vescDataQueue->payload);
-      // if (vescDataQueue->payload.moving)
-      //   Serial.printf("replied after %lums moving: %d\n", (unsigned long)since_got_packet_from_controller, vescDataQueue->payload.moving);
-      // Serial.printf("replied after %lums\n", (unsigned long)since_got_packet_from_controller);
+      bool success = controllerClient->sendTo(Packet::CONTROL, vescDataQueue->payload);
+
+      if (success)
+        _numPacketsSentToController++;
     }
   }
 
@@ -92,6 +95,14 @@ private:
     delete (controllerClient);
     delete (controllerQueue);
     delete (vescDataQueue);
+  }
+
+  //-----------------------------
+  ReasonType _getReasonForSending()
+  {
+    if (_numPacketsSentToController == 0)
+      return ReasonType::FIRST_PACKET;
+    return ReasonType::RESPONSE;
   }
 };
 
