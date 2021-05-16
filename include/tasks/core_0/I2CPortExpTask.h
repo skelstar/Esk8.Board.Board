@@ -47,7 +47,6 @@ public:
   I2CPortExp1Task() : TaskBase("I2CPortExp1Task", 3000, PERIOD_100ms)
   {
     _core = CORE_0;
-    _priority = TASK_PRIORITY_0;
   }
 
 private:

@@ -5,6 +5,8 @@
 #include <tasks/queues/QueueFactory.h>
 #include <tasks/core_0/Helpers/M5StackDisplayTaskFsm.h>
 
+#define M5STACKDISPLAY_TASK
+
 namespace m5Stack = nsM5StackDisplayTask;
 
 class M5StackDisplayTask : public TaskBase

@@ -5,6 +5,8 @@
 #include <tasks/queues/QueueFactory.h>
 #include <VescData.h>
 
+#define HEADLIGHT_TASK
+
 namespace nsHeadlightTask
 {
   // prototypes
@@ -33,7 +35,6 @@ public:
   HeadlightTask() : TaskBase("HeadlightTask", 5000, PERIOD_50ms)
   {
     _core = CORE_0;
-    _priority = TASK_PRIORITY_3;
   }
 
 private:

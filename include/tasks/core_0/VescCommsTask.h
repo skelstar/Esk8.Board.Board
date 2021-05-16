@@ -40,7 +40,6 @@ public:
   VescCommsTask() : TaskBase("VescCommsTask", 5000, PERIOD_50ms)
   {
     _core = CORE_0;
-    _priority = TASK_PRIORITY_3;
   }
 
 private:
@@ -83,7 +82,7 @@ private:
 
   void _readFromVesc()
   {
-    if (!SEND_TO_VESC == 1)
+    if (SEND_TO_VESC == 0)
       return;
 
     // half the packet are successful (right length), speed/interval makes do difference

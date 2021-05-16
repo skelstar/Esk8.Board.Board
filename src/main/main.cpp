@@ -58,6 +58,7 @@ bool controller_connected = false;
 void createQueues();
 void createLocalQueueManagers();
 void startTasks();
+void initialiseTasks();
 void configureTasks();
 void waitForTasks();
 void enableTasks(bool print = false);
@@ -101,6 +102,8 @@ void setup()
   configureTasks();
 
   startTasks();
+
+  initialiseTasks();
 
   waitForTasks();
 
@@ -153,25 +156,38 @@ void createLocalQueueManagers()
 void configureTasks()
 {
   ctrlrCommsTask.doWorkInterval = PERIOD_10ms;
+  ctrlrCommsTask.priority = TASK_PRIORITY_4;
   // ctrlrCommsTask.printRxFromController = true;
 
   footLightTask.doWorkInterval = PERIOD_100ms;
+  footLightTask.priority = TASK_PRIORITY_0;
   // footLightTask.printStateChange = true;
 
   headlightTask.doWorkInterval = PERIOD_500ms;
+  headlightTask.priority = TASK_PRIORITY_3; // TODO really? Also disable when moving
+
+#ifdef I2COLED_TASK
+  i2cOledTask.doWorkInterval = PERIOD_100ms;
+  i2cOledTask.priority = TASK_PRIORITY_2;
+#endif
 
   i2cPortExpTask.doWorkInterval = PERIOD_100ms;
+  i2cPortExpTask.priority = TASK_PRIORITY_0;
 
   imuTask.doWorkInterval = PERIOD_200ms;
+  imuTask.priority = TASK_PRIORITY_0;
 
-#ifdef USING_M5STACK_DISPLAY
+#ifdef M5STACKDISPLAY_TASK
   m5StackDisplayTask.doWorkInterval = PERIOD_100ms;
+  m5StackDisplayTask.priority = TASK_PRIORITY_2;
 #endif
 #if USING_M5STACK == 1 && SEND_TO_VESC == 0
   mockVescTask.doWorkInterval = PERIOD_50ms;
+  mockVescTask.priority = TASK_PRIORITY_0;
 #endif
 
   vescCommsTask.doWorkInterval = PERIOD_10ms;
+  vescCommsTask.priority = TASK_PRIORITY_3;
   // vescCommsTask.printReadFromVesc = true;
 }
 
@@ -184,6 +200,9 @@ void startTasks()
   footLightTask.start(nsFootlightTask::task1);
   headlightTask.start(nsHeadlightTask::task1);
   i2cPortExpTask.start(nsI2CPortExp1Task::task1);
+#ifdef I2COLED_TASK
+  i2cOledTask.start(nsI2COledTask::task1);
+#endif
   imuTask.start(nsIMUTask::task1);
   vescCommsTask.start(nsVescCommsTask::task1);
 #ifdef USING_M5STACK_DISPLAY
@@ -192,11 +211,17 @@ void startTasks()
 #if MOCK_VESC == 1 && SEND_TO_VESC == 0
   mockVescTask.start(nsMockVescTask::task1);
 #endif
+}
 
+void initialiseTasks()
+{
   // initialise tasks sequentially
   ctrlrCommsTask.initialiseTask();
   footLightTask.initialiseTask();
   headlightTask.initialiseTask();
+#ifdef I2COLED_TASK
+  i2cOledTask.initialiseTask();
+#endif
   i2cPortExpTask.initialiseTask();
   imuTask.initialiseTask();
   vescCommsTask.initialiseTask();
@@ -208,14 +233,15 @@ void startTasks()
 #endif
 }
 
-elapsedMillis since_reported_waiting;
-
 void waitForTasks()
 {
   while (
       !ctrlrCommsTask.ready ||
       !footLightTask.ready ||
       !headlightTask.ready ||
+#ifdef I2COLED_TASK
+      !i2cOledTask.ready ||
+#endif
       !i2cPortExpTask.ready ||
       !imuTask.ready ||
       !vescCommsTask.ready ||
@@ -235,6 +261,9 @@ void enableTasks(bool print)
   ctrlrCommsTask.enable(print);
   footLightTask.enable(print);
   headlightTask.enable(print);
+#ifdef I2COLED_TASK
+  i2cOledTask.enable(print);
+#endif
   i2cPortExpTask.enable(print);
   imuTask.enable(print);
   vescCommsTask.enable(print);

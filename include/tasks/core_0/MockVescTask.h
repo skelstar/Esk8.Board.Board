@@ -6,6 +6,8 @@
 #include <VescData.h>
 #include <Button2.h>
 
+#define MOCKVESC_TASK
+
 const uint8_t M5_BUTTON_A = 39;
 const uint8_t M5_BUTTON_B = 38;
 const uint8_t M5_BUTTON_C = 37;
@@ -46,7 +48,6 @@ public:
   MockVescTask() : TaskBase("MockVescTask", 5000, PERIOD_50ms)
   {
     _core = CORE_0;
-    _priority = TASK_PRIORITY_0;
   }
 
   void sendSimplMessage(SimplMessage message)

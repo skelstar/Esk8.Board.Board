@@ -5,6 +5,8 @@
 #include <tasks/queues/QueueFactory.h>
 #include <VescData.h>
 
+#define CONTROLLERCOMMS_TASK
+
 NRF24L01Lib nrf24;
 RF24 radio(SPI_CE, SPI_CS, RF24_SPI_SPEED);
 RF24Network network(radio);
@@ -37,7 +39,6 @@ public:
       : TaskBase("ControllerCommsTask", 5000, PERIOD_50ms)
   {
     _core = CORE_1;
-    _priority = TASK_PRIORITY_4;
   }
 
 private:

@@ -6,6 +6,9 @@
 #ifdef USING_M5STACK_DISPLAY
 #include <tasks/core_0/M5StackDisplayTask.h>
 #endif
+#ifdef USING_128x64OLED_TASK
+#include <tasks/core_0/I2COledTask.h>
+#endif
 #include <tasks/core_0/IMUTask.h>
 
 #include <tasks/core_0/VescCommsTask.h>

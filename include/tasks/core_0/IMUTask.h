@@ -38,7 +38,6 @@ public:
   IMUTask() : TaskBase("IMUTask", 3000, PERIOD_100ms)
   {
     _core = CORE_0;
-    _priority = TASK_PRIORITY_0;
   }
 
 private:

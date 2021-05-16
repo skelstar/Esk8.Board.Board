@@ -5,9 +5,10 @@
 #include <tasks/queues/QueueFactory.h>
 #include <VescData.h>
 #include <LedLightsLib.h>
-#include <FsmManager.h>
 #include <utils.h>
 #include <constants.h>
+
+#define FOOTLIGHT_TASK
 
 elapsedMillis sinceUpdatedBatteryGraph;
 
@@ -56,7 +57,6 @@ public:
   FootLightTask() : TaskBase("FootLightTask", 3000, PERIOD_100ms)
   {
     _core = CORE_0;
-    _priority = TASK_PRIORITY_0;
   }
 
 private:
