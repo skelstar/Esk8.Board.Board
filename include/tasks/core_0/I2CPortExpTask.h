@@ -37,6 +37,8 @@ private:
 
   const uint8_t ERROR_MUX_LOCKED = 99;
 
+  const uint8_t LIGHT_PIN = PIN_7;
+
 #define FRONT_EXP_ADDR 0x20
 #define REAR_EXP_ADDR 0x21
 
@@ -89,7 +91,7 @@ private:
     _simplMsg.setGetMessageCallback(getSimplMessage);
   }
 
-  bool flashingLight = false;
+  bool flashingOutput = false;
   elapsedMillis sinceStartedFlashing = 0;
   const unsigned long FLASH_DURATION = doWorkInterval;
 
@@ -100,13 +102,12 @@ private:
 
     checkExp1Inputs();
 
-    if (flashingLight && sinceStartedFlashing > FLASH_DURATION)
+    if (flashingOutput && sinceStartedFlashing > FLASH_DURATION)
     {
-      _clearOutputPortPin(ExpanderDevice::FRONT, PIN_7);
-      _clearOutputPortPin(ExpanderDevice::REAR, PIN_7);
+      _clearOutputPortPin(ExpanderDevice::FRONT, LIGHT_PIN);
+      _clearOutputPortPin(ExpanderDevice::REAR, LIGHT_PIN);
       //cleanup
-      flashingLight = false;
-      Serial.printf("time to flash: %lu\n", (ulong)sinceStartedFlashing);
+      flashingOutput = false;
       sinceStartedFlashing = 0;
     }
   }
@@ -125,18 +126,18 @@ private:
     switch (_simplMsg.message)
     {
     case SIMPL_HEADLIGHT_ON:
-      _setOutputPortPin(ExpanderDevice::FRONT, PIN_7);
-      _setOutputPortPin(ExpanderDevice::REAR, PIN_7);
+      _setOutputPortPin(ExpanderDevice::FRONT, LIGHT_PIN);
+      _setOutputPortPin(ExpanderDevice::REAR, LIGHT_PIN);
       break;
     case SIMPL_HEADLIGHT_OFF:
-      _clearOutputPortPin(ExpanderDevice::FRONT, PIN_7);
-      _clearOutputPortPin(ExpanderDevice::REAR, PIN_7);
+      _clearOutputPortPin(ExpanderDevice::FRONT, LIGHT_PIN);
+      _clearOutputPortPin(ExpanderDevice::REAR, LIGHT_PIN);
       break;
     case SIMPL_HEADLIGHT_FLASH:
       // turn on, off later
-      _setOutputPortPin(ExpanderDevice::FRONT, PIN_7);
-      _setOutputPortPin(ExpanderDevice::REAR, PIN_7);
-      flashingLight = true;
+      _setOutputPortPin(ExpanderDevice::FRONT, LIGHT_PIN);
+      _setOutputPortPin(ExpanderDevice::REAR, LIGHT_PIN);
+      flashingOutput = true;
       sinceStartedFlashing = 0;
     }
     _simplMsg.print("[Task: I2CPortExpTask]");
@@ -158,7 +159,7 @@ private:
 
   void _setOutputPortPin(uint8_t expander, uint8_t pin)
   {
-    if (take(mux_I2C, TICKS_10ms))
+    if (take(mux_I2C, TICKS_50ms))
     {
       if (expander == ExpanderDevice::FRONT)
       {
@@ -177,7 +178,7 @@ private:
 
   void _clearOutputPortPin(uint8_t expander, uint8_t pin)
   {
-    if (take(mux_I2C, TICKS_10ms))
+    if (take(mux_I2C, TICKS_50ms))
     {
       if (expander == ExpanderDevice::FRONT)
       {

@@ -44,8 +44,8 @@ private:
     simplMsgQueue = createQueue<SimplMessageObj>("(HeadlightTask) simplMsgQueue");
   }
 
-  elapsedMillis sinceStopped;
-  const unsigned long inactivityLightsFlashInterval = 5000;
+  elapsedMillis sinceLastFlashed;
+  const unsigned long inactivityLightsFlashInterval = 10000;
 
   void doWork()
   {
@@ -55,7 +55,8 @@ private:
     if (simplMsgQueue->hasValue())
       _handleSimplMessage(simplMsgQueue->payload);
 
-    _checkForInactivity();
+    if (FEATURE_INACTIVITY_FLASH == 1)
+      _checkForInactivity();
   }
 
   void cleanup()
@@ -68,6 +69,13 @@ private:
   void _handleVescData(VescData &p_vescData)
   {
     vescData = p_vescData;
+
+    // headlight flash stuff
+    if (vescData.moving)
+    {
+      sinceLastFlashed = 0;
+      Serial.printf("Moving!\n");
+    }
   }
 
   void _handleSimplMessage(SimplMessageObj obj)
@@ -91,10 +99,10 @@ private:
 
   void _checkForInactivity()
   {
-    if (sinceStopped < inactivityLightsFlashInterval)
+    if (vescData.moving == false && sinceLastFlashed < inactivityLightsFlashInterval)
       return;
 
-    sinceStopped = 0;
+    sinceLastFlashed = 0;
     _simplMsg.message = SIMPL_HEADLIGHT_FLASH;
     simplMsgQueue->send(&_simplMsg);
   }
