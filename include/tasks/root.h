@@ -9,8 +9,9 @@
 #ifdef USING_128x64OLED_TASK
 #include <tasks/core_0/I2COledTask.h>
 #endif
+#ifdef USING_IMU
 #include <tasks/core_0/IMUTask.h>
-
+#endif
 #include <tasks/core_0/VescCommsTask.h>
 #include <tasks/core_0/FootLightTask.h>
 #include <tasks/core_0/HeadlightTask.h>

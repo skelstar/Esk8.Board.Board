@@ -174,8 +174,10 @@ void configureTasks()
   i2cPortExpTask.doWorkInterval = PERIOD_100ms;
   i2cPortExpTask.priority = TASK_PRIORITY_0;
 
+#ifdef IMU_TASK
   imuTask.doWorkInterval = PERIOD_200ms;
   imuTask.priority = TASK_PRIORITY_0;
+#endif
 
 #ifdef M5STACKDISPLAY_TASK
   m5StackDisplayTask.doWorkInterval = PERIOD_100ms;
@@ -203,7 +205,9 @@ void startTasks()
 #ifdef I2COLED_TASK
   i2cOledTask.start(nsI2COledTask::task1);
 #endif
+#ifdef IMU_TASK
   imuTask.start(nsIMUTask::task1);
+#endif
   vescCommsTask.start(nsVescCommsTask::task1);
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.start(nsM5StackDisplayTask::task1);
@@ -223,7 +227,9 @@ void initialiseTasks()
   i2cOledTask.initialiseTask();
 #endif
   i2cPortExpTask.initialiseTask();
+#ifdef IMU_TASK
   imuTask.initialiseTask();
+#endif
   vescCommsTask.initialiseTask();
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.initialiseTask();
@@ -243,7 +249,9 @@ void waitForTasks()
       !i2cOledTask.ready ||
 #endif
       !i2cPortExpTask.ready ||
+#ifdef IMU_TASK
       !imuTask.ready ||
+#endif
       !vescCommsTask.ready ||
 #ifdef USING_M5STACK_DISPLAY
       !m5StackDisplayTask.ready ||
@@ -265,7 +273,9 @@ void enableTasks(bool print)
   i2cOledTask.enable(print);
 #endif
   i2cPortExpTask.enable(print);
+#ifdef IMU_TASK
   imuTask.enable(print);
+#endif
   vescCommsTask.enable(print);
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.enable(print);

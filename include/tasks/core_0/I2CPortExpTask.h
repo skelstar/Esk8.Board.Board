@@ -37,11 +37,21 @@ private:
 
   const uint8_t ERROR_MUX_LOCKED = 99;
 
-#define MCP23017_ADDR 0x20
-  MCP23017 mcp = MCP23017(MCP23017_ADDR);
+#define FRONT_EXP_ADDR 0x20
+#define REAR_EXP_ADDR 0x21
+
+  enum ExpanderDevice
+  {
+    FRONT = 0,
+    REAR,
+  };
+
+  MCP23017 portExpFront = MCP23017(FRONT_EXP_ADDR);
+  MCP23017 portExpRear = MCP23017(REAR_EXP_ADDR);
 
   uint8_t _inputPins = 0x00,
-          _outputPins = 0x00;
+          _outputPinsFront = 0x00,
+          _outputPinsRear = 0x00;
 
 public:
   I2CPortExp1Task() : TaskBase("I2CPortExp1Task", 3000, PERIOD_100ms)
@@ -55,16 +65,26 @@ private:
     if (mux_I2C == nullptr)
       mux_I2C = xSemaphoreCreateMutex();
 
+    // FRONT
     if (take(mux_I2C, TICKS_10ms))
     {
-      mcp.init();
-      mcp.portMode(MCP23017Port::A, 0);          //port A output
-      mcp.portMode(MCP23017Port::B, 0b11111111); //port B input
-
-      mcp.writeRegister(MCP23017Register::GPIO_A, 0x00); //Reset port A
-      mcp.writeRegister(MCP23017Register::GPIO_B, 0x00); //Reset port B
+      portExpFront.init();
+      portExpFront.portMode(MCP23017Port::A, 0);                  //port A output
+      portExpFront.portMode(MCP23017Port::B, 0b11111111);         //port B input
+      portExpFront.writeRegister(MCP23017Register::GPIO_A, 0x00); //Reset port A
+      portExpFront.writeRegister(MCP23017Register::GPIO_B, 0x00); //Reset port B
       give(mux_I2C);
     }
+
+    // REAR
+    if (take(mux_I2C, TICKS_10ms))
+    {
+      portExpRear.init();
+      portExpRear.portMode(MCP23017Port::A, 0);                  //port A output
+      portExpRear.writeRegister(MCP23017Register::GPIO_A, 0x00); //Reset port A
+      give(mux_I2C);
+    }
+
     simplMsgQueue = createQueue<SimplMessageObj>("(I2CPortExp1Task) simplMsgQueue");
   }
 
@@ -73,16 +93,7 @@ private:
     if (simplMsgQueue->hasValue())
       _handleSimplMessage(simplMsgQueue->payload);
 
-    uint8_t latest = _readInputs();
-    if (latest != ERROR_MUX_LOCKED && _inputPins != latest)
-    {
-      if (CHECK_BIT_LOW(latest, PIN_7))
-      {
-        _simplMsg.message = I2C_INPUT_7_PRESSED;
-        simplMsgQueue->send(&_simplMsg);
-      }
-      _inputPins = latest;
-    }
+    checkExp1Inputs();
   }
 
   void cleanup()
@@ -96,32 +107,65 @@ private:
     _simplMsg = obj;
     if (_simplMsg.message == SIMPL_HEADLIGHT_ON)
     {
-      _setOutputPortPin(PIN_7);
-      _setOutputPortPin(PIN_6);
+      _setOutputPortPin(ExpanderDevice::FRONT, PIN_7);
+      _setOutputPortPin(ExpanderDevice::REAR, PIN_7);
     }
     else if (_simplMsg.message == SIMPL_HEADLIGHT_OFF)
     {
-      _clearOutputPortPin(PIN_7);
-      _clearOutputPortPin(PIN_6);
+      _clearOutputPortPin(ExpanderDevice::FRONT, PIN_7);
+      _clearOutputPortPin(ExpanderDevice::REAR, PIN_7);
     }
   }
 
-  void _setOutputPortPin(uint8_t pin)
+  void checkExp1Inputs()
   {
-    _outputPins |= pin;
+    uint8_t latestFront = _readInputs();
+    if (latestFront != ERROR_MUX_LOCKED && _inputPins != latestFront)
+    {
+      if (CHECK_BIT_LOW(latestFront, PIN_7))
+      {
+        _simplMsg.message = I2C_INPUT_7_PRESSED; // light switch?
+        simplMsgQueue->send(&_simplMsg);
+      }
+      _inputPins = latestFront;
+    }
+  }
+
+  void _setOutputPortPin(uint8_t expander, uint8_t pin)
+  {
     if (take(mux_I2C, TICKS_10ms))
     {
-      mcp.writePort(MCP23017Port::A, _outputPins);
+      if (expander == ExpanderDevice::FRONT)
+      {
+        _outputPinsFront |= pin;
+        portExpFront.writePort(MCP23017Port::A, _outputPinsFront);
+      }
+      else if (expander == ExpanderDevice::REAR)
+      {
+        _outputPinsRear |= pin;
+        portExpRear.writePort(MCP23017Port::A, _outputPinsRear);
+        Serial.printf("rear: 0x%02x\n", _outputPinsRear);
+      }
+
       give(mux_I2C);
     }
   }
 
-  void _clearOutputPortPin(uint8_t pin)
+  void _clearOutputPortPin(uint8_t expander, uint8_t pin)
   {
-    _outputPins &= ~pin;
     if (take(mux_I2C, TICKS_10ms))
     {
-      mcp.writePort(MCP23017Port::A, _outputPins);
+      if (expander == ExpanderDevice::FRONT)
+      {
+        _outputPinsFront &= ~pin;
+        portExpFront.writePort(MCP23017Port::A, _outputPinsFront);
+      }
+      else if (expander == ExpanderDevice::REAR)
+      {
+        _outputPinsRear &= ~pin;
+        portExpRear.writePort(MCP23017Port::A, _outputPinsRear);
+        Serial.printf("rear: 0x%02x\n", _outputPinsRear);
+      }
       give(mux_I2C);
     }
   }
@@ -130,8 +174,8 @@ private:
   {
     if (take(mux_I2C, TICKS_50ms))
     {
-      mcp.writePort(MCP23017Port::B, 0x00); // write LOW before read
-      uint8_t currentB = mcp.readPort(MCP23017Port::B);
+      portExpFront.writePort(MCP23017Port::B, 0x00); // write LOW before read
+      uint8_t currentB = portExpFront.readPort(MCP23017Port::B);
       give(mux_I2C);
       return currentB;
     }
