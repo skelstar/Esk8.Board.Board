@@ -86,7 +86,12 @@ private:
     }
 
     simplMsgQueue = createQueue<SimplMessageObj>("(I2CPortExp1Task) simplMsgQueue");
+    _simplMsg.setGetMessageCallback(getSimplMessage);
   }
+
+  bool flashingLight = false;
+  elapsedMillis sinceStartedFlashing = 0;
+  const unsigned long FLASH_DURATION = doWorkInterval;
 
   void doWork()
   {
@@ -94,6 +99,16 @@ private:
       _handleSimplMessage(simplMsgQueue->payload);
 
     checkExp1Inputs();
+
+    if (flashingLight && sinceStartedFlashing > FLASH_DURATION)
+    {
+      _clearOutputPortPin(ExpanderDevice::FRONT, PIN_7);
+      _clearOutputPortPin(ExpanderDevice::REAR, PIN_7);
+      //cleanup
+      flashingLight = false;
+      Serial.printf("time to flash: %lu\n", (ulong)sinceStartedFlashing);
+      sinceStartedFlashing = 0;
+    }
   }
 
   void cleanup()
@@ -105,16 +120,26 @@ private:
   void _handleSimplMessage(SimplMessageObj obj)
   {
     _simplMsg = obj;
-    if (_simplMsg.message == SIMPL_HEADLIGHT_ON)
+    _simplMsg.setGetMessageCallback(getSimplMessage);
+
+    switch (_simplMsg.message)
     {
+    case SIMPL_HEADLIGHT_ON:
       _setOutputPortPin(ExpanderDevice::FRONT, PIN_7);
       _setOutputPortPin(ExpanderDevice::REAR, PIN_7);
-    }
-    else if (_simplMsg.message == SIMPL_HEADLIGHT_OFF)
-    {
+      break;
+    case SIMPL_HEADLIGHT_OFF:
       _clearOutputPortPin(ExpanderDevice::FRONT, PIN_7);
       _clearOutputPortPin(ExpanderDevice::REAR, PIN_7);
+      break;
+    case SIMPL_HEADLIGHT_FLASH:
+      // turn on, off later
+      _setOutputPortPin(ExpanderDevice::FRONT, PIN_7);
+      _setOutputPortPin(ExpanderDevice::REAR, PIN_7);
+      flashingLight = true;
+      sinceStartedFlashing = 0;
     }
+    _simplMsg.print("[Task: I2CPortExpTask]");
   }
 
   void checkExp1Inputs()
@@ -144,7 +169,6 @@ private:
       {
         _outputPinsRear |= pin;
         portExpRear.writePort(MCP23017Port::A, _outputPinsRear);
-        Serial.printf("rear: 0x%02x\n", _outputPinsRear);
       }
 
       give(mux_I2C);
@@ -164,7 +188,6 @@ private:
       {
         _outputPinsRear &= ~pin;
         portExpRear.writePort(MCP23017Port::A, _outputPinsRear);
-        Serial.printf("rear: 0x%02x\n", _outputPinsRear);
       }
       give(mux_I2C);
     }

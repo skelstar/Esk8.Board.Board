@@ -44,6 +44,9 @@ private:
     simplMsgQueue = createQueue<SimplMessageObj>("(HeadlightTask) simplMsgQueue");
   }
 
+  elapsedMillis sinceStopped;
+  const unsigned long inactivityLightsFlashInterval = 5000;
+
   void doWork()
   {
     if (vescDataQueue->hasValue())
@@ -51,6 +54,8 @@ private:
 
     if (simplMsgQueue->hasValue())
       _handleSimplMessage(simplMsgQueue->payload);
+
+    _checkForInactivity();
   }
 
   void cleanup()
@@ -82,6 +87,16 @@ private:
         Serial.printf("HEADLIGHT light: %s\n",
                       lightState == LIGHTS_ON ? "LIGHTS_ON" : "LIGHTS_OFF");
     }
+  }
+
+  void _checkForInactivity()
+  {
+    if (sinceStopped < inactivityLightsFlashInterval)
+      return;
+
+    sinceStopped = 0;
+    _simplMsg.message = SIMPL_HEADLIGHT_FLASH;
+    simplMsgQueue->send(&_simplMsg);
   }
 
   void _turnLights(bool on)
