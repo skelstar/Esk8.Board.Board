@@ -132,6 +132,9 @@ namespace nsControllerCommsTask
 
       ctrlrCommsTask.controllerQueue->send(&sendPacket);
 
+      if (controllerPacket.throttle == 255)
+        ControllerData::print(controllerPacket, "[controllerPacketAvailable_cb]-->");
+
       if (ctrlrCommsTask.printRxFromController)
         ControllerData::print(sendPacket, "[controllerPacketAvailable_cb]-->");
 

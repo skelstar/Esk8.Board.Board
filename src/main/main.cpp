@@ -191,6 +191,7 @@ void configureTasks()
   vescCommsTask.doWorkInterval = PERIOD_10ms;
   vescCommsTask.priority = TASK_PRIORITY_3;
   // vescCommsTask.printReadFromVesc = true;
+  // vescCommsTask.printSentToVesc = true;
 }
 
 #define USE_M5STACK_DISPLAY 0

@@ -20,7 +20,8 @@ class VescCommsTask : public TaskBase
 {
 public:
   bool printWarnings = true,
-       printReadFromVesc = false;
+       printReadFromVesc = false,
+       printSentToVesc = false;
 
 private:
   // BatteryInfo Prototype;
@@ -54,6 +55,7 @@ private:
   }
 
 #define IGNORE_X_AXIS 127
+#define IGNORE_UPPER_BUTTON 0
 
   void doWork()
   {
@@ -108,7 +110,11 @@ private:
           IGNORE_X_AXIS,
           /*y*/ packet.throttle,
           packet.cruise_control,
-          /*upper button*/ 0);
+          IGNORE_UPPER_BUTTON);
+
+      if (printSentToVesc)
+        Serial.printf("sending throttle=%d cruise=%d\n", packet.throttle, packet.cruise_control);
+
       vescDataQueue->send(&vescData);
     }
     else

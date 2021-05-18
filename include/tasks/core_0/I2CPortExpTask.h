@@ -140,7 +140,7 @@ private:
       flashingOutput = true;
       sinceStartedFlashing = 0;
     }
-    _simplMsg.print("[Task: I2CPortExpTask]");
+    // _simplMsg.print("[Task: I2CPortExpTask]");
   }
 
   void checkExp1Inputs()
