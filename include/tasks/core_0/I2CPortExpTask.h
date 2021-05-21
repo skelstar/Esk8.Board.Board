@@ -88,6 +88,7 @@ private:
     }
 
     simplMsgQueue = createQueue<SimplMessageObj>("(I2CPortExp1Task) simplMsgQueue");
+    simplMsgQueue->printMissedPacket = true;
     _simplMsg.setGetMessageCallback(getSimplMessage);
   }
 
