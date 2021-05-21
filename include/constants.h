@@ -145,9 +145,6 @@ namespace Comms
 #ifndef USING_M5STACK
 #define USING_M5STACK 0
 #endif
-#ifndef FEATURE_FOOTLIGHT
-#define FEATURE_FOOTLIGHT 0
-#endif
 #ifndef MOCK_MOVING_WITH_BUTTON
 #define MOCK_MOVING_WITH_BUTTON 0
 #endif

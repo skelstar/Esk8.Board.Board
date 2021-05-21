@@ -39,6 +39,10 @@ ControllerClass controller;
 
 #include <tasks/root.h>
 
+int tasksCount = 0;
+
+TaskBase *tasks[NUM_TASKS];
+
 #include <Fsm.h>
 
 elapsedMillis
@@ -55,6 +59,7 @@ bool controller_connected = false;
 
 //------------------------------------------------------------------
 
+void populateTaskList();
 void createQueues();
 void createLocalQueueManagers();
 void startTasks();
@@ -97,6 +102,8 @@ void setup()
     DEBUG("-----------------------------------------------\n\n");
   }
 
+  populateTaskList();
+
   createLocalQueueManagers();
 
   configureTasks();
@@ -118,26 +125,44 @@ elapsedMillis sinceCheckedCtrlOnline, sinceToggleLight, sinceCheckedQueues;
 
 void loop()
 {
-  // if (sinceCheckedQueues > 500)
-  // {
-  //   sinceCheckedQueues = 0;
-  //   if (simplMsgQueue->hasValue())
-  //   {
-  //     if (simplMsgQueue->payload.message == SIMPL_HEADLIGHT_ON)
-  //     {
-  //       digitalWrite(26, HIGH);
-  //     }
-  //     else if (simplMsgQueue->payload.message == SIMPL_HEADLIGHT_OFF)
-  //     {
-  //       digitalWrite(26, LOW);
-  //     }
-  //   }
-  // }
-
   vTaskDelay(10);
 }
 
 //===================================================
+
+void addTaskToList(TaskBase *t)
+{
+  DEBUGMVAL("Adding task", t->_name);
+  if (tasksCount < NUM_TASKS)
+  {
+    tasks[tasksCount++] = t;
+    assert(tasksCount < NUM_TASKS);
+  }
+}
+
+void populateTaskList()
+{
+  addTaskToList(&ctrlrCommsTask);
+  addTaskToList(&headlightTask);
+  addTaskToList(&i2cPortExpTask);
+  addTaskToList(&vescCommsTask);
+
+#ifdef FEATURE_FOOTLIGHT
+  addTaskToList(&footLightTask);
+#endif
+#ifdef I2COLED_TASK
+  addTaskToList(&i2cOledTask);
+#endif
+#ifdef IMU_TASK
+  addTaskToList(&imuTask);
+#endif
+#ifdef M5STACKDISPLAY_TASK
+  addTaskToList(&m5StackDisplayTask);
+#endif
+#if USING_M5STACK == 1 && SEND_TO_VESC == 0
+  addTaskToList(&mockVescTask);
+#endif
+}
 
 void createQueues()
 {
@@ -155,13 +180,17 @@ void createLocalQueueManagers()
 
 void configureTasks()
 {
+  DEBUG("Configuring tasks");
+
   ctrlrCommsTask.doWorkInterval = PERIOD_10ms;
   ctrlrCommsTask.priority = TASK_PRIORITY_4;
   // ctrlrCommsTask.printRxFromController = true;
 
+#ifdef FEATURE_FOOTLIGHT
   footLightTask.doWorkInterval = PERIOD_100ms;
   footLightTask.priority = TASK_PRIORITY_0;
   // footLightTask.printStateChange = true;
+#endif
 
   headlightTask.doWorkInterval = PERIOD_500ms;
   headlightTask.priority = TASK_PRIORITY_3; // TODO really? Also disable when moving
@@ -199,17 +228,22 @@ void configureTasks()
 
 void startTasks()
 {
+  DEBUG("Starting tasks");
+
   ctrlrCommsTask.start(nsControllerCommsTask::task1);
-  footLightTask.start(nsFootlightTask::task1);
   headlightTask.start(nsHeadlightTask::task1);
   i2cPortExpTask.start(nsI2CPortExp1Task::task1);
+  vescCommsTask.start(nsVescCommsTask::task1);
+
+#ifdef FEATURE_FOOTLIGHT
+  footLightTask.start(nsFootlightTask::task1);
+#endif
 #ifdef I2COLED_TASK
   i2cOledTask.start(nsI2COledTask::task1);
 #endif
 #ifdef IMU_TASK
   imuTask.start(nsIMUTask::task1);
 #endif
-  vescCommsTask.start(nsVescCommsTask::task1);
 #ifdef USING_M5STACK_DISPLAY
   m5StackDisplayTask.start(nsM5StackDisplayTask::task1);
 #endif
@@ -220,68 +254,28 @@ void startTasks()
 
 void initialiseTasks()
 {
-  // initialise tasks sequentially
-  ctrlrCommsTask.initialiseTask();
-  footLightTask.initialiseTask();
-  headlightTask.initialiseTask();
-#ifdef I2COLED_TASK
-  i2cOledTask.initialiseTask();
-#endif
-  i2cPortExpTask.initialiseTask();
-#ifdef IMU_TASK
-  imuTask.initialiseTask();
-#endif
-  vescCommsTask.initialiseTask();
-#ifdef USING_M5STACK_DISPLAY
-  m5StackDisplayTask.initialiseTask();
-#endif
-#if MOCK_VESC == 1 && SEND_TO_VESC == 0
-  mockVescTask.initialiseTask();
-#endif
+  DEBUG("Initialising tasks");
+
+  for (int i = 0; i < tasksCount; i++)
+    tasks[i]->initialiseTask(PRINT_THIS);
 }
 
 void waitForTasks()
 {
-  while (
-      !ctrlrCommsTask.ready ||
-      !footLightTask.ready ||
-      !headlightTask.ready ||
-#ifdef I2COLED_TASK
-      !i2cOledTask.ready ||
-#endif
-      !i2cPortExpTask.ready ||
-#ifdef IMU_TASK
-      !imuTask.ready ||
-#endif
-      !vescCommsTask.ready ||
-#ifdef USING_M5STACK_DISPLAY
-      !m5StackDisplayTask.ready ||
-#endif
-#if MOCK_VESC == 1 && SEND_TO_VESC == 0
-      !mockVescTask.ready ||
-#endif
-      false)
-    vTaskDelay(PERIOD_10ms);
-  Serial.printf("-- all tasks ready! --\n");
+  bool allReady = false;
+  while (!allReady)
+  {
+    allReady = true;
+    for (int i = 0; i < tasksCount; i++)
+      allReady = allReady && tasks[i]->ready;
+    vTaskDelay(PERIOD_100ms);
+    DEBUG("Waiting for tasks\n");
+  }
+  DEBUG("-- all tasks ready! --");
 }
 
 void enableTasks(bool print)
 {
-  ctrlrCommsTask.enable(print);
-  footLightTask.enable(print);
-  headlightTask.enable(print);
-#ifdef I2COLED_TASK
-  i2cOledTask.enable(print);
-#endif
-  i2cPortExpTask.enable(print);
-#ifdef IMU_TASK
-  imuTask.enable(print);
-#endif
-  vescCommsTask.enable(print);
-#ifdef USING_M5STACK_DISPLAY
-  m5StackDisplayTask.enable(print);
-#endif
-#if MOCK_VESC && SEND_TO_VESC == 0
-  mockVescTask.enable(print);
-#endif
+  for (int i = 0; i < tasksCount; i++)
+    tasks[i]->enable(print);
 }

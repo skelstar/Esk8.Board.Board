@@ -16,3 +16,5 @@
 #include <tasks/core_0/FootLightTask.h>
 #include <tasks/core_0/HeadlightTask.h>
 #include <tasks/core_0/I2CPortExpTask.h>
+
+#define NUM_TASKS 20
