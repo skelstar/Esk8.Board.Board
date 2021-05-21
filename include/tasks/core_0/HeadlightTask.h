@@ -12,17 +12,19 @@ namespace nsHeadlightTask
   // prototypes
   void _handleSimplMessage(SimplMessageObj obj);
   void addTransitions();
+  const char *getEvent(uint16_t ev);
   const char *getState(uint16_t st);
 
   void stateOff_OnEnter();
+  void stateOff_OnLoop();
   void stateOn_OnEnter();
   void stateActive_OnEnter();
+  void stateActive_OnLoop();
   void stateInactive_OnEnter();
 
-  State stateOff(stateOff_OnEnter, NULL, NULL);
+  State stateOff(stateOff_OnEnter, stateOff_OnLoop, NULL);
   State stateOn(stateOn_OnEnter, NULL, NULL);
-  State stateActive(stateActive_OnEnter, NULL, NULL);
-  State stateInactive(stateInactive_OnEnter, NULL, NULL);
+  State stateActive(stateActive_OnEnter, stateActive_OnLoop, NULL);
 
   enum StateID
   {
@@ -92,11 +94,11 @@ private:
 
     fsm1 = new Fsm(&stateOff);
     fsm_mgr.begin(fsm1);
-    // fsm_mgr.setPrintTriggerCallback(
-    //     [](uint16_t trigger)
-    //     {
-    //       DEBUGMVAL("HeadlightTask trigger: %s\n", getState(trigger));
-    //     });
+    fsm_mgr.setPrintTriggerCallback(
+        [](uint16_t trigger)
+        {
+          Serial.printf("HeadlightTask trigger: %s\n", getEvent(trigger));
+        });
 
     addTransitions();
   }
@@ -114,8 +116,8 @@ private:
 
     nsHeadlightTask::fsm_mgr.runMachine();
 
-    if (FEATURE_INACTIVITY_FLASH == 1)
-      _checkForInactivity();
+    // if (FEATURE_INACTIVITY_FLASH == 1)
+    //   _checkForInactivity();
   }
   //------------------------------
 
@@ -129,9 +131,8 @@ private:
   void _handleVescData(VescData &p_vescData)
   {
     using namespace nsHeadlightTask;
-
-    bool moving = !vescData.moving && p_vescData.moving;
     bool stopped = vescData.moving && !p_vescData.moving;
+    bool moving = !vescData.moving && p_vescData.moving;
     vescData = p_vescData;
 
     if (moving)
@@ -173,12 +174,23 @@ namespace nsHeadlightTask
     headlightTask.task(parameters);
   }
 
-  elapsedMillis sinceActive = 0;
+  elapsedMillis sinceStopped = 0;
 
   void stateOff_OnEnter()
   {
     DEBUG("HeadlightTask: stateOff_OnEnter");
+    sinceStopped = 0;
     headlightTask.turnLights(false);
+  }
+
+  bool printedInactive = false;
+  void stateOff_OnLoop()
+  {
+    if (FEATURE_INACTIVITY_FLASH && sinceStopped > FEATURE_INACTIVITY_TIMEOUT_MS)
+    {
+      DEBUG("Inactive");
+      printedInactive = true;
+    }
   }
 
   void stateOn_OnEnter()
@@ -190,27 +202,48 @@ namespace nsHeadlightTask
   void stateActive_OnEnter()
   {
     DEBUG("HeadlightTask: stateActive_OnEnter");
-    sinceActive = 0;
+    sinceStopped = 0;
+  }
+
+  void stateActive_OnLoop()
+  {
   }
 
   void stateInactive_OnEnter()
   {
     DEBUG("HeadlightTask: stateInactive_OnEnter");
-    // start flashing
   }
 
   void addTransitions()
   {
     fsm1->add_transition(&stateOff, &stateOn, Event::TOGGLE, NULL);
-    fsm1->add_transition(&stateOn, &stateOff, Event::OFF, NULL);
     fsm1->add_transition(&stateOn, &stateOff, Event::TOGGLE, NULL);
 
-    // fsm1->add_transition(&stateOff, &stateActive, Event::STOPPED, NULL);
-    // fsm1->add_transition(&stateOff, &stateInactive, Event::STOPPED, NULL);
-    // fsm1->add_transition(&stateInactive, &stateActive, Event::MOVING, NULL);
+    if (FEATURE_INACTIVITY_FLASH)
+    {
+      fsm1->add_transition(&stateOff, &stateActive, Event::MOVING, NULL);
+      fsm1->add_transition(&stateActive, &stateActive, Event::MOVING, NULL);
+      fsm1->add_transition(&stateActive, &stateOff, Event::STOPPED, NULL);
 
-    // fsm1->add_timed_transition(&stateActive, &stateInactive, PERIOD_5s, NULL);
-    // fsm1->add_transition(&stateActive, &stateActive, Event::MOVING, NULL);
+      // fsm1->add_timed_transition(&stateActive, &stateInactive, PERIOD_5s, NULL);
+      // fsm1->add_transition(&stateActive, &stateActive, Event::MOVING, NULL);
+    }
+  }
+
+  const char *getEvent(uint16_t ev)
+  {
+    switch (ev)
+    {
+    case OFF:
+      return "OFF";
+    case TOGGLE:
+      return "TOGGLE";
+    case MOVING:
+      return "MOVING";
+    case STOPPED:
+      return "STOPPED";
+    }
+    return "OUT OF RANGE (HeadlightTask getEvent())";
   }
 
   const char *getState(uint16_t st)
