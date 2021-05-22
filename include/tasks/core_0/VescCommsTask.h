@@ -38,7 +38,7 @@ private:
   const ulong mockMovinginterval = 5000;
 
 public:
-  VescCommsTask() : TaskBase("VescCommsTask", 5000, PERIOD_50ms)
+  VescCommsTask() : TaskBase("VescCommsTask", 5000)
   {
     _core = CORE_0;
   }
@@ -48,7 +48,10 @@ private:
   {
     controllerQueue = createQueue<ControllerData>("(VescCommsTask) controllerQueue");
     controllerQueue->read(); // clear the queue
+
     vescDataQueue = createQueue<VescData>("(VescCommsTask) vescDataQueue");
+    vescDataQueue->printMissedPacket = false;
+
     simplMsgQueue = createQueue<SimplMessageObj>("(VescCommsTask) simplMsgQueue");
 
     nsVescCommsTask::vesc.init(VESC_UART_BAUDRATE);

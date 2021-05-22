@@ -34,6 +34,8 @@ public:
 private:
   Queue1::Manager<SimplMessageObj> *simplMsgQueue = nullptr;
   SimplMessageObj _simplMsg;
+  elapsedMillis _sinceInitialised;
+  bool initialClearedPorts = false;
 
   const uint8_t ERROR_MUX_LOCKED = 99;
 
@@ -56,7 +58,7 @@ private:
           _outputPinsRear = 0x00;
 
 public:
-  I2CPortExp1Task() : TaskBase("I2CPortExp1Task", 3000, PERIOD_100ms)
+  I2CPortExp1Task() : TaskBase("I2CPortExp1Task", 3000)
   {
     _core = CORE_0;
   }
@@ -90,11 +92,13 @@ private:
     simplMsgQueue = createQueue<SimplMessageObj>("(I2CPortExp1Task) simplMsgQueue");
     simplMsgQueue->printMissedPacket = true;
     _simplMsg.setGetMessageCallback(getSimplMessage);
+
+    _sinceInitialised = 0;
   }
 
   bool flashingOutput = false;
   elapsedMillis sinceStartedFlashing = 0;
-  const unsigned long FLASH_DURATION = doWorkInterval;
+  const unsigned long FLASH_DURATION = doWorkIntervalFast;
 
   void doWork()
   {
@@ -110,6 +114,15 @@ private:
       //cleanup
       flashingOutput = false;
       sinceStartedFlashing = 0;
+    }
+
+    if (!initialClearedPorts && _sinceInitialised > PERIOD_1s)
+    {
+      // make sure outputs (lights) are off after 1s
+      // fix a bug where lights were ON at startup
+      _clearOutputPortPin(ExpanderDevice::FRONT, LIGHT_PIN);
+      _clearOutputPortPin(ExpanderDevice::REAR, LIGHT_PIN);
+      initialClearedPorts = true;
     }
   }
 
@@ -172,7 +185,6 @@ private:
         _outputPinsRear |= pin;
         portExpRear.writePort(MCP23017Port::A, _outputPinsRear);
       }
-
       give(mux_I2C);
     }
   }

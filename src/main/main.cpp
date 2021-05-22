@@ -147,7 +147,7 @@ void populateTaskList()
   addTaskToList(&i2cPortExpTask);
   addTaskToList(&vescCommsTask);
 
-#ifdef FEATURE_FOOTLIGHT
+#ifdef FOOTLIGHT_TASK
   addTaskToList(&footLightTask);
 #endif
 #ifdef I2COLED_TASK
@@ -182,42 +182,43 @@ void configureTasks()
 {
   DEBUG("Configuring tasks");
 
-  ctrlrCommsTask.doWorkInterval = PERIOD_10ms;
+  ctrlrCommsTask.doWorkIntervalFast = PERIOD_10ms;
   ctrlrCommsTask.priority = TASK_PRIORITY_4;
   // ctrlrCommsTask.printRxFromController = true;
 
-#ifdef FEATURE_FOOTLIGHT
-  footLightTask.doWorkInterval = PERIOD_100ms;
+#ifdef FOOTLIGHT_TASK
+  footLightTask.doWorkIntervalFast = PERIOD_100ms;
   footLightTask.priority = TASK_PRIORITY_0;
   // footLightTask.printStateChange = true;
 #endif
 
-  headlightTask.doWorkInterval = PERIOD_500ms;
-  headlightTask.priority = TASK_PRIORITY_3; // TODO really? Also disable when moving
+  headlightTask.doWorkIntervalSlow = PERIOD_500ms;
+  headlightTask.doWorkIntervalFast = PERIOD_50ms;
+  headlightTask.priority = TASK_PRIORITY_1; // TODO disable when moving?
 
 #ifdef I2COLED_TASK
-  i2cOledTask.doWorkInterval = PERIOD_100ms;
+  i2cOledTask.doWorkIntervalFast = PERIOD_100ms;
   i2cOledTask.priority = TASK_PRIORITY_2;
 #endif
 
-  i2cPortExpTask.doWorkInterval = PERIOD_100ms;
+  i2cPortExpTask.doWorkIntervalFast = PERIOD_100ms;
   i2cPortExpTask.priority = TASK_PRIORITY_0;
 
 #ifdef IMU_TASK
-  imuTask.doWorkInterval = PERIOD_200ms;
+  imuTask.doWorkIntervalFast = PERIOD_200ms;
   imuTask.priority = TASK_PRIORITY_0;
 #endif
 
 #ifdef M5STACKDISPLAY_TASK
-  m5StackDisplayTask.doWorkInterval = PERIOD_100ms;
+  m5StackDisplayTask.doWorkIntervalFast = PERIOD_100ms;
   m5StackDisplayTask.priority = TASK_PRIORITY_2;
 #endif
 #if USING_M5STACK == 1 && SEND_TO_VESC == 0
-  mockVescTask.doWorkInterval = PERIOD_50ms;
+  mockVescTask.doWorkIntervalFast = PERIOD_50ms;
   mockVescTask.priority = TASK_PRIORITY_0;
 #endif
 
-  vescCommsTask.doWorkInterval = PERIOD_10ms;
+  vescCommsTask.doWorkIntervalFast = PERIOD_20ms;
   vescCommsTask.priority = TASK_PRIORITY_3;
   // vescCommsTask.printReadFromVesc = true;
   // vescCommsTask.printSentToVesc = true;
@@ -235,7 +236,7 @@ void startTasks()
   i2cPortExpTask.start(nsI2CPortExp1Task::task1);
   vescCommsTask.start(nsVescCommsTask::task1);
 
-#ifdef FEATURE_FOOTLIGHT
+#ifdef FOOTLIGHT_TASK
   footLightTask.start(nsFootlightTask::task1);
 #endif
 #ifdef I2COLED_TASK

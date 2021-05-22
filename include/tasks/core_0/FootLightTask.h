@@ -54,7 +54,7 @@ private:
   Queue1::Manager<VescData> *vescDataQueue = nullptr;
 
 public:
-  FootLightTask() : TaskBase("FootLightTask", 3000, PERIOD_100ms)
+  FootLightTask() : TaskBase("FootLightTask", 3000)
   {
     _core = CORE_0;
   }
@@ -63,6 +63,7 @@ private:
   void _initialise()
   {
     vescDataQueue = createQueue<VescData>("vescDataQueue");
+    vescDataQueue->printMissedPacket = false;
     lightStrip.initialise(FOOTLIGHT_PIXEL_PIN, FOOTLIGHT_NUM_PIXELS, FOOTLIGHT_BRIGHTNESS_STOPPED);
     lightStrip.setAll(lightStrip.COLOUR_DARK_RED);
   }

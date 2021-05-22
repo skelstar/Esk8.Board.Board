@@ -60,6 +60,8 @@ private:
   void _initialise()
   {
     vescDataQueue = createQueue<VescData>("vescDataQueue");
+    vescDataQueue->printMissedPacket = false;
+
     simplMessageQueue = createQueue<SimplMessageObj>("simplMessageQueue");
     simplMessageQueue->read(); // clear the queue
 

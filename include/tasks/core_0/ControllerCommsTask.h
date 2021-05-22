@@ -36,7 +36,7 @@ private:
 
 public:
   ControllerCommsTask()
-      : TaskBase("ControllerCommsTask", 5000, PERIOD_50ms)
+      : TaskBase("ControllerCommsTask", 5000)
   {
     _core = CORE_1;
   }
@@ -46,6 +46,7 @@ private:
   {
     controllerQueue = createQueue<ControllerData>("(ControllerCommsTask) controllerQueue");
     vescDataQueue = createQueue<VescData>("(ControllerCommsTask) vescDataQueue");
+    vescDataQueue->printMissedPacket = false; // seems to only miss one, but often
 
     if (mux_SPI == nullptr)
       mux_SPI = xSemaphoreCreateMutex();
