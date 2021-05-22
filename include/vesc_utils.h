@@ -1,3 +1,4 @@
+#pragma once
 
 // int32_t rpm_raw;
 float initial_ampHours = 0.0;
