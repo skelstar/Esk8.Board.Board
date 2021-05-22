@@ -7,6 +7,13 @@
 #include <printFormatStrings.h>
 #include <TFT_eSPI.h>
 
+#define LCD_WIDTH 320
+#define LCD_HEIGHT 240
+
+#define BTN_A_XPOS 65
+#define BTN_B_XPOS LCD_WIDTH / 2
+#define BTN_C_XPOS LCD_WIDTH - BTN_A_XPOS
+
 namespace nsM5StackDisplayTask
 {
   // prototypes
@@ -14,12 +21,16 @@ namespace nsM5StackDisplayTask
 
   TFT_eSPI tft = TFT_eSPI(LCD_HEIGHT, LCD_WIDTH);
 
+  bool _g_HeadlightState = false;
+
   enum Trigger
   {
     TR_NO_EVENT = 0,
     TR_MOVING,
     TR_STOPPED,
     TR_BRAKING,
+    TR_HEADLIGHT_ON,
+    TR_HEADLIGHT_OFF,
   };
 
   enum StateID
@@ -77,19 +88,25 @@ namespace nsM5StackDisplayTask
     fsm1.add_transition(&stateStopped, &stateBraking, Trigger::TR_BRAKING, NULL);
     fsm1.add_transition(&stateBraking, &stateBraking, Trigger::TR_BRAKING, NULL);
     fsm1.add_transition(&stateMoving, &stateBraking, Trigger::TR_BRAKING, NULL);
+
+    // HEADLIGHT
+    fsm1.add_transition(&stateStopped, &stateStopped, Trigger::TR_HEADLIGHT_ON, NULL);
+    fsm1.add_transition(&stateStopped, &stateStopped, Trigger::TR_HEADLIGHT_OFF, NULL);
   }
 
   void initFsm(bool print = false)
   {
     fsm_mgr.begin(&fsm1);
-    fsm_mgr.setPrintStateCallback([](uint16_t id) {
-      if (PRINT_DISP_FSM_STATE)
-        Serial.printf(PRINT_FSM_STATE_FORMAT, "m5Stack", millis(), stateID(id));
-    });
-    fsm_mgr.setPrintTriggerCallback([](uint16_t ev) {
-      if (PRINT_DISP_FSM_TRIGGER)
-        Serial.printf(PRINT_FSM_TRIGGER_FORMAT, "m5Stack", millis(), "trigger(ev)");
-    });
+    fsm_mgr.setPrintStateCallback([](uint16_t id)
+                                  {
+                                    if (PRINT_DISP_FSM_STATE)
+                                      Serial.printf(PRINT_FSM_STATE_FORMAT, "m5Stack", millis(), stateID(id));
+                                  });
+    fsm_mgr.setPrintTriggerCallback([](uint16_t ev)
+                                    {
+                                      if (PRINT_DISP_FSM_TRIGGER)
+                                        Serial.printf(PRINT_FSM_TRIGGER_FORMAT, "m5Stack", millis(), "trigger(ev)");
+                                    });
 
     addTransitions();
   }

@@ -10,6 +10,12 @@ enum SimplMessage
 {
   SIMPL_NONE = 0,
   SIMPL_TOGGLE_MOCK_MOVING_LOOP,
+  SIMPL_HEADLIGHT_ON,
+  SIMPL_HEADLIGHT_OFF,
+  SIMPL_HEADLIGHT_FLASH,
+  I2C_INPUT_7_PRESSED,
+  SIMPL_BOARD_FLAT,
+  SIMPL_BOARD_RAISED,
 };
 
 const char *getSimplMessage(int msg)
@@ -20,24 +26,16 @@ const char *getSimplMessage(int msg)
     return "SIMPL_NONE";
   case SIMPL_TOGGLE_MOCK_MOVING_LOOP:
     return "SIMPL_TOGGLE_MOCK_MOVING_LOOP";
+  case SIMPL_HEADLIGHT_ON:
+    return "SIMPL_HEADLIGHT_ON";
+  case SIMPL_HEADLIGHT_OFF:
+    return "SIMPL_HEADLIGHT_OFF";
+  case SIMPL_HEADLIGHT_FLASH:
+    return "SIMPL_HEADLIGHT_FLASH";
+  case SIMPL_BOARD_FLAT:
+    return "SIMPL_BOARD_FLAT";
+  case SIMPL_BOARD_RAISED:
+    return "SIMPL_BOARD_RAISED";
   }
-  return "OUT OF RANGE (getSimplMessage())";
+  return getOutOfRange("getSimplMessage()");
 }
-
-class SimplMessageObj : public QueueBase
-{
-public:
-  SimplMessage message = SimplMessage::SIMPL_NONE;
-
-  SimplMessageObj() : QueueBase()
-  {
-  }
-
-  static void print(SimplMessageObj obj, const char *preamble = nullptr)
-  {
-    Serial.printf("%s ", preamble != nullptr ? preamble : "[-]");
-    Serial.printf("message: %d/%s ", obj.message, getSimplMessage(obj.message));
-    Serial.printf("event_id: %lu ", obj.event_id);
-    Serial.printf("\n");
-  }
-};

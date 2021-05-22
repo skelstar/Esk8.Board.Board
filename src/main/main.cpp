@@ -8,17 +8,21 @@
 #include <VescData.h>
 #include <elapsedMillis.h>
 
-SemaphoreHandle_t mux_I2C;
-SemaphoreHandle_t mux_SPI;
+SemaphoreHandle_t mux_I2C = nullptr;
+SemaphoreHandle_t mux_SPI = nullptr;
+
+#include <Wire.h>
 
 #include <shared-utils.h>
 #include <types.h>
 #include <printFormatStrings.h>
 #include <utils.h>
 #include <FsmManager.h>
+#include <SharedConstants.h>
 #include <QueueManager.h>
 #include <constants.h>
-#include <ControllerClass.h>
+#include <macros.h>
+#include <tasks/queues/types/ControllerClass.h>
 
 #include <TFT_eSPI.h>
 TFT_eSPI tft = TFT_eSPI(LCD_HEIGHT, LCD_WIDTH);
@@ -35,6 +39,10 @@ ControllerClass controller;
 
 #include <tasks/root.h>
 
+int tasksCount = 0;
+
+TaskBase *tasks[NUM_TASKS];
+
 #include <Fsm.h>
 
 elapsedMillis
@@ -47,67 +55,15 @@ bool controller_connected = false;
 
 //------------------------------------------------------------------
 
-// VescData board_packet;
-
-// NRF24L01Lib nrf24;
-
-// RF24 radio(SPI_CE, SPI_CS);
-// RF24Network network(radio);
-
-// GenericClient<VescData, ControllerData> controllerClient(COMMS_CONTROLLER);
-
-// void send_to_vesc(uint8_t throttle, bool cruise_control);
-
-// #include <controller_comms.h>
-
-// const char *getSummary(VescData d)
-// {
-//   char buff[50];
-//   sprintf(buff, "id: %lu moving: %d", d.id, d.moving);
-//   return buff;
-// }
-
-// const char *getSummary(ControllerData d)
-// {
-//   char buff[50];
-//   sprintf(buff, "id: %lu throttle: %d", d.id, d.throttle);
-//   return buff;
-// }
-
-// void controllerClientInit()
-// {
-//   // TODO: PRINT_FLAGS
-//   controllerClient.begin(&network, controllerPacketAvailable_cb);
-//   controllerClient.setConnectedStateChangeCallback([] {
-//     Serial.printf("setConnectedStateChangeCallback\n");
-//   });
-//   controllerClient.setSentPacketCallback([](VescData data) {
-//     if (PRINT_TX_TO_CONTROLLER)
-//       Serial.printf(PRINT_TX_PACKET_TO_FORMAT, "CTRLR", getSummary(data));
-//   });
-//   controllerClient.setReadPacketCallback([](ControllerData data) {
-//     if (PRINT_RX_FROM_CONTROLLER)
-//       Serial.printf(PRINT_RX_PACKET_FROM_FORMAT, "CTRLR", getSummary(data));
-//   });
-// }
-
 #define NUM_RETRIES 5
 
 //------------------------------------------------------------------
 
-// #include <peripherals.h>
-// #if (FEATURE_FOOTLIGHT == 1)
-// #include <tasks/core_0/footLightTask_0.h>
-// #endif
-// #include <tasks/core_0/buttonsTask.h>
-// #include <tasks/core_0/commsFsmTask.h>
-// #include <vesc_comms_2.h>
-
-// void waitForTasksToBeReady();
-
+void populateTaskList();
 void createQueues();
 void createLocalQueueManagers();
 void startTasks();
+void initialiseTasks();
 void configureTasks();
 void waitForTasks();
 void enableTasks(bool print = false);
@@ -118,6 +74,10 @@ void setup()
 {
 #ifdef DEBUG_SERIAL
   Serial.begin(115200);
+#endif
+
+#ifdef I2CPORTEXP1_TASK
+  Wire.begin();
 #endif
 
   //get chip id
@@ -142,39 +102,67 @@ void setup()
     DEBUG("-----------------------------------------------\n\n");
   }
 
+  populateTaskList();
+
+  createLocalQueueManagers();
+
   configureTasks();
 
   startTasks();
 
+  initialiseTasks();
+
   waitForTasks();
 
   enableTasks();
+
+  pinMode(26, OUTPUT);
 }
 
-elapsedMillis sinceCheckedCtrlOnline;
+Queue1::Manager<SimplMessageObj> *simplMsgQueue = nullptr;
+
+elapsedMillis sinceCheckedCtrlOnline, sinceToggleLight, sinceCheckedQueues;
 
 void loop()
 {
-  // if (sinceNRFUpdate > 20)
-  // {
-  //   sinceNRFUpdate = 0;
-  //   // controllerClient.update();
-  // }
-
-  // vesc_update();
-
-  // TODO read from local "controller"
-  // if (sinceCheckedCtrlOnline > 500 && controller.hasTimedout(sinceLastControllerPacket))
-  // {
-  //   sinceCheckedCtrlOnline = 0;
-  //   // DEBUGMVAL("timeout", sinceLastControllerPacket);
-  //   // Comms::commsFsm.trigger(Comms::EV_CTRLR_TIMEOUT);
-  // }
-
   vTaskDelay(10);
 }
 
 //===================================================
+
+void addTaskToList(TaskBase *t)
+{
+  DEBUGMVAL("Adding task", t->_name);
+  if (tasksCount < NUM_TASKS)
+  {
+    tasks[tasksCount++] = t;
+    assert(tasksCount < NUM_TASKS);
+  }
+}
+
+void populateTaskList()
+{
+  addTaskToList(&ctrlrCommsTask);
+  addTaskToList(&headlightTask);
+  addTaskToList(&i2cPortExpTask);
+  addTaskToList(&vescCommsTask);
+
+#ifdef FOOTLIGHT_TASK
+  addTaskToList(&footLightTask);
+#endif
+#ifdef I2COLED_TASK
+  addTaskToList(&i2cOledTask);
+#endif
+#ifdef IMU_TASK
+  addTaskToList(&imuTask);
+#endif
+#ifdef M5STACKDISPLAY_TASK
+  addTaskToList(&m5StackDisplayTask);
+#endif
+#if USING_M5STACK == 1 && SEND_TO_VESC == 0
+  addTaskToList(&mockVescTask);
+#endif
+}
 
 void createQueues()
 {
@@ -187,20 +175,53 @@ void createQueues()
 
 void createLocalQueueManagers()
 {
+  simplMsgQueue = createQueue<SimplMessageObj>("(loop) simplMsgQueue");
 }
 
 void configureTasks()
 {
-  ctrlrCommsTask.doWorkInterval = PERIOD_10ms;
+  DEBUG("Configuring tasks");
 
-#ifdef USING_M5STACK_DISPLAY
-  m5StackDisplayTask.doWorkInterval = PERIOD_100ms;
-#endif
-#if SEND_TO_VESC == 0
-  mockVescTask.doWorkInterval = PERIOD_50ms;
+  ctrlrCommsTask.doWorkIntervalFast = PERIOD_10ms;
+  ctrlrCommsTask.priority = TASK_PRIORITY_4;
+  // ctrlrCommsTask.printRxFromController = true;
+
+#ifdef FOOTLIGHT_TASK
+  footLightTask.doWorkIntervalFast = PERIOD_100ms;
+  footLightTask.priority = TASK_PRIORITY_0;
+  // footLightTask.printStateChange = true;
 #endif
 
-  vescCommsTask.doWorkInterval = PERIOD_10ms;
+  headlightTask.doWorkIntervalSlow = PERIOD_500ms;
+  headlightTask.doWorkIntervalFast = PERIOD_50ms;
+  headlightTask.priority = TASK_PRIORITY_1; // TODO disable when moving?
+
+#ifdef I2COLED_TASK
+  i2cOledTask.doWorkIntervalFast = PERIOD_100ms;
+  i2cOledTask.priority = TASK_PRIORITY_2;
+#endif
+
+  i2cPortExpTask.doWorkIntervalFast = PERIOD_100ms;
+  i2cPortExpTask.priority = TASK_PRIORITY_0;
+
+#ifdef IMU_TASK
+  imuTask.doWorkIntervalFast = PERIOD_200ms;
+  imuTask.priority = TASK_PRIORITY_0;
+#endif
+
+#ifdef M5STACKDISPLAY_TASK
+  m5StackDisplayTask.doWorkIntervalFast = PERIOD_100ms;
+  m5StackDisplayTask.priority = TASK_PRIORITY_2;
+#endif
+#if USING_M5STACK == 1 && SEND_TO_VESC == 0
+  mockVescTask.doWorkIntervalFast = PERIOD_50ms;
+  mockVescTask.priority = TASK_PRIORITY_0;
+#endif
+
+  vescCommsTask.doWorkIntervalFast = PERIOD_20ms;
+  vescCommsTask.priority = TASK_PRIORITY_3;
+  // vescCommsTask.printReadFromVesc = true;
+  // vescCommsTask.printSentToVesc = true;
 }
 
 #define USE_M5STACK_DISPLAY 0
@@ -208,42 +229,54 @@ void configureTasks()
 
 void startTasks()
 {
+  DEBUG("Starting tasks");
+
   ctrlrCommsTask.start(nsControllerCommsTask::task1);
+  headlightTask.start(nsHeadlightTask::task1);
+  i2cPortExpTask.start(nsI2CPortExp1Task::task1);
   vescCommsTask.start(nsVescCommsTask::task1);
-#ifdef USING_M5STACK_DISPLAY
+
+#ifdef FOOTLIGHT_TASK
+  footLightTask.start(nsFootlightTask::task1);
+#endif
+#ifdef I2COLED_TASK
+  i2cOledTask.start(nsI2COledTask::task1);
+#endif
+#ifdef IMU_TASK
+  imuTask.start(nsIMUTask::task1);
+#endif
+#ifdef M5STACKDISPLAY_TASK
   m5StackDisplayTask.start(nsM5StackDisplayTask::task1);
 #endif
-#if SEND_TO_VESC == 0
+#if MOCK_VESC == 1 && SEND_TO_VESC == 0
   mockVescTask.start(nsMockVescTask::task1);
 #endif
 }
 
-elapsedMillis since_reported_waiting;
+void initialiseTasks()
+{
+  DEBUG("Initialising tasks");
+
+  for (int i = 0; i < tasksCount; i++)
+    tasks[i]->initialiseTask(PRINT_THIS);
+}
 
 void waitForTasks()
 {
-  while (
-      !ctrlrCommsTask.ready ||
-      !vescCommsTask.ready ||
-#ifdef USING_M5STACK_DISPLAY
-      !m5StackDisplayTask.ready ||
-#endif
-#if SEND_TO_VESC == 0
-      !mockVescTask.ready ||
-#endif
-      false)
-    vTaskDelay(PERIOD_10ms);
-  Serial.printf("-- all tasks ready! --\n");
+  bool allReady = false;
+  while (!allReady)
+  {
+    allReady = true;
+    for (int i = 0; i < tasksCount; i++)
+      allReady = allReady && tasks[i]->ready;
+    vTaskDelay(PERIOD_100ms);
+    DEBUG("Waiting for tasks\n");
+  }
+  DEBUG("-- all tasks ready! --");
 }
 
 void enableTasks(bool print)
 {
-  ctrlrCommsTask.enable(print);
-  vescCommsTask.enable(print);
-#ifdef USING_M5STACK_DISPLAY
-  m5StackDisplayTask.enable(print);
-#endif
-#if SEND_TO_VESC == 0
-  mockVescTask.enable(print);
-#endif
+  for (int i = 0; i < tasksCount; i++)
+    tasks[i]->enable(print);
 }

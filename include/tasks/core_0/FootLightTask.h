@@ -1,155 +1,127 @@
+#pragma once
 
-#ifndef LedLightsLib_h
+#include <TaskBase.h>
+#include <QueueManager.h>
+#include <tasks/queues/QueueFactory.h>
+#include <VescData.h>
 #include <LedLightsLib.h>
-#endif
+#include <utils.h>
+#include <constants.h>
 
-LedLightsLib footLightPanel;
+#define FOOTLIGHT_TASK
+
+#define FOOTLIGHT_NUM_PIXELS 8
 
 elapsedMillis sinceUpdatedBatteryGraph;
 
 //------------------------------------------------------------------
-
-namespace FootLight
+namespace nsFootlightTask
 {
-  /* prototypes */
+  // prototypes
+  void updateLights(const VescData &vescData);
+}
+//------------------------------------------------------------------
 
-  // enum StateID
-  // {
-  //   STATE_BOOTED = 0,
-  //   STATE_STOPPED,
-  //   STATE_MOVING,
-  // };
+class FootLightTask : public TaskBase
+{
+  enum StateID
+  {
+    STATE_BOOTED = 0,
+    STATE_STOPPED,
+    STATE_MOVING,
+  };
 
-  // const char *getStateName(uint16_t id)
-  // {
-  //   switch (id)
-  //   {
-  //   case STATE_BOOTED:
-  //     return "BOOTED";
-  //   case STATE_STOPPED:
-  //     return "STOPPED";
-  //   case STATE_MOVING:
-  //     return "MOVING";
-  //   }
-  //   return OUT_OF_RANGE;
-  // }
+  const char *getStateName(uint16_t id)
+  {
+    switch (id)
+    {
+    case STATE_BOOTED:
+      return "BOOTED";
+    case STATE_STOPPED:
+      return "STOPPED";
+    case STATE_MOVING:
+      return "MOVING";
+    }
+    return "OUT OF RANGE: FootlightTask getStateName";
+  }
 
-  // bool taskReady = false;
+public:
+  VescData vescData;
 
-  // FsmManager<Event> footlightFsm;
+  bool printStateChange = false;
 
-  // const char *name = "FOOTLIGHT";
+  LedLightsLib lightStrip;
 
-  // void printFsmState_cb(uint16_t id)
-  // {
-  //   if (PRINT_FOOTLIGHT_FSM_STATE)
-  //     Serial.printf(PRINT_STATE_FORMAT, name, getStateName(StateID(id)));
-  // }
+private:
+  Queue1::Manager<VescData> *vescDataQueue = nullptr;
 
-  // void printFsmTrigger_cb(uint16_t ev)
-  // {
-  //   if (PRINT_FOOTLIGHT_FSM_TRIGGER)
-  //     Serial.printf(PRINT_STATE_FORMAT, name, getEvent(Event(ev)));
-  // }
+public:
+  FootLightTask() : TaskBase("FootLightTask", 3000)
+  {
+    _core = CORE_0;
+  }
 
-  // //--------------------------------------------------
-  // State stateBoardBooted(
-  //     STATE_BOOTED,
-  //     [] {
-  //       footlightFsm.printState(STATE_BOOTED);
-  //       footLightPanel.setBrightness(FOOTLIGHT_BRIGHTNESS_STOPPED);
-  //       footLightPanel.setAll(footLightPanel.COLOUR_BLUE);
-  //     },
-  //     NULL, NULL);
-  // //--------------------------------------------------
-  // State stateMoving(
-  //     STATE_MOVING,
-  //     [] {
-  //       footlightFsm.printState(STATE_MOVING);
-  //       footLightPanel.setBrightness(FOOTLIGHT_BRIGHTNESS_MOVING);
-  //       footLightPanel.setAll(footLightPanel.COLOUR_WHITE);
-  //     },
-  //     NULL, NULL);
+private:
+  void _initialise()
+  {
+    vescDataQueue = createQueue<VescData>("vescDataQueue");
+    vescDataQueue->printMissedPacket = false;
+    lightStrip.initialise(FOOTLIGHT_PIXEL_PIN, FOOTLIGHT_NUM_PIXELS, FOOTLIGHT_BRIGHTNESS_STOPPED);
+    lightStrip.setAll(lightStrip.COLOUR_DARK_RED);
+  }
 
-  // //--------------------------------------------------
-  // State stateStopped(
-  //     STATE_STOPPED,
-  //     [] {
-  //       footlightFsm.printState(STATE_STOPPED);
-  //       footLightPanel.setBrightness(FOOTLIGHT_BRIGHTNESS_STOPPED);
-  //       float battPc = getBatteryPercentage(board_packet.batteryVoltage) / 100.0;
-  //       footLightPanel.showBatteryGraph(battPc);
-  //     },
-  //     [] {
-  //       if (sinceUpdatedBatteryGraph > 1000)
-  //       {
-  //         sinceUpdatedBatteryGraph = 0;
-  //         footLightPanel.setBrightness(FOOTLIGHT_BRIGHTNESS_STOPPED);
-  //         uint8_t battPc = getBatteryPercentage(board_packet.batteryVoltage);
-  //         footLightPanel.showBatteryGraph(battPc);
-  //       }
-  //     },
-  //     NULL);
+  void doWork()
+  {
+    if (vescDataQueue->hasValue())
+    {
+      vescData = vescDataQueue->payload;
+      nsFootlightTask::updateLights(vescData);
+    }
+  } // doWork
 
-  // Fsm fsm(&stateBoardBooted);
+  void cleanup()
+  {
+    delete (vescDataQueue);
+  }
+};
+//-------------------------------------------------------
+static FootLightTask footLightTask;
 
-  // void addTransitions()
-  // {
-  //   fsm.add_timed_transition(&stateBoardBooted, &stateStopped, 1000, NULL);
-  //   fsm.add_transition(&stateBoardBooted, &stateStopped, STOPPED, NULL);
-  //   fsm.add_transition(&stateMoving, &stateStopped, STOPPED, NULL);
-  //   fsm.add_transition(&stateStopped, &stateMoving, MOVING, NULL);
-  // }
+namespace nsFootlightTask
+{
+  elapsedMillis sinceUpdated = 0;
 
-  // //--------------------------------------------------
+  void task1(void *parameters)
+  {
+    footLightTask.task(parameters);
+  }
 
-  // void task(void *pvParameters)
-  // {
-  //   Serial.printf("FootLight running on CORE_%d\n", xPortGetCoreID());
+  const uint8_t STOPPED = 0;
+  const uint8_t MOVING = 1;
+  const uint8_t UNKNOWN = 2;
+  uint8_t moving = UNKNOWN;
 
-  //   footLightPanel.initialise(FOOTLIGHT_PIXEL_PIN, FOOTLIGHT_NUM_PIXELS, FOOTLIGHT_BRIGHTNESS_STOPPED);
-  //   footLightPanel.setAll(footLightPanel.COLOUR_DARK_RED);
-
-  //   footlightFsm.begin(&fsm);
-  //   footlightFsm.setPrintStateCallback(printFsmState_cb);
-  //   footlightFsm.setPrintTriggerCallback(printFsmTrigger_cb);
-
-  //   addTransitions();
-
-  //   taskReady = true;
-
-  //   elapsedMillis since_checked_vesc_queue;
-
-  //   while (true)
-  //   {
-  //     if (since_checked_vesc_queue > GET_FROM_VESC_INTERVAL)
-  //     {
-  //       VescData *vesc = vescQueue->peek<VescData>(__func__);
-  //       if (vesc != nullptr)
-  //       {
-  //         if (vesc->moving && footlightFsm.currentStateIs(STATE_MOVING) == false)
-  //           footlightFsm.trigger(Event::MOVING);
-  //         else if (vesc->moving == false && footlightFsm.currentStateIs(STATE_STOPPED))
-  //           footlightFsm.trigger(Event::STOPPED);
-  //       }
-  //     }
-
-  //     footlightFsm.runMachine();
-
-  //     vTaskDelay(10);
-  //   }
-  //   vTaskDelete(NULL);
-  // }
-
-  // void createTask(uint8_t core, uint8_t priority)
-  // {
-  //   xTaskCreatePinnedToCore(
-  //       task,
-  //       "FootLight",
-  //       5000,
-  //       NULL,
-  //       priority,
-  //       NULL,
-  //       core);
-  // }
-} // namespace FootLight
+  void updateLights(const VescData &vescData)
+  {
+    bool changed = moving != vescData.moving;
+    if (changed && vescData.moving)
+    {
+      sinceUpdated = 0;
+      footLightTask.lightStrip.setBrightness(FOOTLIGHT_BRIGHTNESS_MOVING);
+      footLightTask.lightStrip.setAll(footLightTask.lightStrip.COLOUR_WHITE);
+      if (footLightTask.printStateChange)
+        Serial.printf("[TASK]:FootLight moving\n");
+    }
+    // stopped or need to update
+    else if (changed || sinceUpdated > 1000)
+    {
+      sinceUpdated = 0;
+      footLightTask.lightStrip.setBrightness(FOOTLIGHT_BRIGHTNESS_STOPPED);
+      float battPc = getBatteryPercentage(vescData.batteryVoltage);
+      footLightTask.lightStrip.showBatteryGraph(battPc);
+      if (footLightTask.printStateChange)
+        Serial.printf("[TASK]:FootLight stopped/show battery %.1fv pc=%.1f%%\n", vescData.batteryVoltage, battPc);
+    }
+    moving = vescData.moving;
+  }
+}
