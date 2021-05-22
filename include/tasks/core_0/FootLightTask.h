@@ -10,6 +10,8 @@
 
 #define FOOTLIGHT_TASK
 
+#define FOOTLIGHT_NUM_PIXELS 8
+
 elapsedMillis sinceUpdatedBatteryGraph;
 
 //------------------------------------------------------------------

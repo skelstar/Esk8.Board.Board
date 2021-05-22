@@ -37,5 +37,5 @@ const char *getSimplMessage(int msg)
   case SIMPL_BOARD_RAISED:
     return "SIMPL_BOARD_RAISED";
   }
-  return "OUT OF RANGE (getSimplMessage())";
+  return getOutOfRange("getSimplMessage()");
 }

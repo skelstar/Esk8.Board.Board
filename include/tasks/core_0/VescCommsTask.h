@@ -7,6 +7,8 @@
 #include <vesc_comms.h>
 #include <vesc_utils.h>
 
+#define VESC_UART_BAUDRATE 115200
+
 namespace nsVescCommsTask
 {
   vesc_comms vesc;
@@ -138,7 +140,7 @@ private:
     {
       mockMovingLoop = !mockMovingLoop;
       Serial.printf("[VescCommsTask] mock moving is %s\n", mockMovingLoop ? "ON" : "OFF");
-#ifdef USING_M5STACK_DISPLAY
+#ifdef USE_M5STACK_DISPLAY
       // TODO move this into M5StackDisplayTask
       m5StackDisplayTask.enabled = !mockMovingLoop;
 #endif

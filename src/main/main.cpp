@@ -22,7 +22,7 @@ SemaphoreHandle_t mux_SPI = nullptr;
 #include <QueueManager.h>
 #include <constants.h>
 #include <macros.h>
-#include <ControllerClass.h>
+#include <tasks/queues/types/ControllerClass.h>
 
 #include <TFT_eSPI.h>
 TFT_eSPI tft = TFT_eSPI(LCD_HEIGHT, LCD_WIDTH);
@@ -245,7 +245,7 @@ void startTasks()
 #ifdef IMU_TASK
   imuTask.start(nsIMUTask::task1);
 #endif
-#ifdef USING_M5STACK_DISPLAY
+#ifdef M5STACKDISPLAY_TASK
   m5StackDisplayTask.start(nsM5StackDisplayTask::task1);
 #endif
 #if MOCK_VESC == 1 && SEND_TO_VESC == 0

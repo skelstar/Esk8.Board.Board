@@ -7,6 +7,13 @@
 #include <printFormatStrings.h>
 #include <TFT_eSPI.h>
 
+#define LCD_WIDTH 320
+#define LCD_HEIGHT 240
+
+#define BTN_A_XPOS 65
+#define BTN_B_XPOS LCD_WIDTH / 2
+#define BTN_C_XPOS LCD_WIDTH - BTN_A_XPOS
+
 namespace nsM5StackDisplayTask
 {
   // prototypes
@@ -90,14 +97,16 @@ namespace nsM5StackDisplayTask
   void initFsm(bool print = false)
   {
     fsm_mgr.begin(&fsm1);
-    fsm_mgr.setPrintStateCallback([](uint16_t id) {
-      if (PRINT_DISP_FSM_STATE)
-        Serial.printf(PRINT_FSM_STATE_FORMAT, "m5Stack", millis(), stateID(id));
-    });
-    fsm_mgr.setPrintTriggerCallback([](uint16_t ev) {
-      if (PRINT_DISP_FSM_TRIGGER)
-        Serial.printf(PRINT_FSM_TRIGGER_FORMAT, "m5Stack", millis(), "trigger(ev)");
-    });
+    fsm_mgr.setPrintStateCallback([](uint16_t id)
+                                  {
+                                    if (PRINT_DISP_FSM_STATE)
+                                      Serial.printf(PRINT_FSM_STATE_FORMAT, "m5Stack", millis(), stateID(id));
+                                  });
+    fsm_mgr.setPrintTriggerCallback([](uint16_t ev)
+                                    {
+                                      if (PRINT_DISP_FSM_TRIGGER)
+                                        Serial.printf(PRINT_FSM_TRIGGER_FORMAT, "m5Stack", millis(), "trigger(ev)");
+                                    });
 
     addTransitions();
   }
