@@ -10,7 +10,7 @@
 
 #define FOOTLIGHT_TASK
 
-#define FOOTLIGHT_NUM_PIXELS 8
+#define FOOTLIGHT_NUM_PIXELS 10
 
 elapsedMillis sinceUpdatedBatteryGraph;
 
@@ -103,24 +103,14 @@ namespace nsFootlightTask
 
   void updateLights(const VescData &vescData)
   {
-    bool changed = moving != vescData.moving;
-    if (changed && vescData.moving)
-    {
-      sinceUpdated = 0;
-      footLightTask.lightStrip.setBrightness(FOOTLIGHT_BRIGHTNESS_MOVING);
-      footLightTask.lightStrip.setAll(footLightTask.lightStrip.COLOUR_WHITE);
-      if (footLightTask.printStateChange)
-        Serial.printf("[TASK]:FootLight moving\n");
-    }
-    // stopped or need to update
-    else if (changed || sinceUpdated > 1000)
+    if (!vescData.moving || sinceUpdated > 1000)
     {
       sinceUpdated = 0;
       footLightTask.lightStrip.setBrightness(FOOTLIGHT_BRIGHTNESS_STOPPED);
-      float battPc = getBatteryPercentage(vescData.batteryVoltage);
-      footLightTask.lightStrip.showBatteryGraph(battPc);
+      float percent = getBatteryPercentage(vescData.batteryVoltage);
+      footLightTask.lightStrip.showBatteryGraph(percent);
       if (footLightTask.printStateChange)
-        Serial.printf("[TASK]:FootLight stopped/show battery %.1fv pc=%.1f%%\n", vescData.batteryVoltage, battPc);
+        Serial.printf("[TASK]:FootLight stopped/show battery %.1fv pc=%.1f%%\n", vescData.batteryVoltage, percent);
     }
     moving = vescData.moving;
   }
