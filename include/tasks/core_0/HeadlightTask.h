@@ -62,15 +62,20 @@ class HeadlightTask : public TaskBase
 public:
   bool printWarnings = true, printState = false;
 
+  enum OutputPortFunctionBits
+  {
+    LIGHT_FRONT = 7,
+    LIGHT_REAR = 15,
+  };
+
 private:
   Queue1::Manager<VescData> *vescDataQueue = nullptr;
-  Queue1::Manager<SimplMessageObj> *simplMsgQueue = nullptr;
-
-  SimplMessageObj _simplMsg;
+  Queue1::Manager<I2CPinsType> *i2cPinsQueue = nullptr;
 
   uint8_t lightState = LIGHTS_OFF;
 
   VescData vescData;
+  I2CPinsType m_i2cPins;
 
 public:
   HeadlightTask() : TaskBase("HeadlightTask", /*stacksize*/ 10000)
@@ -80,16 +85,21 @@ public:
   //------------------------------
   void turnLights(bool on)
   {
-    _simplMsg.message = on
-                            ? SIMPL_HEADLIGHT_ON
-                            : SIMPL_HEADLIGHT_OFF;
-    simplMsgQueue->send(&_simplMsg);
+    if (on)
+    {
+      BIT_SET(m_i2cPins.outputs, OutputPortFunctionBits::LIGHT_FRONT);
+      BIT_SET(m_i2cPins.outputs, OutputPortFunctionBits::LIGHT_REAR);
+    }
+    else
+    {
+      BIT_CLEAR(m_i2cPins.outputs, OutputPortFunctionBits::LIGHT_FRONT);
+      BIT_CLEAR(m_i2cPins.outputs, OutputPortFunctionBits::LIGHT_REAR);
+    }
+    i2cPinsQueue->send(&m_i2cPins);
   }
   //------------------------------
   void flashLights()
   {
-    _simplMsg.message = SIMPL_HEADLIGHT_FLASH;
-    simplMsgQueue->send(&_simplMsg);
   }
 
 private:
@@ -98,23 +108,16 @@ private:
   {
     vescDataQueue = createQueue<VescData>("(HeadlightTask) vescDataQueue");
     vescDataQueue->printMissedPacket = false; // happens a lot since slow doWorkInterval
-    simplMsgQueue = createQueue<SimplMessageObj>("(HeadlightTask) simplMsgQueue");
-    simplMsgQueue->printMissedPacket = true;
+    i2cPinsQueue = createQueue<I2CPinsType>("(HeadlightTask) i2cPinsQueue");
 
     using namespace nsHeadlightTask;
 
     fsm1 = new Fsm(&stateOff);
     fsm_mgr.begin(fsm1);
-    fsm_mgr.setPrintStateCallback(
-        [](uint16_t st)
-        {
-          Serial.printf("HeadlightTask state: %s\n", getState(st));
-        });
-    fsm_mgr.setPrintTriggerCallback(
-        [](uint16_t trigger)
-        {
-          Serial.printf("HeadlightTask trigger: %s\n", getEvent(trigger));
-        });
+    fsm_mgr.setPrintStateCallback(_printState);
+    fsm_mgr.setPrintTriggerCallback(_printTrigger);
+
+    m_i2cPins.inputs = 0x00;
 
     addTransitions();
   }
@@ -124,8 +127,8 @@ private:
     if (vescDataQueue->hasValue())
       _handleVescData(vescDataQueue->payload);
 
-    if (simplMsgQueue->hasValue())
-      _handleSimplMessage(simplMsgQueue->payload);
+    if (i2cPinsQueue->hasValue())
+      _handleI2CPins(i2cPinsQueue->payload);
 
     nsHeadlightTask::fsm_mgr.runMachine();
   }
@@ -133,7 +136,7 @@ private:
   void cleanup()
   {
     delete (vescDataQueue);
-    delete (simplMsgQueue);
+    delete (i2cPinsQueue);
   }
 
 private:
@@ -156,18 +159,33 @@ private:
     }
   }
   //------------------------------
-  void _handleSimplMessage(SimplMessageObj obj)
+  void _handleI2CPins(I2CPinsType &payload)
   {
     using namespace nsHeadlightTask;
 
-    _simplMsg = obj;
+    uint16_t og_i2cInputs = m_i2cPins.inputs;
+    m_i2cPins = payload;
 
-    if (_simplMsg.message == I2C_INPUT_7_PRESSED)
+    bool changed = og_i2cInputs != payload.inputs;
+    if (changed)
     {
-      fsm_mgr.trigger(Event::TOGGLE);
+      if (BIT_CHANGED(payload.inputs, og_i2cInputs, 7) && BIT_HIGH(payload.inputs, 7))
+      {
+        fsm_mgr.trigger(Event::TOGGLE);
+      }
     }
   }
+
   //------------------------------
+  static void _printState(uint16_t st)
+  {
+    Serial.printf("HeadlightTask state: %s\n", nsHeadlightTask::getState(st));
+  }
+
+  static void _printTrigger(uint16_t ev)
+  {
+    Serial.printf("HeadlightTask trigger: %s\n", nsHeadlightTask::getEvent(ev));
+  }
 };
 //========================================================================
 HeadlightTask headlightTask;
@@ -190,8 +208,9 @@ namespace nsHeadlightTask
 
   void stateOff_OnLoop()
   {
-    if (FEATURE_INACTIVITY_FLASH &&
-        sinceStopped > FEATURE_INACTIVITY_TIMEOUT_IN_SECONDS * SECONDS)
+    bool isInactive = sinceStopped > FEATURE_INACTIVITY_TIMEOUT_IN_SECONDS * SECONDS;
+
+    if (FEATURE_INACTIVITY_FLASH && isInactive)
       fsm_mgr.trigger(Event::INACTIVE);
   }
 

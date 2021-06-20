@@ -23,6 +23,7 @@ SemaphoreHandle_t mux_SPI = nullptr;
 #include <constants.h>
 #include <macros.h>
 #include <tasks/queues/types/ControllerClass.h>
+#include <tasks/queues/types/I2CPinsType.h>
 
 #include <TFT_eSPI.h>
 TFT_eSPI tft = TFT_eSPI(LCD_HEIGHT, LCD_WIDTH);
@@ -169,6 +170,7 @@ void createQueues()
   xControllerQueueHandle = xQueueCreate(1, sizeof(ControllerClass *));
   xVescQueueHandle = xQueueCreate(1, sizeof(VescData *));
   xSimplMessageQueue = xQueueCreate(1, sizeof(SimplMessageObj *));
+  xI2CPinsQueue = xQueueCreate(1, sizeof(I2CPinsType *));
 }
 
 #include <tasks/queues/QueueFactory.h>
@@ -192,7 +194,7 @@ void configureTasks()
   // footLightTask.printStateChange = true;
 #endif
 
-  headlightTask.doWorkIntervalSlow = PERIOD_500ms;
+  headlightTask.doWorkIntervalSlow = PERIOD_200ms;
   headlightTask.doWorkIntervalFast = PERIOD_50ms;
   headlightTask.priority = TASK_PRIORITY_1; // TODO disable when moving?
 

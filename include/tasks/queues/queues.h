@@ -5,6 +5,7 @@
 QueueHandle_t xControllerQueueHandle;
 QueueHandle_t xVescQueueHandle;
 QueueHandle_t xSimplMessageQueue;
+QueueHandle_t xI2CPinsQueue;
 
 enum SimplMessage
 {
