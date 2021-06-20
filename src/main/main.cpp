@@ -133,7 +133,7 @@ void loop()
 
 void addTaskToList(TaskBase *t)
 {
-  DEBUGMVAL("Adding task", t->_name);
+  Serial.printf("Adding task %s\n", t->_name);
   if (tasksCount < NUM_TASKS)
   {
     tasks[tasksCount++] = t;
@@ -169,7 +169,6 @@ void createQueues()
 {
   xControllerQueueHandle = xQueueCreate(1, sizeof(ControllerClass *));
   xVescQueueHandle = xQueueCreate(1, sizeof(VescData *));
-  xSimplMessageQueue = xQueueCreate(1, sizeof(SimplMessageObj *));
   xI2CPinsQueue = xQueueCreate(1, sizeof(I2CPinsType *));
 }
 

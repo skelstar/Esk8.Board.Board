@@ -16,10 +16,6 @@ Queue1::Manager<T> *createQueue(const char *name, TickType_t ticks = TICKS_5ms)
   {
     return new Queue1::Manager<T>(xVescQueueHandle, TICKS_5ms, name);
   }
-  if (std::is_same<T, SimplMessageObj>::value)
-  {
-    return new Queue1::Manager<T>(xSimplMessageQueue, TICKS_5ms, name);
-  }
   if (std::is_same<T, I2CPinsType>::value)
   {
     return new Queue1::Manager<T>(xI2CPinsQueue, TICKS_5ms, name);

@@ -15,7 +15,6 @@ namespace nsVescCommsTask
 
   // prototypes
   bool get_vesc_values(VescData &vescData);
-  void _handleSimplMessage(SimplMessageObj obj);
 }
 
 class VescCommsTask : public TaskBase
@@ -30,7 +29,6 @@ private:
 
   Queue1::Manager<ControllerData> *controllerQueue = nullptr;
   Queue1::Manager<VescData> *vescDataQueue = nullptr;
-  Queue1::Manager<SimplMessageObj> *simplMsgQueue = nullptr;
 
   VescData vescData;
 
@@ -54,8 +52,6 @@ private:
     vescDataQueue = createQueue<VescData>("(VescCommsTask) vescDataQueue");
     vescDataQueue->printMissedPacket = false;
 
-    simplMsgQueue = createQueue<SimplMessageObj>("(VescCommsTask) simplMsgQueue");
-
     nsVescCommsTask::vesc.init(VESC_UART_BAUDRATE);
   }
 
@@ -67,9 +63,6 @@ private:
     if (vescDataQueue->hasValue())
       // from MockTask maybe?
       vescData.moving = vescDataQueue->payload.moving;
-
-    if (simplMsgQueue->hasValue())
-      _handleSimplMessage(simplMsgQueue->payload);
 
     if (controllerQueue->hasValue())
       _handleControllerPacket(controllerQueue->payload);
@@ -131,19 +124,6 @@ private:
       }
       // reply immediately
       vescDataQueue->send(&vescData);
-    }
-  }
-
-  void _handleSimplMessage(SimplMessageObj obj)
-  {
-    if (obj.message == SIMPL_TOGGLE_MOCK_MOVING_LOOP)
-    {
-      mockMovingLoop = !mockMovingLoop;
-      Serial.printf("[VescCommsTask] mock moving is %s\n", mockMovingLoop ? "ON" : "OFF");
-#ifdef USE_M5STACK_DISPLAY
-      // TODO move this into M5StackDisplayTask
-      m5StackDisplayTask.enabled = !mockMovingLoop;
-#endif
     }
   }
 };
