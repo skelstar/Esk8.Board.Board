@@ -60,10 +60,6 @@ private:
 
   void doWork()
   {
-    if (vescDataQueue->hasValue())
-      // from MockTask maybe?
-      vescData.moving = vescDataQueue->payload.moving;
-
     if (controllerQueue->hasValue())
       _handleControllerPacket(controllerQueue->payload);
 

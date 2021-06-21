@@ -12,13 +12,14 @@
 
 #define FOOTLIGHT_NUM_PIXELS 10
 
-elapsedMillis sinceUpdatedBatteryGraph;
-
 //------------------------------------------------------------------
 namespace nsFootlightTask
 {
   // prototypes
-  void updateLights(const VescData &vescData);
+  void updateLights(bool moving, bool connected, float batteryVolts);
+  void addTransitions();
+
+  float batteryVolts;
 }
 //------------------------------------------------------------------
 
@@ -54,9 +55,11 @@ private:
   Queue1::Manager<VescData> *vescDataQueue = nullptr;
   Queue1::Manager<ControllerData> *controllerQueue = nullptr;
 
-  VescData m_vescData;
   ControllerData m_controllerData;
   elapsedMillis sinceLastControllerData = 1000;
+  elapsedMillis sinceUpdatedBatteryGraph;
+  VescData m_vescData;
+  bool m_controllerConnected = sinceLastControllerData > 500;
 
 public:
   FootLightTask() : TaskBase("FootLightTask", 3000)
@@ -75,6 +78,8 @@ private:
 
     lightStrip.initialise(FOOTLIGHT_PIXEL_PIN, FOOTLIGHT_NUM_PIXELS, FOOTLIGHT_BRIGHTNESS_STOPPED);
     lightStrip.setAll(lightStrip.COLOUR_DARK_RED);
+
+    nsFootlightTask::addTransitions();
   }
 
   void doWork()
@@ -87,12 +92,12 @@ private:
     if (controllerQueue->hasValue())
       _handleControllerData(controllerQueue->payload);
 
-    // bool connected = sinceLastControllerData > 400;
-
-    // if (connected)
-    //   nsFootlightTask::state = nsFootlightTask::DISCONNECTED;
-
-    updateLights(m_vescData);
+    if (sinceUpdatedBatteryGraph > 500)
+    {
+      sinceUpdatedBatteryGraph = 0;
+      bool connected = sinceLastControllerData < 500;
+      updateLights(m_vescData.moving, connected, m_vescData.batteryVoltage);
+    }
   }
 
   void cleanup()
@@ -102,9 +107,9 @@ private:
   }
 
 private:
-  void _handleVescData(const VescData &payload)
+  void _handleVescData(VescData &payload)
   {
-    m_vescData = vescDataQueue->payload;
+    m_vescData = payload;
   }
 
   void _handleControllerData(const ControllerData &payload)
@@ -119,6 +124,15 @@ namespace nsFootlightTask
 {
   elapsedMillis sinceUpdated = 0;
 
+  namespace
+  {
+    float m_batteryVoltage = 0.0;
+  }
+
+  // prototypes
+  void showBatteryLights(float batteryVoltage);
+  void blankBatteryLights();
+
   void task1(void *parameters)
   {
     footLightTask.task(parameters);
@@ -131,17 +145,82 @@ namespace nsFootlightTask
   uint8_t moving = UNKNOWN;
   uint8_t state = DISCONNECTED;
 
-  void updateLights(const VescData &vescData)
+  enum Trigger
   {
-    if (!vescData.moving || sinceUpdated > 1000)
-    {
-      sinceUpdated = 0;
-      footLightTask.lightStrip.setBrightness(FOOTLIGHT_BRIGHTNESS_STOPPED);
-      float percent = getBatteryPercentage(vescData.batteryVoltage);
-      footLightTask.lightStrip.showBatteryGraph(percent);
-      if (footLightTask.printStateChange)
-        Serial.printf("[TASK]:FootLight stopped/show battery %.1fv pc=%.1f%%\n", vescData.batteryVoltage, percent);
-    }
-    moving = vescData.moving;
+    TR_STOPPED,
+    TR_MOVING,
+    TR_DISCONNECTED,
+  };
+
+  State stateStopped(
+      []
+      {
+        Serial.printf("[State] Stopped\n");
+        showBatteryLights(m_batteryVoltage);
+      },
+      NULL, NULL);
+  State stateMoving(
+      []
+      {
+        Serial.printf("[State] Moving\n");
+      },
+      NULL, NULL);
+
+  bool showingBattVolts = true;
+
+  void stateDisconnected_onEnter()
+  {
+    Serial.printf("[State] Disconnceted\n");
+    if (showingBattVolts)
+      showBatteryLights(m_batteryVoltage);
+    else
+      blankBatteryLights();
+  }
+  void stateDisconnected_onExit()
+  {
+    showingBattVolts = !showingBattVolts; // toggle for next loop
+  }
+  State stateDisconnected(stateDisconnected_onEnter, NULL, stateDisconnected_onExit);
+
+  Fsm fsm1(&stateDisconnected);
+
+  void addTransitions()
+  {
+    fsm1.add_transition(&stateStopped, &stateMoving, TR_MOVING, NULL);
+    fsm1.add_transition(&stateMoving, &stateStopped, TR_STOPPED, NULL);
+
+    fsm1.add_transition(&stateStopped, &stateDisconnected, TR_DISCONNECTED, NULL);
+    fsm1.add_transition(&stateMoving, &stateDisconnected, TR_DISCONNECTED, NULL);
+
+    // toggle when in Disconnected state
+    fsm1.add_timed_transition(&stateDisconnected, &stateDisconnected, 1000, NULL);
+    fsm1.add_transition(&stateDisconnected, &stateStopped, TR_STOPPED, NULL);
+    fsm1.add_transition(&stateDisconnected, &stateMoving, TR_MOVING, NULL);
+  }
+
+  void showBatteryLights(float batteryVoltage)
+  {
+    footLightTask.lightStrip.setBrightness(FOOTLIGHT_BRIGHTNESS_STOPPED);
+    float percent = getBatteryPercentage(batteryVoltage);
+    footLightTask.lightStrip.showBatteryGraph(percent);
+  }
+  void blankBatteryLights()
+  {
+    const uint32_t BLACK = Adafruit_NeoPixel::Color(0, 0, 0, 0);
+    footLightTask.lightStrip.setAll(BLACK);
+  }
+
+  void updateLights(bool moving, bool connected, float batteryVolts)
+  {
+    m_batteryVoltage = batteryVolts;
+
+    if (connected == false)
+      fsm1.trigger(Trigger::TR_DISCONNECTED);
+    else if (moving)
+      fsm1.trigger(Trigger::TR_MOVING);
+    else
+      fsm1.trigger(Trigger::TR_STOPPED);
+
+    fsm1.run_machine();
   }
 }
