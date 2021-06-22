@@ -193,8 +193,8 @@ void configureTasks()
   // footLightTask.printStateChange = true;
 #endif
 
-  headlightTask.doWorkIntervalSlow = PERIOD_200ms;
-  headlightTask.doWorkIntervalFast = PERIOD_50ms;
+  // headlightTask.doWorkIntervalSlow = PERIOD_200ms;
+  headlightTask.doWorkIntervalFast = PERIOD_200ms;
   headlightTask.priority = TASK_PRIORITY_1; // TODO disable when moving?
 
 #ifdef I2COLED_TASK
@@ -202,7 +202,7 @@ void configureTasks()
   i2cOledTask.priority = TASK_PRIORITY_2;
 #endif
 
-  i2cPortExpTask.doWorkIntervalFast = PERIOD_100ms;
+  i2cPortExpTask.doWorkIntervalFast = PERIOD_200ms;
   i2cPortExpTask.priority = TASK_PRIORITY_0;
 
 #ifdef IMU_TASK

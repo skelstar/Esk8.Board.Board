@@ -155,7 +155,6 @@ namespace nsFootlightTask
   State stateStopped(
       []
       {
-        Serial.printf("[State] Stopped\n");
         showBatteryLights(m_batteryVoltage);
       },
       NULL, NULL);
@@ -170,7 +169,6 @@ namespace nsFootlightTask
 
   void stateDisconnected_onEnter()
   {
-    Serial.printf("[State] Disconnceted\n");
     if (showingBattVolts)
       showBatteryLights(m_batteryVoltage);
     else

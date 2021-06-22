@@ -125,6 +125,7 @@ private:
   void _handleI2CPins(const I2CPinsType &payload)
   {
     i2cPinsQueue->payload.print("I2CPortExpTask");
+    m_i2cPins = payload;
 
     if (take(mux_I2C, TICKS_50ms))
     {
