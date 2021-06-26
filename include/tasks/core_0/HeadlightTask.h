@@ -75,7 +75,6 @@ private:
   uint8_t lightState = LIGHTS_OFF;
 
   VescData vescData;
-  I2CPinsType m_i2cPins;
 
 public:
   HeadlightTask() : TaskBase("HeadlightTask", /*stacksize*/ 10000)
@@ -87,15 +86,15 @@ public:
   {
     if (on)
     {
-      BIT_SET(m_i2cPins.outputs, OutputPortFunctionBits::LIGHT_FRONT);
-      BIT_SET(m_i2cPins.outputs, OutputPortFunctionBits::LIGHT_REAR);
+      BIT_SET(i2cPinsQueue->payload.outputs, OutputPortFunctionBits::LIGHT_FRONT);
+      BIT_SET(i2cPinsQueue->payload.outputs, OutputPortFunctionBits::LIGHT_REAR);
     }
     else
     {
-      BIT_CLEAR(m_i2cPins.outputs, OutputPortFunctionBits::LIGHT_FRONT);
-      BIT_CLEAR(m_i2cPins.outputs, OutputPortFunctionBits::LIGHT_REAR);
+      BIT_CLEAR(i2cPinsQueue->payload.outputs, OutputPortFunctionBits::LIGHT_FRONT);
+      BIT_CLEAR(i2cPinsQueue->payload.outputs, OutputPortFunctionBits::LIGHT_REAR);
     }
-    i2cPinsQueue->send(&m_i2cPins);
+    i2cPinsQueue->sendPayload();
   }
   //------------------------------
   void flashLights()
@@ -117,7 +116,8 @@ private:
     fsm_mgr.setPrintStateCallback(_printState);
     fsm_mgr.setPrintTriggerCallback(_printTrigger);
 
-    m_i2cPins.inputs = 0x00;
+    i2cPinsQueue->payload.inputs = 0x00;
+    i2cPinsQueue->previous.inputs = 0x00;
 
     addTransitions();
   }
@@ -128,7 +128,7 @@ private:
       _handleVescData(vescDataQueue->payload);
 
     if (i2cPinsQueue->hasValue())
-      _handleI2CPins(i2cPinsQueue->payload);
+      _handleI2CPins();
 
     nsHeadlightTask::fsm_mgr.runMachine();
   }
@@ -159,17 +159,15 @@ private:
     }
   }
   //------------------------------
-  void _handleI2CPins(I2CPinsType &payload)
+  void _handleI2CPins()
   {
     using namespace nsHeadlightTask;
 
-    uint16_t og_i2cInputs = m_i2cPins.inputs;
-    m_i2cPins = payload;
-
-    bool changed = og_i2cInputs != payload.inputs;
+    bool changed = i2cPinsQueue->previous.inputs != i2cPinsQueue->payload.inputs;
     if (changed)
     {
-      if (BIT_CHANGED(payload.inputs, og_i2cInputs, 7) && BIT_HIGH(payload.inputs, 7))
+      if (BIT_CHANGED(i2cPinsQueue->payload.inputs, i2cPinsQueue->previous.inputs, 7) &&
+          BIT_HIGH(i2cPinsQueue->payload.inputs, 7))
       {
         fsm_mgr.trigger(Event::TOGGLE);
       }

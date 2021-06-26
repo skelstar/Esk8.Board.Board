@@ -55,8 +55,6 @@ private:
       _outputPinsFront = 0x00,
       _outputPinsRear = 0x00;
 
-  I2CPinsType m_i2cPins;
-
 public:
   I2CPortExp1Task() : TaskBase("I2CPortExp1Task", 3000)
   {
@@ -125,7 +123,6 @@ private:
   void _handleI2CPins(const I2CPinsType &payload)
   {
     i2cPinsQueue->payload.print("I2CPortExpTask");
-    m_i2cPins = payload;
 
     if (take(mux_I2C, TICKS_50ms))
     {
@@ -142,11 +139,11 @@ private:
     uint8_t latestFront = ~_readInputs(); // flip bits
 
     if (latestFront != ERROR_MUX_LOCKED &&
-        m_i2cPins.inputs != latestFront &&
+        i2cPinsQueue->payload.inputs != latestFront &&
         latestFront != ALL_ON_CONDIITION)
     {
-      m_i2cPins.inputs = latestFront;
-      i2cPinsQueue->send(&m_i2cPins);
+      i2cPinsQueue->payload.inputs = latestFront;
+      i2cPinsQueue->sendPayload();
     }
   }
 
