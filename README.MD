@@ -1,23 +1,3 @@
-## Cores
-
-### Core 0
-lightTask_0
-- xLightsEventQueue
-
-### Core 1
-loop
-- nrf24L01 loop()
-- button0.loop() // if enabled
-- vesc_update() // try_get_values_from_vesc()
-- packetReceive() // from controller
-  - manage_throttle() // smoothing?
-  - send_to_vesc()
-  - handle_request
-    - send_packet_to_controller()
-        - send_with_retries()
-- send_packet_to_controller()
-
-
 # Tasks
 
 ## ControllerCommsTask
@@ -33,10 +13,6 @@ loop
 - when rx controller packet, send throttle data to Vesc
   - "respond" by using the vescDataQueue (with updated data)
   - this will give illusion of the round trip
-
-
-
-
 
 # TTGO T-Display
 
