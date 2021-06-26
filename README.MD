@@ -17,6 +17,27 @@ loop
         - send_with_retries()
 - send_packet_to_controller()
 
+
+# Tasks
+
+## ControllerCommsTask
+- when controller packet available (polled)
+  - put packet on controllerData queue
+- watch the vescData queue for the response... 
+  - vescData queue will have the updated data from the Vesc (fetched just previously)
+  - should match the controller packet id
+
+## VescCommsTask
+- a short time before before getting controller packet on queue (50ms?), fetch the Vesc data
+  - put Vesc data in the local vescDataQueue payload, ready to send
+- when rx controller packet, send throttle data to Vesc
+  - "respond" by using the vescDataQueue (with updated data)
+  - this will give illusion of the round trip
+
+
+
+
+
 # TTGO T-Display
 
 ![image](https://github.com/Xinyuan-LilyGO/TTGO-T-Display/blob/master/image/pinmap.jpg)
