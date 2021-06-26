@@ -22,7 +22,8 @@ class VescCommsTask : public TaskBase
 public:
   bool printWarnings = true,
        printReadFromVesc = false,
-       printSentToVesc = false;
+       printSentToVesc = false,
+       printQueues = true;
 
 private:
   // BatteryInfo Prototype;
@@ -33,8 +34,9 @@ private:
   bool mockMovingLoop = false;
   unsigned long lastControllerPacketId = 0;
 
-  elapsedMillis sinceLastMock, sinceReadFromVesc, sinceControllerPacket;
+  elapsedMillis sinceGotVesc, sinceHandledControllerPacket;
   const ulong mockMovinginterval = 5000;
+  unsigned long whenGotVesc = 0, _sendInterval = 200;
 
 public:
   VescCommsTask() : TaskBase("VescCommsTask", 5000)
@@ -54,23 +56,14 @@ private:
     nsVescCommsTask::vesc.init(VESC_UART_BAUDRATE);
   }
 
-#define IGNORE_X_AXIS 127
-#define IGNORE_UPPER_BUTTON 0
-
   void doWork()
   {
-    if (controllerQueue->hasValue(PRINT_THIS))
-      // sends throttle to VESC
-      // sends details to vescQueue
+    if (controllerQueue->hasValue(printQueues))
       _handleControllerPacket(controllerQueue->payload);
 
-    // TODO sync receiving controller packet with when to go get Vesc packet
-    if (sinceReadFromVesc > controllerQueue->payload.sendInterval)
-    {
-      sinceReadFromVesc = 0;
-      _readFromVesc();
-    }
-  } // doWork
+    if (sinceGotVesc > _sendInterval)
+      _updateDataFromVesc();
+  }
 
   void cleanup()
   {
@@ -78,60 +71,64 @@ private:
     delete (vescDataQueue);
   }
 
-  void _readFromVesc()
+  void _updateDataFromVesc()
   {
+    sinceGotVesc = 0;
+
     if (SEND_TO_VESC == 0)
       return;
 
     // half the packet are successful (right length), speed/interval makes no difference
     bool success = nsVescCommsTask::get_vesc_values(vescDataQueue->payload);
-    if (success)
-    {
-      vescDataQueue->sendPayload();
-    }
 
+    Serial.printf("------------------------------\n");
     if (printReadFromVesc)
-      vescDataQueue->payload.printThis("[VescCommsTask] _readFromVesc ");
+    {
+      vescDataQueue->payload.print(_name, __func__);
+    }
   }
+
+#define GET_VESC_TIME_BEFORE_CONTROLLER_PACKET_MS 50
 
   // - maps data to vescData
   // - send throttle (vescData) to VESC
-  // - send to queue
-  void _handleControllerPacket(const ControllerData &packet)
+  // - send to queue (with updated values)
+  void _handleControllerPacket(ControllerData &packet)
   {
-    sinceControllerPacket = 0;
+    sinceHandledControllerPacket = 0;
+    _sendInterval = packet.sendInterval;
+    // make sure gets from Vesc 100ms before controller packet arrives
+    sinceGotVesc = GET_VESC_TIME_BEFORE_CONTROLLER_PACKET_MS;
+
+    if (SEND_TO_VESC == 1)
+    {
+#define IGNORE_X_AXIS 127
+#define IGNORE_UPPER_BUTTON 0
+      // sends throttle to VESC
+      nsVescCommsTask::vesc.setNunchuckValues(IGNORE_X_AXIS, /*y*/ packet.throttle, /*cruise*/ packet.cruise_control, IGNORE_UPPER_BUTTON);
+
+      if (printSentToVesc)
+        packet.print(_name, __func__);
+    }
+    else
+    {
+      _mockMoving(packet);
+    }
 
     vescDataQueue->payload.id = packet.id;
     vescDataQueue->payload.txTime = packet.txTime;
     vescDataQueue->payload.version = VERSION;
 
-    Serial.printf("[TASK]BoardCommsTask _handleControllerPacket ");
-    Serial.printf("packet_id: %lu ", packet.id);
-    Serial.printf("event_id: %lu ", packet.event_id);
-    Serial.printf("interval: %lu ", packet.sendInterval);
-    Serial.println();
+    vescDataQueue->sendPayload(printQueues); // should contain updated data from Vesc
+  }
 
-    if (SEND_TO_VESC == 1)
-    {
-      // sends throttle to VESC
-      nsVescCommsTask::vesc.setNunchuckValues(IGNORE_X_AXIS, /*y*/ packet.throttle, /*cruise*/ packet.cruise_control, IGNORE_UPPER_BUTTON);
-
-      if (printSentToVesc)
-        Serial.printf("[TASK](VescCommsTask) sending throttle=%d cruise=%d\n", packet.throttle, packet.cruise_control);
-
-      vescDataQueue->sendPayload();
-    }
-    else
-    {
-      // TODO move mock stuff into sep file?
-      // if (mockMovingLoop && sinceLastMock > mockMovinginterval)
-      // {
-      //   sinceLastMock = 0;
-      //   vescDataQueue->payload.moving = !vescDataQueue->payload.moving;
-      // }
-      // reply immediately
-      vescDataQueue->sendPayload();
-    }
+  void _mockMoving(ControllerData payload)
+  {
+    // if (mockMovingLoop && sinceLastMock > mockMovinginterval)
+    // {
+    //   sinceLastMock = 0;
+    //   vescDataQueue->payload.moving = !vescDataQueue->payload.moving;
+    // }
   }
 };
 

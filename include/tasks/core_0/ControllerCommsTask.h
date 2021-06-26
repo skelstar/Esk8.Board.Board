@@ -20,7 +20,8 @@ class ControllerCommsTask : public TaskBase
 {
 public:
   bool printRadioDetails = true,
-       printRxFromController = false;
+       printRxFromController = false,
+       printQueues = false;
 
   GenericClient<VescData, ControllerData> *controllerClient;
 
@@ -77,7 +78,7 @@ private:
     controllerClient->update();
 
     // reply to controller on queue
-    if (vescDataQueue->hasValue())
+    if (vescDataQueue->hasValue(printQueues))
       _handleVescData(vescDataQueue->payload);
   }
 
@@ -92,22 +93,16 @@ private:
   {
     // send to controller
     payload.version = VERSION;
-    payload.reason = _getReasonForSending();
+    payload.reason = _numPacketsSentToController == 0
+                         ? ReasonType::FIRST_PACKET
+                         : ReasonType::RESPONSE;
 
-    Serial.printf("[TASK]ControllerCommsTask _handleVescData() event_id: %lu \n", payload.event_id);
+    payload.print(_name, __func__);
 
     bool success = controllerClient->sendTo(Packet::CONTROL, payload);
 
     if (success)
       _numPacketsSentToController++;
-  }
-
-  //-----------------------------
-  ReasonType _getReasonForSending()
-  {
-    if (_numPacketsSentToController == 0)
-      return ReasonType::FIRST_PACKET;
-    return ReasonType::RESPONSE;
   }
 };
 
@@ -115,6 +110,9 @@ ControllerCommsTask ctrlrCommsTask;
 
 namespace nsControllerCommsTask
 {
+  // prototypes
+  void _saveClientData(ControllerData &clientData);
+
   void task1(void *parameters)
   {
     ctrlrCommsTask.task(parameters);
@@ -126,20 +124,26 @@ namespace nsControllerCommsTask
   {
     if (type == Packet::CONTROL)
     {
-      // TODO try a local copy that updates OG using pointer
       ControllerData clientData = ctrlrCommsTask.controllerClient->read();
-      ctrlrCommsTask.controllerQueue->payload.id = clientData.id;
-      ctrlrCommsTask.controllerQueue->payload.cruise_control = clientData.cruise_control;
-      ctrlrCommsTask.controllerQueue->payload.throttle = clientData.throttle;
-      ctrlrCommsTask.controllerQueue->payload.txTime = clientData.txTime;
-      ctrlrCommsTask.controllerQueue->payload.sendInterval = clientData.sendInterval;
+      _saveClientData(clientData);
 
-      ctrlrCommsTask.controllerQueue->sendPayload(PRINT_THIS);
+      ctrlrCommsTask.controllerQueue->sendPayload(ctrlrCommsTask.printQueues);
 
       if (ctrlrCommsTask.printRxFromController)
-        ControllerData::print(ctrlrCommsTask.controllerQueue->payload, "-------------------------------------------\n[controllerPacketAvailable_cb]-->");
+        ctrlrCommsTask.controllerQueue->payload.print(ctrlrCommsTask._name, __func__);
 
       vTaskDelay(TICKS_5ms);
     }
+  }
+
+  void _saveClientData(ControllerData &clientData)
+  {
+    // make sure not to over-write the event_id
+    ctrlrCommsTask.controllerQueue->payload.id = clientData.id;
+    ctrlrCommsTask.controllerQueue->payload.cruise_control = clientData.cruise_control;
+    ctrlrCommsTask.controllerQueue->payload.throttle = clientData.throttle;
+    ctrlrCommsTask.controllerQueue->payload.txTime = clientData.txTime;
+    ctrlrCommsTask.controllerQueue->payload.sendInterval = clientData.sendInterval;
+    return;
   }
 }
