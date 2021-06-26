@@ -185,7 +185,7 @@ void configureTasks()
 
   ctrlrCommsTask.doWorkIntervalFast = PERIOD_10ms;
   ctrlrCommsTask.priority = TASK_PRIORITY_4;
-  // ctrlrCommsTask.printRxFromController = true;
+  ctrlrCommsTask.printRxFromController = true;
 
 #ifdef FOOTLIGHT_TASK
   footLightTask.doWorkIntervalFast = PERIOD_100ms;
@@ -221,8 +221,8 @@ void configureTasks()
 
   vescCommsTask.doWorkIntervalFast = PERIOD_20ms;
   vescCommsTask.priority = TASK_PRIORITY_3;
-  // vescCommsTask.printReadFromVesc = true;
-  // vescCommsTask.printSentToVesc = true;
+  vescCommsTask.printReadFromVesc = true;
+  vescCommsTask.printSentToVesc = true;
 }
 
 #define USE_M5STACK_DISPLAY 0
