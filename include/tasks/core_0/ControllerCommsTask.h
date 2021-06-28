@@ -97,8 +97,6 @@ private:
                          ? ReasonType::FIRST_PACKET
                          : ReasonType::RESPONSE;
 
-    payload.print(_name, __func__);
-
     bool success = controllerClient->sendTo(Packet::CONTROL, payload);
 
     if (success)
@@ -128,6 +126,10 @@ namespace nsControllerCommsTask
       _saveClientData(clientData);
 
       ctrlrCommsTask.controllerQueue->sendPayload(ctrlrCommsTask.printQueues);
+
+      if (PRINT_THROTTLE)
+        Serial.printf("[ControllerTask] throttle:%d %s \n",
+                      clientData.throttle, clientData.cruise_control ? "CRUISE" : "");
 
       if (ctrlrCommsTask.printRxFromController)
         ctrlrCommsTask.controllerQueue->payload.print(ctrlrCommsTask._name, __func__);

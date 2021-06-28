@@ -23,7 +23,7 @@ public:
   bool printWarnings = true,
        printReadFromVesc = false,
        printSentToVesc = false,
-       printQueues = true;
+       printQueues = false;
 
 private:
   // BatteryInfo Prototype;
@@ -81,11 +81,9 @@ private:
     // half the packet are successful (right length), speed/interval makes no difference
     bool success = nsVescCommsTask::get_vesc_values(vescDataQueue->payload);
 
-    Serial.printf("------------------------------\n");
+    // Serial.printf("------------------------------\n");
     if (printReadFromVesc)
-    {
       vescDataQueue->payload.print(_name, __func__);
-    }
   }
 
 #define GET_VESC_TIME_BEFORE_CONTROLLER_PACKET_MS 50
@@ -108,7 +106,7 @@ private:
       nsVescCommsTask::vesc.setNunchuckValues(IGNORE_X_AXIS, /*y*/ packet.throttle, /*cruise*/ packet.cruise_control, IGNORE_UPPER_BUTTON);
 
       if (printSentToVesc)
-        packet.print(_name, __func__);
+        packet.print("[Sending to VESC]");
     }
     else
     {
