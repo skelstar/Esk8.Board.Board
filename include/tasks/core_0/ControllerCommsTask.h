@@ -20,9 +20,8 @@ class ControllerCommsTask : public TaskBase
 {
 public:
   bool printRadioDetails = true,
-       printRxFromController = false;
-
-  elapsedMillis since_got_packet_from_controller = 0;
+       printRxFromController = false,
+       printQueues = false;
 
   GenericClient<VescData, ControllerData> *controllerClient;
 
@@ -79,17 +78,8 @@ private:
     controllerClient->update();
 
     // reply to controller on queue
-    if (vescDataQueue->hasValue())
-    {
-      // send to controller
-      vescDataQueue->payload.version = VERSION;
-      vescDataQueue->payload.reason = _getReasonForSending();
-
-      bool success = controllerClient->sendTo(Packet::CONTROL, vescDataQueue->payload);
-
-      if (success)
-        _numPacketsSentToController++;
-    }
+    if (vescDataQueue->hasValue(printQueues))
+      _handleVescData(vescDataQueue->payload);
   }
 
   void cleanup()
@@ -99,12 +89,18 @@ private:
     delete (vescDataQueue);
   }
 
-  //-----------------------------
-  ReasonType _getReasonForSending()
+  void _handleVescData(VescData &payload)
   {
-    if (_numPacketsSentToController == 0)
-      return ReasonType::FIRST_PACKET;
-    return ReasonType::RESPONSE;
+    // send to controller
+    payload.version = VERSION;
+    payload.reason = _numPacketsSentToController == 0
+                         ? ReasonType::FIRST_PACKET
+                         : ReasonType::RESPONSE;
+
+    bool success = controllerClient->sendTo(Packet::CONTROL, payload);
+
+    if (success)
+      _numPacketsSentToController++;
   }
 };
 
@@ -112,6 +108,9 @@ ControllerCommsTask ctrlrCommsTask;
 
 namespace nsControllerCommsTask
 {
+  // prototypes
+  void _saveClientData(ControllerData &clientData);
+
   void task1(void *parameters)
   {
     ctrlrCommsTask.task(parameters);
@@ -121,25 +120,32 @@ namespace nsControllerCommsTask
 
   void controllerPacketAvailable_cb(uint16_t from_id, uint8_t type)
   {
-    ctrlrCommsTask.since_got_packet_from_controller = 0;
-
     if (type == Packet::CONTROL)
     {
-      ControllerData controllerPacket = ctrlrCommsTask.controllerClient->read();
+      ControllerData clientData = ctrlrCommsTask.controllerClient->read();
+      _saveClientData(clientData);
 
-      sendPacket.id = controllerPacket.id;
-      sendPacket.throttle = controllerPacket.throttle;
-      sendPacket.txTime = controllerPacket.txTime;
+      ctrlrCommsTask.controllerQueue->sendPayload(ctrlrCommsTask.printQueues);
 
-      ctrlrCommsTask.controllerQueue->send(&sendPacket);
-
-      if (controllerPacket.throttle == 255)
-        ControllerData::print(controllerPacket, "[controllerPacketAvailable_cb]-->");
+      if (PRINT_THROTTLE)
+        Serial.printf("[ControllerTask] throttle:%d %s \n",
+                      clientData.throttle, clientData.cruise_control ? "CRUISE" : "");
 
       if (ctrlrCommsTask.printRxFromController)
-        ControllerData::print(sendPacket, "[controllerPacketAvailable_cb]-->");
+        ctrlrCommsTask.controllerQueue->payload.print(ctrlrCommsTask._name, __func__);
 
       vTaskDelay(TICKS_5ms);
     }
+  }
+
+  void _saveClientData(ControllerData &clientData)
+  {
+    // make sure not to over-write the event_id
+    ctrlrCommsTask.controllerQueue->payload.id = clientData.id;
+    ctrlrCommsTask.controllerQueue->payload.cruise_control = clientData.cruise_control;
+    ctrlrCommsTask.controllerQueue->payload.throttle = clientData.throttle;
+    ctrlrCommsTask.controllerQueue->payload.txTime = clientData.txTime;
+    ctrlrCommsTask.controllerQueue->payload.sendInterval = clientData.sendInterval;
+    return;
   }
 }

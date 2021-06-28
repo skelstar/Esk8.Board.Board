@@ -23,6 +23,7 @@ SemaphoreHandle_t mux_SPI = nullptr;
 #include <constants.h>
 #include <macros.h>
 #include <tasks/queues/types/ControllerClass.h>
+#include <tasks/queues/types/I2CPinsType.h>
 
 #include <TFT_eSPI.h>
 TFT_eSPI tft = TFT_eSPI(LCD_HEIGHT, LCD_WIDTH);
@@ -132,7 +133,7 @@ void loop()
 
 void addTaskToList(TaskBase *t)
 {
-  DEBUGMVAL("Adding task", t->_name);
+  Serial.printf("Adding task %s\n", t->_name);
   if (tasksCount < NUM_TASKS)
   {
     tasks[tasksCount++] = t;
@@ -168,7 +169,7 @@ void createQueues()
 {
   xControllerQueueHandle = xQueueCreate(1, sizeof(ControllerClass *));
   xVescQueueHandle = xQueueCreate(1, sizeof(VescData *));
-  xSimplMessageQueue = xQueueCreate(1, sizeof(SimplMessageObj *));
+  xI2CPinsQueue = xQueueCreate(1, sizeof(I2CPinsType *));
 }
 
 #include <tasks/queues/QueueFactory.h>
@@ -185,6 +186,7 @@ void configureTasks()
   ctrlrCommsTask.doWorkIntervalFast = PERIOD_10ms;
   ctrlrCommsTask.priority = TASK_PRIORITY_4;
   // ctrlrCommsTask.printRxFromController = true;
+  // ctrlrCommsTask.printQueues = true;
 
 #ifdef FOOTLIGHT_TASK
   footLightTask.doWorkIntervalFast = PERIOD_100ms;
@@ -192,8 +194,8 @@ void configureTasks()
   // footLightTask.printStateChange = true;
 #endif
 
-  headlightTask.doWorkIntervalSlow = PERIOD_500ms;
-  headlightTask.doWorkIntervalFast = PERIOD_50ms;
+  // headlightTask.doWorkIntervalSlow = PERIOD_200ms;
+  headlightTask.doWorkIntervalFast = PERIOD_200ms;
   headlightTask.priority = TASK_PRIORITY_1; // TODO disable when moving?
 
 #ifdef I2COLED_TASK
@@ -201,7 +203,7 @@ void configureTasks()
   i2cOledTask.priority = TASK_PRIORITY_2;
 #endif
 
-  i2cPortExpTask.doWorkIntervalFast = PERIOD_100ms;
+  i2cPortExpTask.doWorkIntervalFast = PERIOD_200ms;
   i2cPortExpTask.priority = TASK_PRIORITY_0;
 
 #ifdef IMU_TASK
@@ -222,6 +224,7 @@ void configureTasks()
   vescCommsTask.priority = TASK_PRIORITY_3;
   // vescCommsTask.printReadFromVesc = true;
   // vescCommsTask.printSentToVesc = true;
+  // vescCommsTask.printQueues = true;
 }
 
 #define USE_M5STACK_DISPLAY 0

@@ -36,7 +36,8 @@
     "vector": "cpp",
     "initializer_list": "cpp",
     "type_traits": "cpp",
-    "typeinfo": "cpp"
+    "typeinfo": "cpp",
+    "new": "cpp"
   },
   "peacock.color": "#1f0452",
   "python.autoComplete.extraPaths": [

@@ -11,7 +11,6 @@
 namespace nsI2CPortExp1Task
 {
   // prototypes
-  void _handleSimplMessage(SimplMessageObj obj);
 }
 
 class I2CPortExp1Task : public TaskBase
@@ -32,8 +31,7 @@ public:
   };
 
 private:
-  Queue1::Manager<SimplMessageObj> *simplMsgQueue = nullptr;
-  SimplMessageObj _simplMsg;
+  Queue1::Manager<I2CPinsType> *i2cPinsQueue = nullptr;
   elapsedMillis _sinceInitialised;
   bool initialClearedPorts = false;
 
@@ -53,9 +51,9 @@ private:
   MCP23017 portExpFront = MCP23017(FRONT_EXP_ADDR);
   MCP23017 portExpRear = MCP23017(REAR_EXP_ADDR);
 
-  uint8_t _inputPins = 0x00,
-          _outputPinsFront = 0x00,
-          _outputPinsRear = 0x00;
+  uint8_t //_inputPins = 0x00,
+      _outputPinsFront = 0x00,
+      _outputPinsRear = 0x00;
 
 public:
   I2CPortExp1Task() : TaskBase("I2CPortExp1Task", 3000)
@@ -89,9 +87,8 @@ private:
       give(mux_I2C);
     }
 
-    simplMsgQueue = createQueue<SimplMessageObj>("(I2CPortExp1Task) simplMsgQueue");
-    simplMsgQueue->printMissedPacket = true;
-    _simplMsg.setGetMessageCallback(getSimplMessage);
+    i2cPinsQueue = createQueue<I2CPinsType>("(I2CPortExp1Task) i2cPinsQueue");
+    i2cPinsQueue->printMissedPacket = true;
 
     _sinceInitialised = 0;
   }
@@ -102,19 +99,10 @@ private:
 
   void doWork()
   {
-    if (simplMsgQueue->hasValue())
-      _handleSimplMessage(simplMsgQueue->payload);
+    if (i2cPinsQueue->hasValue())
+      _handleI2CPins(i2cPinsQueue->payload);
 
-    checkExp1Inputs();
-
-    if (flashingOutput && sinceStartedFlashing > FLASH_DURATION)
-    {
-      _clearOutputPortPin(ExpanderDevice::FRONT, LIGHT_PIN);
-      _clearOutputPortPin(ExpanderDevice::REAR, LIGHT_PIN);
-      //cleanup
-      flashingOutput = false;
-      sinceStartedFlashing = 0;
-    }
+    updateInputs();
 
     if (!initialClearedPorts && _sinceInitialised > PERIOD_1s)
     {
@@ -128,46 +116,34 @@ private:
 
   void cleanup()
   {
-    delete (simplMsgQueue);
+    delete (i2cPinsQueue);
   }
 
 private:
-  void _handleSimplMessage(SimplMessageObj obj)
+  void _handleI2CPins(const I2CPinsType &payload)
   {
-    _simplMsg = obj;
-    _simplMsg.setGetMessageCallback(getSimplMessage);
+    i2cPinsQueue->payload.print("I2CPortExpTask");
 
-    switch (_simplMsg.message)
+    if (take(mux_I2C, TICKS_50ms))
     {
-    case SIMPL_HEADLIGHT_ON:
-      _setOutputPortPin(ExpanderDevice::FRONT, LIGHT_PIN);
-      _setOutputPortPin(ExpanderDevice::REAR, LIGHT_PIN);
-      break;
-    case SIMPL_HEADLIGHT_OFF:
-      _clearOutputPortPin(ExpanderDevice::FRONT, LIGHT_PIN);
-      _clearOutputPortPin(ExpanderDevice::REAR, LIGHT_PIN);
-      break;
-    case SIMPL_HEADLIGHT_FLASH:
-      // turn on, off later
-      _setOutputPortPin(ExpanderDevice::FRONT, LIGHT_PIN);
-      _setOutputPortPin(ExpanderDevice::REAR, LIGHT_PIN);
-      flashingOutput = true;
-      sinceStartedFlashing = 0;
+      portExpFront.writePort(MCP23017Port::A, (uint8_t)payload.outputs);
+      portExpRear.writePort(MCP23017Port::A, (uint8_t)(payload.outputs >> 8));
+      give(mux_I2C);
     }
-    // _simplMsg.print("[Task: I2CPortExpTask]");
   }
 
-  void checkExp1Inputs()
+  void updateInputs()
   {
-    uint8_t latestFront = _readInputs();
-    if (latestFront != ERROR_MUX_LOCKED && _inputPins != latestFront)
+    const uint8_t ALL_ON_CONDIITION = 0xff;
+
+    uint8_t latestFront = ~_readInputs(); // flip bits
+
+    if (latestFront != ERROR_MUX_LOCKED &&
+        i2cPinsQueue->payload.inputs != latestFront &&
+        latestFront != ALL_ON_CONDIITION)
     {
-      if (CHECK_BIT_LOW(latestFront, PIN_7))
-      {
-        _simplMsg.message = I2C_INPUT_7_PRESSED; // light switch?
-        simplMsgQueue->send(&_simplMsg);
-      }
-      _inputPins = latestFront;
+      i2cPinsQueue->payload.inputs = latestFront;
+      i2cPinsQueue->sendPayload();
     }
   }
 
